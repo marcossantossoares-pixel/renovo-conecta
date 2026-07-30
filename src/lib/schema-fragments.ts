@@ -20,14 +20,36 @@ export const optionalText = z
   .nullable();
 
 /**
+ * A data ISO existe no calendário?
+ *
+ * ⚠️ `Number.isNaN(new Date(...).getTime())` **não** responde isso, e essa foi a
+ * armadilha: `new Date('2026-02-31T00:00:00Z')` não devolve data inválida — o
+ * motor transborda para 3 de março e segue em frente. A checagem por `NaN` só
+ * pega o que é impossível de interpretar, como mês 13.
+ *
+ * O jeito certo é o que `brDateToIso` já usava: montar a data e conferir se as
+ * três partes voltaram como entraram. Se o dia transbordou o mês, não voltam.
+ */
+function isoExisteNoCalendario(valor: string): boolean {
+  const [ano, mes, dia] = valor.split('-').map(Number) as [number, number, number];
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+
+  return (
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia
+  );
+}
+
+/**
  * Data em `dd/mm/aaaa` (o que o campo mascarado produz) ou em ISO (o que vem de
  * um parâmetro de URL ou de um teste). Sai sempre em ISO, que é o que o
  * PostgreSQL espera.
  *
- * O ramo ISO confere `Number.isNaN` porque a expressão regular só garante a
- * **forma**: `2026-02-31` casa com `\d{4}-\d{2}-\d{2}` e não existe no
- * calendário. Sem a checagem, ela seguiria para o banco e viraria erro de
- * constraint em vez de mensagem legível.
+ * Os dois ramos conferem o calendário, e não só a forma: `2026-02-31` casa com
+ * `\d{4}-\d{2}-\d{2}` e não existe. Sem a checagem, viraria 3 de março em
+ * silêncio — pior que um erro, porque o relatório ficaria gravado na data
+ * errada e ninguém teria como perceber.
  */
 export const optionalDate = z
   .string()
@@ -36,10 +58,11 @@ export const optionalDate = z
     if (valor.length === 0) return null;
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-      const data = new Date(`${valor}T00:00:00Z`);
-
-      if (Number.isNaN(data.getTime())) {
-        ctx.addIssue({ code: 'custom', message: 'Data inválida.' });
+      if (!isoExisteNoCalendario(valor)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Esta data não existe no calendário.',
+        });
         return z.NEVER;
       }
 

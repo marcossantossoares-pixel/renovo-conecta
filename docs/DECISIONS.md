@@ -65,6 +65,18 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-07-30 — ADR-007: PDF do relatório pela folha de impressão do navegador
+
+- **Contexto:** a Fase 8 precisa exportar o relatório semanal em PDF (`MASTER_SPEC` §4.6). O XLSX já tem a `write-excel-file` pela ADR-006; para PDF não havia equivalente escolhido.
+- **Decisão:** o PDF sai de uma **folha de estilo `@media print`** e da impressão do próprio navegador. Nenhuma dependência nova.
+- **Alternativas consideradas:**
+  - **Biblioteca no servidor** (pdf-lib, react-pdf) — geraria o arquivo sem interação, o que serviria para lote e para envio automático futuro. Custo: mais uma dependência para auditar e o layout mantido em dois lugares, tela e PDF, livres para divergir. **Descartado para o MVP.**
+  - **Serviço externo de renderização** — acrescentaria um operador que receberia dados pessoais dos encontros, ampliando o escopo de LGPD por uma conveniência. **Descartado.**
+- **Consequências:** o PDF acompanha o design system sem trabalho extra, porque é a mesma tela. Em troca, a exportação depende de o usuário acionar a impressão: **não há geração em lote nem agendada**. Se a igreja passar a querer o PDF enviado automaticamente — o "envio pelo WhatsApp" que a §4.6 deixa para depois —, esta decisão precisa ser revista, e é o gatilho registrado para isso.
+- **Status:** aprovada.
+
+---
+
 ## 2026-07-25 — ADR-005: TypeScript 6, e não a versão `latest`
 
 - **Contexto:** na Fase 1, o `latest` do TypeScript no npm era a versão **7.0.2** (a reescrita nativa do compilador). A §6 do `MASTER_SPEC.md` pede que se verifiquem as versões estáveis atuais antes de iniciar.

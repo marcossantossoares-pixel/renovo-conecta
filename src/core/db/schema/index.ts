@@ -1,10 +1,10 @@
 /**
  * Schema do banco (Drizzle).
  *
- * Escopo da Fase 3: o **núcleo** — tenancy, identidade, controle de acesso,
- * Elos, auditoria e arquivos. Relatórios semanais, estudos, consentimentos e
- * solicitações do titular entram junto com as fases que os implementam
- * (docs/ROADMAP.md).
+ * Núcleo da Fase 3 — tenancy, identidade, controle de acesso, Elos, auditoria e
+ * arquivos — mais o que as fases seguintes acrescentaram: os relatórios
+ * semanais entraram na Fase 8. Estudos, consentimentos e solicitações do
+ * titular entram junto com as fases que os implementam (docs/ROADMAP.md).
  *
  * Ao adicionar uma tabela aqui, ela precisa obrigatoriamente:
  *   - carregar `tenant_id` e `congregation_id` (ADR-002);
@@ -19,5 +19,6 @@ export * from './tenancy';
 export * from './identity';
 export * from './access';
 export * from './elos';
+export * from './reports';
 export * from './audit';
 export * from './auth';

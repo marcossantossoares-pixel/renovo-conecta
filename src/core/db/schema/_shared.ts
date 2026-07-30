@@ -100,6 +100,23 @@ export const joinRequestOriginEnum = pgEnum('join_request_origin', [
   'publico',
 ]);
 
+/**
+ * Situação do relatório semanal (`MASTER_SPEC` §4.6, Fluxo 6).
+ *
+ * `rascunho` existe no tipo mas **não** no banco no MVP: o rascunho vive no
+ * dispositivo até o envio (ADR-004), e só chega aqui como `enviado`. O valor
+ * fica reservado porque a alternativa — acrescentá-lo a um `enum` com dados em
+ * produção quando o rascunho passar a ser servidor — é justamente o que a
+ * reserva de `publico` em `join_request_origin` já evitou uma vez.
+ */
+export const reportStatusEnum = pgEnum('report_status', [
+  'rascunho',
+  'enviado',
+  'aprovado',
+  'correcao_solicitada',
+  'reaberto',
+]);
+
 /** Escopo de uma atribuição de papel. Ver docs/PERMISSIONS.md §2. */
 export const scopeTypeEnum = pgEnum('scope_type', [
   'global',

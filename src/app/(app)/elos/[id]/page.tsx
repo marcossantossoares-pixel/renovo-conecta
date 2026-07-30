@@ -27,6 +27,7 @@ import {
   WEEKDAY_LABELS,
 } from '@/modules/elos/schemas';
 import { getEloForViewer } from '@/modules/elos/service';
+import { canSubmitReport } from '@/modules/reports/service';
 import type { PersonOption } from '@/modules/people/schemas';
 import { listPersonOptions } from '@/modules/people/service';
 import { DeleteElo } from './delete-elo';
@@ -69,6 +70,7 @@ export default async function EloPage({ params }: { params: Promise<{ id: string
   const podeEditar = can(claims, 'elo.update', { congregationId, eloId: elo.id });
   const podeExcluir = can(claims, 'elo.delete', { congregationId });
   const podeMultiplicar = can(claims, 'elo.multiply', { congregationId });
+  const podeRelatar = canSubmitReport(claims, congregationId, elo.id);
 
   return (
     <AppShell userName={email} allowedHrefs={allowedNavHrefs(claims, congregationId)}>
@@ -77,6 +79,15 @@ export default async function EloPage({ params }: { params: Promise<{ id: string
         description={`Código ${elo.internal_code}`}
         actions={
           <>
+            {/*
+             * Primeiro botão da barra, e não o último: é a ação que o líder vem
+             * fazer toda semana. Os demais são ocasionais.
+             */}
+            {podeRelatar && (
+              <ButtonLink href={`/elos/${elo.id}/relatorio`}>
+                Relatório da semana
+              </ButtonLink>
+            )}
             <ButtonLink href={`/elos/${elo.id}/participantes`} variant="secondary">
               Participantes
             </ButtonLink>

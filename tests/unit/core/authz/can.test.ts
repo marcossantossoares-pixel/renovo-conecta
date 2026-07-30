@@ -274,8 +274,32 @@ describe('assertCan', () => {
 });
 
 describe('integridade do catálogo', () => {
+  /*
+   * Contagem fixa de propósito: é um alarme, não uma medida.
+   *
+   * Quem acrescenta uma permissão ao catálogo passa por aqui e é obrigado a
+   * conferir se a matriz de `docs/PERMISSIONS.md` §4 recebeu a linha
+   * correspondente — que é a única forma de as duas não divergirem em silêncio.
+   *
+   * 29 na Fase 5; 36 desde a Fase 8, que acrescentou as sete de `report`.
+   */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(29);
+    expect(ALL_PERMISSIONS).toHaveLength(36);
+  });
+
+  it('toda permissão de relatório existe, com o escopo da matriz §4', () => {
+    // O supervisor lê, aprova, pede correção, reabre e exporta — e não cria nem
+    // envia. É o "(L)" da matriz, e a assimetria mais fácil de quebrar sem notar.
+    expect(PERMISSION_GRANTS['report.read'].supervisor).toBe('elo');
+    expect(PERMISSION_GRANTS['report.approve'].supervisor).toBe('elo');
+    expect(PERMISSION_GRANTS['report.create'].supervisor).toBeUndefined();
+    expect(PERMISSION_GRANTS['report.submit'].supervisor).toBeUndefined();
+
+    // O líder envia e não aprova. A porta do "não aprova o próprio" é fechada
+    // por linha no serviço; aqui prova-se só que ele não a tem em escopo algum.
+    expect(PERMISSION_GRANTS['report.submit'].lider).toBe('elo');
+    expect(PERMISSION_GRANTS['report.approve'].lider).toBeUndefined();
+    expect(PERMISSION_GRANTS['report.reopen'].lider).toBeUndefined();
   });
 
   it('todo papel citado existe na hierarquia', () => {

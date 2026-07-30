@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { signOutAction, signOutOtherSessionsAction } from '@/modules/auth/actions';
 import type { FormState } from '@/modules/auth/actions';
+import { clearAllDrafts } from '@/modules/reports/draft';
 
 const ESTADO_INICIAL: FormState = {};
 
@@ -45,7 +46,20 @@ function BotaoSubmit({
 
 export function SignOutButton() {
   return (
-    <form action={signOutAction}>
+    /*
+     * Sair apaga os rascunhos de relatório deste dispositivo.
+     *
+     * É a segunda metade do que o ADR-004 e a §7 de `docs/LGPD.md` exigem — a
+     * primeira é a limpeza após o envio bem-sucedido. O rascunho guarda pedidos
+     * de oração e testemunhos, e um aparelho compartilhado entre líderes é
+     * comum: deixar o rascunho de um para o próximo é vazamento pela porta da
+     * frente.
+     *
+     * `onSubmit` e não `useEffect` de desmontagem: a ação termina em
+     * `redirect()`, e a limpeza precisa acontecer **antes** de a navegação
+     * levar o componente embora. `removeItem` é síncrono, então termina aqui.
+     */
+    <form action={signOutAction} onSubmit={() => clearAllDrafts()}>
       <BotaoSubmit loadingLabel="Saindo">Sair</BotaoSubmit>
     </form>
   );

@@ -70,6 +70,9 @@ export default defineConfig({
         // `hierarchy`: multiplica um Elo do seed e devolve as participações no
         // fim; duas execuções disputariam as mesmas linhas.
         '**/hierarchy.spec.ts',
+        // `report`: um relatório por Elo por data, e a suíte faz logout —
+        // duas execuções disputariam a linha e a sessão.
+        '**/report.spec.ts',
       ],
     },
   ],

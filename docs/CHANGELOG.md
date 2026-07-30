@@ -8,6 +8,33 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 8a — Relatório semanal: formulário, rascunho e envio (2026-07-30)
+
+- **Tabelas `elo_report` e `elo_report_status_history`** (migration 0013), com RLS,
+  privilégios e as sete permissões `report.*` no catálogo. Estavam previstas em
+  `docs/PERMISSIONS.md` desde a Fase 0 e não existiam no banco.
+- **Formulário do Fluxo 6**, construído para os 2 minutos do aceite: uma coluna,
+  `inputMode="numeric"` nas sete contagens, total somado sozinho enquanto as parcelas
+  mudam, e encontro cancelado escondendo o resto — quem cancelou preenche um campo.
+- **Rascunho local** (ADR-004): `localStorage`, uma chave por Elo **e por data**,
+  porque o líder pode preencher o atrasado da semana passada e o desta semana na mesma
+  sessão. Apagado após o envio bem-sucedido **e no logout** — a limpeza do logout varre
+  por prefixo, não uma chave conhecida, porque aparelho compartilhado entre líderes é
+  comum e o rascunho guarda pedidos de oração e testemunhos.
+- **A soma das parcelas é conferida em duas camadas**: Zod, com mensagem que diz qual
+  é a soma, e `CHECK` no banco, que nenhum caminho de escrita contorna.
+- **Contagens anuláveis, e não `NOT NULL DEFAULT 0`**: zero presentes num encontro que
+  aconteceu é diferente de não ter havido encontro, e o default faria as duas coisas
+  virarem o mesmo número.
+- **O supervisor lê e decide, e não preenche.** Ele tem política própria, só de
+  `UPDATE`: dar-lhe a política de escrita para poder aprovar lhe daria escrita também
+  nas contagens, e quem corrige os números que revisa esvazia a revisão.
+- **Histórico de situação append-only** por gatilho, como o `audit_log` — vale
+  inclusive para `postgres`.
+- **ADR-007**: o PDF do relatório sairá da folha de impressão do navegador, sem
+  dependência nova. O gatilho de revisão está registrado: geração em lote ou envio
+  automático exigem rever a decisão.
+
 #### Fase 7c — Hierarquia e multiplicação (2026-07-30)
 
 - **Hierarquia dos Elos** em três apresentações — árvore, lista e cards
@@ -56,9 +83,17 @@ reuso, simplificação, eficiência e altitude.
 - **Duas datas "de hoje" que discordavam três horas por dia.** O servidor usava
   `new Date().toISOString()` (UTC) e as telas usavam `America/Bahia`. Ambos passam por
   `todayIso()` em `src/lib/format.ts`.
-- **`2026-02-31` era recusado no cadastro de pessoas e aceito no de Elos**: a cópia do
-  fragmento de data perdera a checagem de calendário. Os fragmentos de Zod agora são
-  um só, em `src/lib/schema-fragments.ts`.
+- **Os fragmentos de Zod duplicados entre Pessoas e Elos** viraram um só, em
+  `src/lib/schema-fragments.ts`.
+
+  > **Correção (Fase 8a):** a versão anterior desta entrada dizia que `2026-02-31` era
+  > recusado em Pessoas e aceito em Elos. Estava errado — era aceito nos **dois**. A
+  > checagem que Pessoas tinha a mais (`Number.isNaN`) não pega dia que transborda o
+  > mês: `new Date('2026-02-31T00:00:00Z')` não devolve data inválida, o motor rola
+  > para 3 de março e segue. O defeito era maior do que o descrito, e a gravidade
+  > também: a data não era recusada, era **silenciosamente trocada**. Corrigido na 8a,
+  > conferindo o calendário nos dois ramos.
+
 - **A regra de coluna do Elo tinha duas implementações**, e a testada não era a que
   rodava: `rejectedStructuralFields` era exercitada pelos testes e não tinha chamador,
   enquanto `updateEloAction` refazia a checagem à mão. Agora a ação usa o helper.

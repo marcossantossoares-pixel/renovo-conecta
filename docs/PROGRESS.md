@@ -2,15 +2,23 @@
 
 ## Fase atual
 
-**Fase 7 — Elos: concluída (7a, 7b e 7c).**
+**Fase 8 — Relatório semanal: metade 8a concluída.**
 
-A Fase 7 é a primeira marcada **G** no roadmap e entrega sete frentes; foi
-dividida em três: **7a** (CRUD do Elo, liderança com vigência, supervisão e
-privacidade do endereço nas duas pontas), **7b** (participantes, solicitação e
-aprovação) e **7c** (hierarquia em lista, cards e árvore, e multiplicação).
+A Fase 8 é a que o roadmap marca como a de **maior risco de adoção** — o Fluxo 6 se
+chama "o fluxo mais importante do produto", e se preencher o relatório for penoso o
+líder para de preencher. Foi dividida em três, como a 7: **8a** (formulário, rascunho
+local e envio), **8b** (aprovação, correção, reabertura, histórico e indicador de
+atraso) e **8c** (exportação PDF/Excel e indicadores do dashboard).
 
-Próxima: **Fase 8 — Relatório semanal**, marcada no roadmap como a de maior risco de
-adoção. Fases 0 a 7 concluídas.
+A 8a entrega o Fluxo 6 até o envio: tabelas, RLS, formulário mobile, rascunho local e
+validação da soma em duas camadas. Fases 0 a 7 concluídas.
+
+**Dois critérios da Fase 8 dependem de campo, não de código:**
+
+| Critério                                     | Situação                                                                                                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Preenchimento em ≤ 2 minutos em celular real | O formulário foi construído para isso, mas a medição precisa de aparelho e de líder reais. Navegador automatizado preenche em milissegundos e não diz nada sobre o polegar de alguém numa sala mal iluminada |
+| Entregar com teste em campo                  | O roadmap marca a fase como a de maior risco de adoção e pede explicitamente isso                                                                                                                            |
 
 A 7c entregou a hierarquia em árvore, lista e cards, e a multiplicação do Fluxo 9. Dois
 achados durante a construção, ambos registrados no código:
@@ -39,8 +47,8 @@ compartilhados, em vez de copiá-los uma terceira vez.
 | `listElos` avalia o filtro duas vezes (linhas + `COUNT`)               | `count(*) OVER ()` resolveria, mas muda o total informado quando a página pedida passa da última        |
 | Cada consulta abre a própria transação RLS                             | É a convenção da casa desde a Fase 6; mudá-la é decisão de arquitetura, não de revisão                  |
 | Seis escritas fazem `SELECT` da congregação antes do `INSERT`          | Dobrá-los em `INSERT ... SELECT` reescreveria seis caminhos de escrita testados                         |
-| `DeleteElo` é cópia de `DeletePerson`                                  | Extração legítima; o terceiro caso (multiplicação, 7c) é a hora certa de fazê-la                        |
-| `listPersonParticipations` não tem chamador                            | É a consulta que a hierarquia da 7c vai usar — apagá-la agora só a faria voltar                         |
+| `DeleteElo` é cópia de `DeletePerson`                                  | A 7c não criou um terceiro caso de exclusão; segue com dois                                             |
+| `listPersonParticipations` ainda não tem chamador                      | A hierarquia da 7c usou `origin_elo_id`, não a trajetória da pessoa. Decidir na 8b se entra ou sai      |
 
 ---
 

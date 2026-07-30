@@ -63,6 +63,13 @@ export type PermissionCode =
   | 'elo_join_request.read'
   | 'elo_join_request.create'
   | 'elo_join_request.decide'
+  | 'report.read'
+  | 'report.create'
+  | 'report.submit'
+  | 'report.approve'
+  | 'report.request_changes'
+  | 'report.reopen'
+  | 'report.export'
   | 'dashboard.read'
   | 'user.read'
   | 'user.invite'
@@ -233,6 +240,67 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     coordenador_elos: 'congregation',
     lider: 'elo',
     vice_lider: 'elo',
+  },
+
+  /* --- Relatório semanal — Fase 8 ------------------------------------
+   *
+   * A matriz de `docs/PERMISSIONS.md` §4, linha por linha. Duas assimetrias
+   * valem ser lidas em voz alta, porque parecem engano e não são:
+   *
+   *   - o **supervisor lê e não escreve**: ele acompanha os Elos, não os
+   *     conduz. É o mesmo "(L)" que ele tem em `elo_participant.read`;
+   *   - o **líder envia e não aprova**. Aprovar o próprio relatório esvazia a
+   *     revisão, e é a nota 3 da §4. Aqui isso aparece como ausência de
+   *     `lider` em `report.approve` — mas a ausência sozinha não basta: a
+   *     coordenação **também** lidera Elos, e para ela `can()` diria sim. Quem
+   *     fecha essa porta é a verificação por linha no serviço, comparando quem
+   *     aprova com quem enviou.
+   */
+  'report.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.create': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.submit': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.approve': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.request_changes': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.reopen': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.export': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
   },
 
   // --- Painel -----------------------------------------------------------
