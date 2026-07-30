@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
+import { fieldErrors, texto } from '@/lib/form-data';
 import type { FormState } from '@/modules/auth/actions';
 import {
   ECCLESIASTICAL_FIELDS,
@@ -43,26 +44,6 @@ import {
  * pessoa podia sequer editar o cadastro dá a quem não pode uma pista sobre o
  * que existe.
  */
-
-/** Lê um campo de texto do formulário. Arquivo ou ausência viram vazio. */
-function texto(formData: FormData, chave: string): string {
-  const valor = formData.get(chave);
-
-  return typeof valor === 'string' ? valor : '';
-}
-
-function fieldErrors(
-  issues: readonly { path: PropertyKey[]; message: string }[],
-): Record<string, string> {
-  const campos: Record<string, string> = {};
-
-  for (const issue of issues) {
-    const campo = String(issue.path[0] ?? '');
-    if (campo && !campos[campo]) campos[campo] = issue.message;
-  }
-
-  return campos;
-}
 
 /** Campos que o formulário sempre envia, ainda que vazios. */
 const ALWAYS_SENT = [

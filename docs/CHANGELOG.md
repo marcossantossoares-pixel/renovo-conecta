@@ -6,7 +6,110 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ## [Não lançado]
 
+### Corrigido
+
+#### Revisão de qualidade da Fase 7 (2026-07-30)
+
+Revisão do código das fases 7a e 7b antes de seguir para a 7c, por quatro frentes:
+reuso, simplificação, eficiência e altitude.
+
+- **Migration 0011 alargava a política de escrita sem dizer** (o achado mais sério).
+  A exceção de visibilidade para quem tem solicitação pendente fora escrita dentro de
+  `app.person_in_my_elos`, e `0001_rls_policies.sql` usa essa função também no `USING`
+  de `person_write`, que é `FOR ALL`. O líder passaria a poder **editar** o cadastro de
+  quem apenas pediu para entrar. A exceção agora vive só no `USING` de `person_read`,
+  por uma função nova, `app.person_pending_for_my_elos`, marcada como somente-leitura.
+  Confirmado contra o banco: com a definição antiga reintroduzida, o líder atualizava a
+  linha; com a corrigida, a atualização não alcança nenhuma linha. Os dois casos viraram
+  teste em `tests/rls/participants.test.ts` — a leitura precisa abrir e a escrita precisa
+  continuar fechada, e nenhum teste cobria qualquer uma das pontas antes.
+- **Seletor de transferência mostrava só os 20 primeiros Elos.** A tela montava a
+  lista com a **página 1** de `listElos`, e `PAGE_SIZE` é 20 — a partir do vigésimo
+  primeiro Elo o destino desaparecia da lista, sem erro e sem aviso. Agora há uma
+  consulta própria, sem paginação e com a exclusão da origem feita no SQL.
+- **Duas datas "de hoje" que discordavam três horas por dia.** O servidor usava
+  `new Date().toISOString()` (UTC) e as telas usavam `America/Bahia`. Ambos passam por
+  `todayIso()` em `src/lib/format.ts`.
+- **`2026-02-31` era recusado no cadastro de pessoas e aceito no de Elos**: a cópia do
+  fragmento de data perdera a checagem de calendário. Os fragmentos de Zod agora são
+  um só, em `src/lib/schema-fragments.ts`.
+- **A regra de coluna do Elo tinha duas implementações**, e a testada não era a que
+  rodava: `rejectedStructuralFields` era exercitada pelos testes e não tinha chamador,
+  enquanto `updateEloAction` refazia a checagem à mão. Agora a ação usa o helper.
+
+### Alterado
+
+#### Revisão de qualidade da Fase 7 (2026-07-30)
+
+- **Portão único das telas de Elo**: `src/app/(app)/elos/layout.tsx` substitui a mesma
+  verificação copiada em cinco páginas — a sexta tela, da Fase 7c, nasce protegida.
+- **Perguntas de escopo no motor de autorização**: `hasPermissionAnywhere`,
+  `hasNarrowScope` e `hasBroadScope` em `src/core/authz/can.ts` recolhem cinco
+  predicados equivalentes espalhados por dois módulos.
+- **`app.operates_elo_internally()`** (migration 0009) dá nome à lista de papéis que
+  estava escrita por extenso em três lugares do SQL.
+- **Consultas desnecessárias por tela**: `getEloForViewer` passou a aceitar o que a
+  tela realmente quer. As telas de participantes e de solicitações usavam `elo.id` e
+  `elo.name` e pagavam liderança, supervisão e endereço a cada carregamento.
+- **Ondas em vez de filas**: as consultas de cada página partem juntas, já que todas
+  dependem do `id` da rota e não umas das outras.
+- **`listCandidates` virou `listPersonOptions`** e mudou-se para
+  `modules/people/service.ts` — `person` é domínio de Pessoas
+  (`docs/ARCHITECTURE.md`).
+- **Uma convenção de erro só** no módulo: a colisão de participação sobe como
+  `AlreadyParticipatesError` nos quatro caminhos, em vez de exceção em dois e string
+  literal nos outros dois.
+- **Extraídos por duplicação**: `useUrlFilters` + `chipsAtivos`, `DescriptionItem`,
+  `todayIso`/`isoDateToBrInput`, `texto`/`fieldErrors`/`readForm`, `isUniqueViolation`
+  (para `core/db`), `congregationOf`, `rotulo`/`opcoes` e os helpers de sessão dos
+  testes E2E. Os 21 `as 'literal'` usados para calar o índice de tipo desapareceram.
+
 ### Adicionado
+
+#### Fase 7b — Participantes e solicitações (2026-07-29)
+
+- **Participantes do Elo**: adicionar, registrar saída com data e motivo, retomar,
+  marcar potencial líder e registrar quem acompanha o discipulado.
+- **Nada é apagado**: a saída preenche `left_at` e a volta é uma **passagem nova**.
+  Reabrir a antiga apagaria o intervalo em que a pessoa esteve fora.
+- **Transferência entre Elos** registrando as duas pontas na mesma transação —
+  exclusiva da coordenação, porque mover alguém exige enxergar origem e destino.
+- **Solicitação de participação (Fluxo 5)**: registrar interessado, aprovar (criando a
+  participação na mesma ação) e recusar com motivo obrigatório.
+- **Duplicidade impedida pelo banco** (migration 0010): índices únicos **parciais**
+  garantem uma participação ativa e uma solicitação pendente por pessoa em cada Elo,
+  sem proibir sair e voltar nem decidir de novo mais tarde.
+- **A política de solicitações passou a exigir o papel**: estava mais frouxa que a
+  matriz e deixava o supervisor criar e decidir, coisa que só o motor `can()` barrava.
+- **Quem decide passou a enxergar quem pediu** (migration 0011): o líder não via de
+  quem era a solicitação e por isso não podia decidi-la. A visibilidade cede de forma
+  estreita — só enquanto pendente — e se fecha sozinha quando a decisão é tomada.
+
+#### Fase 7a — Elo, liderança e endereço (2026-07-29)
+
+- **CRUD de Elo**: lista com busca por nome e código, filtros por status, dia,
+  modalidade e bairro, paginação; criação, perfil e edição.
+- **Criação em uma transação** (Fluxo 4): Elo, liderança e vínculo de supervisão
+  nascem juntos. Um Elo sem líder é um registro à espera de alguém completá-lo — e um
+  líder sem vínculo vê um Elo que não consegue abrir.
+- **Liderança e supervisão com vigência**: conceder encerra o anterior por data,
+  encerrar grava `ends_at`. Nada é apagado, e "quem liderava em março?" continua
+  respondível. Cada mudança entra no `audit_log` como `permission_change`, porque
+  amplia o acesso de alguém.
+- **Claims recalculadas de imediato**: o líder recém-vinculado alcança o Elo na
+  navegação seguinte, sem novo login — verificado por e2e com dois contextos de
+  navegador, a sessão do líder aberta antes do vínculo.
+- **O endereço do Elo passou a ser inalterável sem permissão** (migration 0009). A
+  Fase 3 fechou a leitura das colunas restritas e deixou a escrita aberta: era
+  possível apagar às cegas a rua da casa do anfitrião com um formulário que nunca a
+  exibiu. Duas funções `SECURITY DEFINER` agora são o único caminho — endereço
+  estrutural para a coordenação, ponto de referência também para líder e vice
+  (`PERMISSIONS.md` §4, nota 6).
+- **Elo fora do escopo responde "não encontrado"**, não "sem permissão": duas
+  respostas diferentes permitiriam descobrir quais Elos existem tentando um por um.
+- **O Elo não muda de tenant nem de congregação por UPDATE** — privilégio revogado
+  nessas colunas.
+- Componente `UrlPagination` no design system, extraído da lista de pessoas.
 
 #### Fase 6b — Telas de pessoas (2026-07-29)
 

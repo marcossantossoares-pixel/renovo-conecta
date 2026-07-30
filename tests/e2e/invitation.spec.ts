@@ -2,6 +2,7 @@ import { type Page, expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
 import { COORDENADORA, LIDER_1 } from '../../supabase/seeds/fixtures.ts';
+import { SENHA } from './helpers/session';
 
 /**
  * Fluxo 1 de docs/USER_FLOWS.md — convite e primeiro acesso.
@@ -10,7 +11,6 @@ import { COORDENADORA, LIDER_1 } from '../../supabase/seeds/fixtures.ts';
  * paralelas disputariam o mesmo e-mail.
  */
 
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
 const SENHA_NOVA = 'convidado-renovo-2026';
 
 test.describe.configure({ mode: 'serial' });

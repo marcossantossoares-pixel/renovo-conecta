@@ -1,4 +1,9 @@
-import { can, effectiveScope, type AuthzSubject } from '@/core/authz/can';
+import {
+  effectiveScope,
+  hasBroadScope,
+  hasNarrowScope,
+  type AuthzSubject,
+} from '@/core/authz/can';
 
 /**
  * Regras de campo — a camada que `can()` deliberadamente não cobre.
@@ -80,6 +85,9 @@ export function canWriteEcclesiasticalFields(
   subject: AuthzSubject,
   permission: WritePermission,
 ): boolean {
+  // Sem alvo, de propósito: a pergunta aqui é só sobre a **largura** do escopo.
+  // Passar por `hasBroadScope` exigiria uma congregação que este chamador não
+  // tem — e a resposta viraria `false` para toda a coordenação.
   const escopo = effectiveScope(subject, permission);
 
   return escopo === 'global' || escopo === 'congregation';
@@ -133,11 +141,7 @@ export function canSeeMinorContact(
   subject: AuthzSubject,
   congregationId: string | undefined,
 ): boolean {
-  const escopo = effectiveScope(subject, 'person.export');
-
-  if (escopo !== 'global' && escopo !== 'congregation') return false;
-
-  return can(subject, 'person.export', { congregationId });
+  return hasBroadScope(subject, 'person.export', { congregationId });
 }
 
 /**
@@ -152,9 +156,7 @@ export function canSeeMinorContact(
  * da congregação, com Elo ou sem.
  */
 export function requiresEloLink(subject: AuthzSubject): boolean {
-  const escopo = effectiveScope(subject, 'person.create');
-
-  return escopo === 'elo' || escopo === 'supervision';
+  return hasNarrowScope(subject, 'person.create');
 }
 
 /**
@@ -166,7 +168,5 @@ export function requiresEloLink(subject: AuthzSubject): boolean {
  * trabalho, e auditar tudo seria auditar nada.
  */
 export function hasNarrowPersonScope(subject: AuthzSubject): boolean {
-  const escopo = effectiveScope(subject, 'person.read');
-
-  return escopo === 'elo' || escopo === 'supervision';
+  return hasNarrowScope(subject, 'person.read');
 }

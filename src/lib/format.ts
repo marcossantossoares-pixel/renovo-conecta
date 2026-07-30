@@ -118,6 +118,32 @@ export function isoDateToBr(value: string): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/**
+ * O mesmo que `isoDateToBr`, mas para preencher um campo de formulário: ausente
+ * vira string vazia, não `'—'` nem `null`.
+ *
+ * Existe porque as duas telas de edição precisavam da mesma linha e a estavam
+ * escrevendo cada uma por si. Enquanto isso durasse, nada impediria que uma
+ * passasse a exibir `'—'` dentro de um `<input>`.
+ */
+export function isoDateToBrInput(value: string | null): string {
+  return value ? isoDateToBr(value) : '';
+}
+
+/**
+ * Hoje, em ISO (`aaaa-mm-dd`), no fuso da igreja.
+ *
+ * Sai daqui, e não de `new Date().toISOString()`, porque em Camaçari (UTC-3) as
+ * três primeiras horas de cada dia UTC ainda são o dia anterior: entre 21h e
+ * meia-noite, o padrão de "entrou hoje" apontaria para amanhã.
+ *
+ * `en-CA` é o atalho conhecido para `aaaa-mm-dd` — o `Intl` não expõe o formato
+ * ISO diretamente, e é ele quem sabe aplicar o fuso.
+ */
+export function todayIso(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date());
+}
+
 /** Formata data para exibição: `25/07/2026`. */
 export function formatDate(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;

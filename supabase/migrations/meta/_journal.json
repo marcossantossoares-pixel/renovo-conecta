@@ -64,6 +64,27 @@
       "when": 1785259297469,
       "tag": "0008_person_search_and_history",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785370710120,
+      "tag": "0009_elo_address_write_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785414991525,
+      "tag": "0010_participation_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785415976339,
+      "tag": "0011_person_visible_for_join_request",
+      "breakpoints": true
     }
   ]
 }

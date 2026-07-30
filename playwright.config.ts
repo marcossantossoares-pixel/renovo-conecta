@@ -65,6 +65,8 @@ export default defineConfig({
         '**/invitation.spec.ts',
         '**/permissions.spec.ts',
         '**/people.spec.ts',
+        '**/elos.spec.ts',
+        '**/participants.spec.ts',
       ],
     },
   ],

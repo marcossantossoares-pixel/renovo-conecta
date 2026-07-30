@@ -23,8 +23,8 @@ import {
 } from '@/modules/people/schemas';
 import { listFilterOptions, listPeopleForViewer } from '@/modules/people/service';
 import { ExportButtons } from './export-buttons';
+import { UrlPagination } from '@/components/ui/url-pagination';
 import { PeopleFilters } from './people-filters';
-import { PeoplePagination } from './people-pagination';
 
 export const metadata: Metadata = {
   title: 'Pessoas · Renovo Conecta',
@@ -196,10 +196,12 @@ export default async function PessoasPage({
           />
 
           {total > PAGE_SIZE && (
-            <PeoplePagination
+            <UrlPagination
               page={query.page}
               pageSize={PAGE_SIZE}
               totalItems={total}
+              basePath="/pessoas"
+              itemName="pessoas"
             />
           )}
         </CardContent>

@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { type Page, expect, test } from '@playwright/test';
-import postgres from 'postgres';
+import { expect, test } from '@playwright/test';
 
 import {
   COORDENADORA,
@@ -11,6 +10,7 @@ import {
   PARTICIPANTES,
   participantesDoElo,
 } from '../../supabase/seeds/fixtures.ts';
+import { conexao, entrar } from './helpers/session';
 
 /**
  * Telas de pessoas — Fase 6b.
@@ -24,25 +24,10 @@ import {
  *   - a exportação deixa registro em `audit_log`.
  */
 
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
-
 /** Prefixo dos cadastros criados aqui, para poder limpá-los depois. */
 const PREFIXO = 'Zeteste';
 
 test.describe.configure({ mode: 'serial' });
-
-async function entrar(page: Page, email: string) {
-  await page.goto('/entrar');
-  await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Senha').fill(SENHA);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-}
-
-function conexao() {
-  const url = process.env.DATABASE_MIGRATION_URL;
-  return url ? postgres(url, { max: 1 }) : null;
-}
 
 /**
  * Remove os cadastros criados pelos testes e devolve as observações ao estado

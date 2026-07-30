@@ -2,13 +2,33 @@
 
 ## Fase atual
 
-**Fase 6 — Pessoas: concluída (6a servidor + 6b telas).**
+**Fase 7 — Elos: metades 7a e 7b concluídas e revisadas.**
 
-Como na Fase 5, a fase foi dividida em duas metades — 6a (motor de dados,
-autorização de campo e exportação) e 6b (telas) — para que um resumo de contexto
-entre elas não deixasse nada pela metade. As duas terminaram verdes.
+A Fase 7 é a primeira marcada **G** no roadmap e entrega sete frentes; foi
+dividida em três: **7a** (CRUD do Elo, liderança com vigência, supervisão e
+privacidade do endereço nas duas pontas), **7b** (participantes, solicitação e
+aprovação) e **7c** (hierarquia em lista, cards e árvore, e multiplicação).
 
-Próxima: **Fase 7 — Elos**. Fases 0 a 6 concluídas, sem ressalvas em aberto.
+Próxima: **Fase 7c — hierarquia e multiplicação**. Fases 0 a 6 concluídas.
+
+Antes de abrir a 7c, o código das duas metades passou por uma revisão de qualidade
+(reuso, simplificação, eficiência e altitude). O detalhe está em `docs/CHANGELOG.md`,
+em "Revisão de qualidade da Fase 7"; o resumo é que cinco defeitos apareceram — um
+deles alargando silenciosamente a política de escrita de `person` — e que a Fase 7c
+começa com o portão de rota, os fragmentos de schema e as perguntas de escopo já
+compartilhados, em vez de copiá-los uma terceira vez.
+
+**Pendências conhecidas, deliberadamente fora desta revisão:**
+
+| Item                                                                   | Por que ficou de fora                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `listPersonOptions` serializa até 500 pessoas para quatro telas        | A correção é uma busca incremental (typeahead) com `LIMIT 20`, que é funcionalidade nova, não limpeza   |
+| Falta índice trigram em `elo` para as buscas por nome, código e bairro | Espelha a migration 0008; hoje `elo` tem centenas de linhas, e criar migration nova é mudança de schema |
+| `listElos` avalia o filtro duas vezes (linhas + `COUNT`)               | `count(*) OVER ()` resolveria, mas muda o total informado quando a página pedida passa da última        |
+| Cada consulta abre a própria transação RLS                             | É a convenção da casa desde a Fase 6; mudá-la é decisão de arquitetura, não de revisão                  |
+| Seis escritas fazem `SELECT` da congregação antes do `INSERT`          | Dobrá-los em `INSERT ... SELECT` reescreveria seis caminhos de escrita testados                         |
+| `DeleteElo` é cópia de `DeletePerson`                                  | Extração legítima; o terceiro caso (multiplicação, 7c) é a hora certa de fazê-la                        |
+| `listPersonParticipations` não tem chamador                            | É a consulta que a hierarquia da 7c vai usar — apagá-la agora só a faria voltar                         |
 
 ---
 
@@ -457,6 +477,174 @@ como bug, só conclui que "o cadastro está errado". Criada `isoDateToBr`, inver
 
 ---
 
+### Fase 7a — Elo, liderança e endereço (2026-07-29)
+
+**Migration `0009_elo_address_write_guard.sql`** — fecha o lado da **escrita** do
+endereço restrito. A Fase 3 revogou a leitura das sete colunas
+(`street`, `number`, `complement`, `zip_code`, `reference_point`, `latitude`,
+`longitude`) e deixou INSERT e UPDATE valendo. Ou seja: era possível **escrever às
+cegas o que não se pode ler** — e o caso concreto era destrutivo, não teórico. O
+formulário de um líder não consegue preencher o endereço, porque ele não o lê; ao
+ser enviado, os campos vazios sobrescreveriam a rua da casa do anfitrião. Sem erro,
+sem rastro, e só se descobre quando alguém não acha a reunião.
+
+Duas funções `SECURITY DEFINER`, e não uma, porque a nota 6 de `PERMISSIONS.md` §4
+divide este endereço em dois níveis:
+
+| Função                           | Quem alcança              | Por quê                                                                                      |
+| -------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| `app.elo_save_address()`         | coordenação               | Rua, número, CEP e coordenadas mudam quando o Elo muda de casa                               |
+| `app.elo_save_reference_point()` | coordenação, líder e vice | "Perto da padaria" é dado operacional; exigir a coordenação só faria a informação envelhecer |
+
+**Arquivos criados:**
+
+| Área          | Arquivos                                                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Migration     | `supabase/migrations/0009_elo_address_write_guard.sql`                                                                             |
+| Módulo        | `src/modules/elos/{schemas,fields,repository,service,actions}.ts`                                                                  |
+| Telas         | `src/app/(app)/elos/{page,elo-form,elo-filters}.tsx`, `novo/page.tsx`, `[id]/{page,editar/page,leadership-manager,delete-elo}.tsx` |
+| Design system | `src/components/ui/url-pagination.tsx` (extraído de `/pessoas`)                                                                    |
+| Testes        | `tests/unit/modules/elos/{fields,schemas}.test.ts`, `tests/rls/elos.test.ts`, `tests/e2e/elos.spec.ts`                             |
+
+**Alterados:** `src/app/(app)/pessoas/page.tsx` (usa a paginação compartilhada),
+`playwright.config.ts` (`elos.spec.ts` fora do projeto mobile).
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **259** (era 220) |
+| `pnpm test:rls`                                 | ✅ **125** (era 106) |
+| `pnpm test:e2e`                                 | ✅ **116** (era 103) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+A migration foi aplicada **do zero** duas vezes, e as proteções foram **mutadas**:
+reconceder `UPDATE` de tabela em `elo` quebrou 3 testes; remover o porteiro de papel
+da função de ponto de referência quebrou 1. Cada mutação quebrou exatamente o que
+deveria.
+
+**Quatro erros meus, encontrados pelos testes:**
+
+1. **`REVOKE INSERT, UPDATE (colunas)` não faz o que parece.** A lista de colunas se
+   liga a **um** privilégio: aquilo revogou `INSERT` da **tabela inteira** e `UPDATE`
+   de uma coluna. Criar Elo parou de funcionar. Pior, a outra metade também estava
+   errada: **não se subtrai coluna de uma concessão de tabela** — com `UPDATE` na
+   tabela, revogar `UPDATE` de uma coluna é no-op. O caminho correto é o que a Fase 3
+   já usara para o `SELECT`: revogar o privilégio de tabela e reconceder as colunas
+   públicas por extenso.
+2. **`app.can_read_full_address()` não serve como porteiro de escrita.** Usei-a
+   sozinha na função do ponto de referência. Aquela lista inclui o **supervisor**,
+   que precisa ler o endereço para visitar os Elos que acompanha e a quem a matriz
+   não dá `elo.update` em escopo algum. O resultado era um supervisor reescrevendo o
+   ponto de referência de Elos que ele apenas acompanha. Um teste de RLS pegou; nada
+   na tela pegaria.
+3. **Elo fora do escopo respondia 403, e o aceite pede "não encontrado".** A página
+   perguntava `can(..., { eloId })` para o Elo pedido, então um líder recebia 403 no
+   Elo de outro e 404 num id inexistente — duas respostas diferentes são um canal
+   para descobrir quais Elos existem, tentando um por um. O porteiro de tela passou a
+   ser `hasEloPermission` ("esta pessoa lida com Elos?"), e **quais** linhas ela
+   alcança voltou a ser decisão exclusiva da RLS. A verificação por linha continua em
+   toda escrita, com o alvo real em mãos.
+4. **Código interno duplicado virava página de erro.** O Drizzle embrulha o erro do
+   driver, e minha checagem do `23505` olhava só o primeiro nível — a violação
+   escapava como erro genérico. Passou a descer pela cadeia de `cause`.
+
+**Três testes meus estavam errados**, e um deles passava por engano: ele afirmava que
+o supervisor não amplia a própria supervisão usando um Elo **alheio**, e o
+`INSERT ... SELECT` não encontrava linha para copiar — a RLS de leitura barrava antes.
+Um INSERT de zero linhas não viola política alguma, então o teste "passava" sem
+exercitar a política de escrita. Refeito com um Elo que ele alcança.
+
+**Uma regra de teste ficou mais precisa.** A Fase 6b concluiu "uma conta de
+demonstração pertence a um arquivo só". A regra verdadeira é mais estreita e apareceu
+aqui: **um arquivo não muta estado de que outro depende.** A suíte nova atribuía
+supervisão de um Elo de teste a `SUPERVISOR_A`, e `auth.spec.ts` afirma que ele
+supervisiona exatamente dois — três testes quebraram. A supervisão de teste passou a
+ir para uma pessoa **sem conta de acesso**: o vínculo é criado e exibido do mesmo
+jeito, e nenhuma sessão depende do escopo dela.
+
+**Ganho fora do previsto:** `id`, `tenant_id`, `congregation_id`, `created_at` e
+`created_by` do Elo perderam o privilégio de `UPDATE`. Mover um Elo de tenant ou de
+congregação por UPDATE atravessaria a fronteira que a RLS mantém — e faria isso sem
+violar política alguma, porque a linha já estaria do lado de dentro quando a política
+fosse avaliada.
+
+---
+
+### Fase 7b — Participantes e solicitações (2026-07-29)
+
+**Telas criadas:** `/elos/[id]/participantes` (adicionar, discipulador, potencial
+líder, registrar saída com motivo, retomar, transferir) e `/elos/[id]/solicitacoes`
+(registrar interessado, aprovar, recusar com motivo) — o Fluxo 5.
+
+**Migrations `0010` e `0011`.**
+
+| Objeto                                              | Por quê                                                                                                         |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Índice único parcial em `elo_participant`           | Uma participação **ativa** por pessoa em cada Elo. Parcial: sair e voltar é normal, e cada passagem é uma linha |
+| Índice único parcial em `elo_join_request`          | Uma solicitação **pendente** por pessoa em cada Elo. Recusada em março e aprovada em outubro convivem           |
+| `elo_participant (person_id, joined_at DESC)`       | A trajetória da pessoa; o índice existente servia para "onde ela está hoje"                                     |
+| Política de `elo_join_request` passa a exigir papel | Estava mais frouxa que a matriz — o supervisor podia criar e decidir                                            |
+| `app.person_in_my_elos` inclui solicitante pendente | Sem isso o líder não enxergava de quem era a solicitação, e não podia decidir                                   |
+
+**Arquivos criados:** `src/modules/elos/{errors,participants,participant-actions}.ts`,
+as duas telas com seus componentes cliente, `tests/unit/modules/elos/participants.test.ts`,
+`tests/rls/participants.test.ts`, `tests/e2e/participants.spec.ts`.
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **274** (era 259) |
+| `pnpm test:rls`                                 | ✅ **136** (era 125) |
+| `pnpm test:e2e`                                 | ✅ **126** (era 116) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+Aplicado do zero; três proteções **mutadas**, cada uma quebrando o que devia:
+remover os índices únicos quebrou 2 testes, afrouxar a política quebrou 1, e reverter
+a visibilidade do solicitante quebrou o Fluxo 5 ponta a ponta.
+
+**Dois achados que mudaram o desenho, ambos da mesma família do achado da 6b.**
+
+1. **O líder não conseguia registrar um interessado**, porque não enxerga pessoas de
+   fora do próprio Elo (nota 3 da §4). Não é defeito: é a regra de visibilidade
+   funcionando. A leitura correta do Fluxo 5 é a que ele próprio desenha — **quem
+   aponta o interessado é quem vê o cadastro inteiro** (secretaria ou coordenação), e
+   **quem decide é o líder**. A tela passou a dizer isso a quem tem escopo de Elo, com
+   o atalho certo ao lado: se alguém novo apareceu no Elo, o caminho é _Pessoas → Nova
+   pessoa_, que já vincula.
+2. **O líder também não enxergava a solicitação**, pelo mesmo motivo — o `JOIN` com
+   `person` perdia a linha. Aqui a regra teve de ceder, e cedeu **estreito**: quem tem
+   solicitação **pendente** para um Elo meu passa a ser visível para mim. A exceção se
+   fecha sozinha (aprovado vira participante; recusado deixa de aparecer), não cria
+   caminho novo de exposição (quem cria a solicitação já via a pessoa) e é deliberada —
+   esconder o nome de quem se pede para avaliar não protege ninguém.
+
+**Bug de interface encontrado pelos testes:** as mensagens de várias ações eram
+fundidas com `??` num único `<Alert>`. Como cada `useActionState` guarda o próprio
+resultado até ser usado de novo, o sucesso de uma ação antiga **mascarava** o da
+recente para sempre: registrar um interessado e depois recusar outro mostrava
+"solicitação registrada" no lugar de "solicitação recusada", e a pessoa concluiria que
+a recusa não funcionou. Agora cada ação tem o próprio alerta.
+
+**Duas melhorias de tela vieram de locators ambíguos nos testes**, e as duas são
+melhores como produto: o nome do participante virou **link para o perfil** (o
+`getByText` casava com as `<option>` escondidas dos seletores), e o **discipulador
+passou a ser escolhido entre os participantes do próprio Elo** — discipular acontece
+dentro do Elo, e oferecer o cadastro inteiro fazia procurar um dos oito entre centenas.
+
+---
+
+## Pendente
+
+### Fase 7c — Hierarquia e multiplicação
+
+Hierarquia em lista, cards e árvore (`elo.read_hierarchy`), e o fluxo de multiplicação
+(Fluxo 9). O aceite exige árvore correta com mais de 20 Elos; o seed tem 4, então o
+teste precisa criá-los. Decisão tomada: a árvore desce até o **Elo**, com contagem de
+participantes, e não até cada participante — com 20+ Elos e ~200 pessoas, uma árvore
+que abre cada participante deixa de ser navegável, e o aceite exige justamente que ela
+funcione nessa escala. O botão "Hierarquia" **não** existe na lista de Elos até a tela
+existir.
+
+---
+
 ## Problemas conhecidos
 
 ### Limitação conhecida: `person.is_minor` envelhece
@@ -503,11 +691,7 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**Fase 7 — Elos.**
-
-A Fase 6b já criou a tabela `elo_participant` como efeito colateral do vínculo no
-cadastro (ver acima). A Fase 7 traz a gestão própria de participantes, liderança com
-vigência, solicitação e aprovação, hierarquia e multiplicação — ver `ROADMAP.md`.
+**Fase 7c — Hierarquia e multiplicação.**
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. Se quiser um banco limpo: `pnpm db:migrate` e `pnpm db:seed`.

@@ -3,6 +3,7 @@ import postgres from 'postgres';
 
 import { LIDER_1, PASTOR } from '../../supabase/seeds/fixtures.ts';
 import { generateTotp, waitForFreshWindow } from './helpers/totp.ts';
+import { SENHA } from './helpers/session';
 
 /**
  * Segundo fator — docs/SECURITY.md §2.
@@ -15,8 +16,6 @@ import { generateTotp, waitForFreshWindow } from './helpers/totp.ts';
  * dispositivo, e duas execuções paralelas com a mesma conta disputariam o
  * mesmo cadastro.
  */
-
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
 
 test.describe.configure({ mode: 'serial' });
 

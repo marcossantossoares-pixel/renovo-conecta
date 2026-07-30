@@ -175,10 +175,27 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Aceite:**
 
-- [ ] Fluxos 4, 5 e 9 de `USER_FLOWS.md` funcionando
-- [ ] Supervisor vê estritamente seus Elos; acesso por URL direta a Elo fora do escopo retorna "não encontrado"
-- [ ] Endereço completo invisível sem `elo.read_full_address`
-- [ ] Árvore hierárquica correta com mais de 20 Elos
+**7a — Elo, liderança e endereço (concluída):**
+
+- [x] Fluxo 4 de `USER_FLOWS.md` funcionando, criando Elo, liderança e supervisão numa transação
+- [x] Claims recalculadas de imediato — o "ponto crítico" do fluxo, verificado com a sessão do líder aberta antes do vínculo
+- [x] Supervisor vê estritamente seus Elos; acesso por URL direta a Elo fora do escopo retorna "não encontrado"
+- [x] Endereço completo invisível sem `elo.read_full_address`
+- [x] **E inalterável sem permissão** — a Fase 3 fechara só a leitura; a escrita permitia apagar às cegas o que não se lê (migration 0009)
+
+**7b — participantes e solicitações (concluída):**
+
+- [x] Fluxo 5 de `USER_FLOWS.md` funcionando: registrar interessado → decidir → participação criada na mesma transação
+- [x] Participante ativo e inativo, entrada e saída com motivo, discipulador e potencial líder
+- [x] Transferência entre Elos preservando o histórico das duas pontas
+- [x] Duplicidade impedida no banco, sem proibir sair e voltar (migration 0010)
+- [x] **Quem decide enxerga quem pediu** — sem isso o líder não podia decidir, e o Fluxo 5 dizia que ele decide (migration 0011)
+
+**7c — hierarquia e multiplicação (pendente):**
+
+- [ ] Fluxo 9 de `USER_FLOWS.md` funcionando
+- [ ] Árvore hierárquica correta com mais de 20 Elos — o seed tem 4, o teste precisa criá-los
+- [ ] Hierarquia também em lista e em cards
 - [ ] Multiplicação preserva todo o histórico
 
 ---

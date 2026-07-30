@@ -1,7 +1,8 @@
-import { type Page, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
 import { COORDENADORA, LIDER_1, LIDER_4 } from '../../supabase/seeds/fixtures.ts';
+import { entrar } from './helpers/session';
 
 /**
  * Telas de usuários/permissões e de auditoria — Fase 5b.
@@ -13,17 +14,7 @@ import { COORDENADORA, LIDER_1, LIDER_4 } from '../../supabase/seeds/fixtures.ts
  *   - a coordenação não lê o log de auditoria.
  */
 
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
-
 test.describe.configure({ mode: 'serial' });
-
-async function entrar(page: Page, email: string) {
-  await page.goto('/entrar');
-  await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Senha').fill(SENHA);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-}
 
 /** Devolve o papel do usuário ao estado do seed, seja qual for o desfecho. */
 async function restaurarPapel(email: string, roleCode: string): Promise<void> {

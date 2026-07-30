@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { forbidden, notFound } from 'next/navigation';
-import type { ReactNode } from 'react';
 
 import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
@@ -8,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
+import { DescriptionItem } from '@/components/ui/description-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -29,18 +29,6 @@ export const metadata: Metadata = {
   title: 'Pessoa · Renovo Conecta',
   robots: { index: false, follow: false },
 };
-
-/** Par rótulo/valor. Campo vazio vira travessão, e não some da tela. */
-function Campo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-sm text-text-muted">{rotulo}</dt>
-      <dd className="text-base text-text">
-        {valor === null || valor === '' ? '—' : valor}
-      </dd>
-    </div>
-  );
-}
 
 const data = (valor: string | null) => (valor ? isoDateToBr(valor) : null);
 
@@ -146,19 +134,19 @@ export default async function PessoaPage({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Nome completo" valor={person.full_name} />
-              <Campo rotulo="Nome social" valor={person.social_name} />
-              <Campo rotulo="Nascimento" valor={data(person.birth_date)} />
-              <Campo
+              <DescriptionItem rotulo="Nome completo" valor={person.full_name} />
+              <DescriptionItem rotulo="Nome social" valor={person.social_name} />
+              <DescriptionItem rotulo="Nascimento" valor={data(person.birth_date)} />
+              <DescriptionItem
                 rotulo="Estado civil"
                 valor={
                   MARITAL_STATUS_LABELS[person.marital_status as 'solteiro'] ?? null
                 }
               />
-              <Campo rotulo="Telefone" valor={person.phone} />
-              <Campo rotulo="WhatsApp" valor={person.whatsapp} />
-              <Campo rotulo="E-mail" valor={person.email} />
-              <Campo rotulo="Observações" valor={person.notes} />
+              <DescriptionItem rotulo="Telefone" valor={person.phone} />
+              <DescriptionItem rotulo="WhatsApp" valor={person.whatsapp} />
+              <DescriptionItem rotulo="E-mail" valor={person.email} />
+              <DescriptionItem rotulo="Observações" valor={person.notes} />
             </dl>
           </CardContent>
         </Card>
@@ -169,13 +157,13 @@ export default async function PessoaPage({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Rua" valor={person.street} />
-              <Campo rotulo="Número" valor={person.number} />
-              <Campo rotulo="Complemento" valor={person.complement} />
-              <Campo rotulo="Bairro" valor={person.district} />
-              <Campo rotulo="Cidade" valor={person.city} />
-              <Campo rotulo="UF" valor={person.state} />
-              <Campo rotulo="CEP" valor={person.zip_code} />
+              <DescriptionItem rotulo="Rua" valor={person.street} />
+              <DescriptionItem rotulo="Número" valor={person.number} />
+              <DescriptionItem rotulo="Complemento" valor={person.complement} />
+              <DescriptionItem rotulo="Bairro" valor={person.district} />
+              <DescriptionItem rotulo="Cidade" valor={person.city} />
+              <DescriptionItem rotulo="UF" valor={person.state} />
+              <DescriptionItem rotulo="CEP" valor={person.zip_code} />
             </dl>
           </CardContent>
         </Card>
@@ -191,15 +179,27 @@ export default async function PessoaPage({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Primeira visita" valor={data(person.first_visit_at)} />
-              <Campo rotulo="Como conheceu a igreja" valor={person.how_found_church} />
-              <Campo rotulo="Decisão por Cristo" valor={data(person.decision_at)} />
-              <Campo rotulo="Batismo nas águas" valor={data(person.baptism_at)} />
-              <Campo
+              <DescriptionItem
+                rotulo="Primeira visita"
+                valor={data(person.first_visit_at)}
+              />
+              <DescriptionItem
+                rotulo="Como conheceu a igreja"
+                valor={person.how_found_church}
+              />
+              <DescriptionItem
+                rotulo="Decisão por Cristo"
+                valor={data(person.decision_at)}
+              />
+              <DescriptionItem
+                rotulo="Batismo nas águas"
+                valor={data(person.baptism_at)}
+              />
+              <DescriptionItem
                 rotulo="Curso de integração"
                 valor={data(person.integration_course_at)}
               />
-              <Campo
+              <DescriptionItem
                 rotulo="Recebimento como membro"
                 valor={data(person.membership_at)}
               />

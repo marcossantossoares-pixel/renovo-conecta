@@ -2,6 +2,7 @@ import { type Page, expect, test } from '@playwright/test';
 import postgres from 'postgres';
 
 import { LIDER_1, PASTOR, SUPERVISOR_A } from '../../supabase/seeds/fixtures.ts';
+import { SENHA } from './helpers/session';
 
 /**
  * Fluxos 1 e 2 de docs/USER_FLOWS.md, ponta a ponta.
@@ -10,8 +11,6 @@ import { LIDER_1, PASTOR, SUPERVISOR_A } from '../../supabase/seeds/fixtures.ts'
  * `pnpm db:seed`). As contas de demonstração são criadas pelo seed com a senha
  * de `SEED_DEMO_PASSWORD`.
  */
-
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
 
 /*
  * Execução em série, com as tentativas zeradas antes de cada teste.

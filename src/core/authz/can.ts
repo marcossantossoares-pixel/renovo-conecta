@@ -106,6 +106,66 @@ export function can(
   }
 }
 
+/**
+ * Tem a permissão em **algum** escopo.
+ *
+ * Pergunta diferente da de `can()`: não "pode nesta linha?", mas "esta tela
+ * existe para esta pessoa?". A distinção protege o aceite de que *acesso por
+ * URL direta a recurso fora do escopo retorna "não encontrado"*: se a página
+ * perguntasse `can(..., { eloId })` para o Elo pedido, um líder receberia **403**
+ * ao abrir o Elo de outro — resposta diferente da de um Elo inexistente, e duas
+ * respostas diferentes são um canal de informação. Com esta pergunta, a página
+ * decide só se a pessoa lida com o assunto; **quais** linhas ela alcança é
+ * decisão da RLS, e o que não vem de lá responde 404. A verificação por linha
+ * continua acontecendo em toda escrita, com o alvo real em mãos.
+ */
+export function hasPermissionAnywhere(
+  subject: AuthzSubject,
+  permission: PermissionCode,
+): boolean {
+  return effectiveScope(subject, permission) !== null;
+}
+
+/**
+ * Enxerga por Elo, e não pela congregação.
+ *
+ * Quem está nesta situação alcança apenas as linhas dos próprios Elos (nota 3 da
+ * §4 de `docs/PERMISSIONS.md`), o que muda o que a tela **explica** e o que o
+ * serviço **audita** — não o que qualquer um dos dois permite.
+ */
+export function hasNarrowScope(
+  subject: AuthzSubject,
+  permission: PermissionCode,
+): boolean {
+  const escopo = effectiveScope(subject, permission);
+
+  return escopo === 'elo' || escopo === 'supervision';
+}
+
+/**
+ * Responde pela congregação inteira **e** alcança este alvo.
+ *
+ * O supervisor não entra: o alcance dele é o conjunto de Elos que acompanha, não
+ * a congregação. Por isso a checagem de escopo vem antes de `can()` — `can()`
+ * sozinho aprovaria o supervisor para um Elo do escopo dele.
+ *
+ * Mora aqui, e não em cada módulo, porque "estreito" e "amplo" são definidos
+ * pela lista de escopos de `catalog.ts`. Enquanto cada domínio escrevia a sua
+ * comparação, um escopo novo no catálogo obrigaria a achar cinco funções — e a
+ * que passasse despercebida negaria ou concederia em silêncio.
+ */
+export function hasBroadScope(
+  subject: AuthzSubject,
+  permission: PermissionCode,
+  target: AuthzTarget = {},
+): boolean {
+  const escopo = effectiveScope(subject, permission);
+
+  if (escopo !== 'global' && escopo !== 'congregation') return false;
+
+  return can(subject, permission, target);
+}
+
 /** Nível hierárquico mais alto do sujeito. Zero se não tiver papel conhecido. */
 export function highestRoleLevel(subject: AuthzSubject): number {
   return subject.roles.reduce(
