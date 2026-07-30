@@ -1,0 +1,14 @@
+# Builds aprovados explicitamente.
+# esbuild: usado por vite/vitest — precisa do binário nativo.
+# sharp: otimização de imagens do Next.js.
+# Qualquer nova entrada aqui significa permitir a execução de script de
+# instalação de um pacote de terceiros — avalie antes de aprovar.
+allowBuilds:
+  esbuild: true
+  sharp: true
+
+minimumReleaseAgeExclude:
+  - '@playwright/test@1.62.0'
+  - eslint@10.8.0
+  - playwright-core@1.62.0
+  - playwright@1.62.0

@@ -1,0 +1,46 @@
+========================================================
+PRIMEIRO COMANDO PARA O CLAUDE CODE — RENOVO CONECTA
+========================================================
+
+COMO USAR:
+1. Abra a pasta renovo-conecta no VS Code.
+2. No terminal integrado, rode:  git init
+3. Inicie o Claude Code em modo de planejamento:  claude --permission-mode plan
+4. Copie e cole o texto abaixo (entre as linhas) como primeira mensagem.
+
+--------------------------------------------------------
+Leia integralmente o CLAUDE.md e o arquivo docs/MASTER_SPEC.md.
+
+Neste momento, não crie nem modifique código.
+
+Analise a especificação e faça somente o planejamento inicial do Renovo Conecta.
+
+Entregue:
+
+1. Resumo do produto;
+2. Escopo exato do MVP;
+3. Funcionalidades que ficarão fora do MVP;
+4. Arquitetura recomendada;
+5. Stack recomendada com justificativas;
+6. Modelo inicial de dados;
+7. Matriz de usuários e permissões;
+8. Riscos técnicos e de LGPD;
+9. Roadmap dividido em fases pequenas;
+10. Critérios de aceite para a primeira fase;
+11. Lista dos documentos que deverão ser criados;
+12. Dúvidas realmente bloqueadoras.
+
+Não implemente nada até eu revisar o planejamento.
+--------------------------------------------------------
+
+DEPOIS QUE ELE RESPONDER, CONFIRA:
+- Se manteve os Elos como módulo principal;
+- Se separou líder, supervisor, coordenador e administrador;
+- Se colocou controle de acesso no servidor e no banco;
+- Se iniciou pelo MVP;
+- Se deixou financeiro, WhatsApp e inteligência artificial para fases futuras;
+- Se não aumentou o escopo desnecessariamente.
+
+LEMBRETE PRINCIPAL (repita sempre ao Claude):
+"Implemente somente a fase atual. Não antecipe funcionalidades de fases futuras."
+========================================================

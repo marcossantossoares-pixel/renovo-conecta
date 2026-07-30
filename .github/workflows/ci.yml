@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela execuções antigas do mesmo branch: só o último commit importa.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Valores fictícios apenas para lint, typecheck, testes e build.
+  # NENHUM segredo real entra aqui. Ver docs/DEPLOYMENT.md §4.
+  NODE_ENV: test
+  SUPABASE_SERVICE_ROLE_KEY: chave-ficticia-de-ci
+  # Aplicação: papel sem privilégio, que apenas assume outro papel.
+  DATABASE_URL: postgresql://authenticator:postgres@127.0.0.1:54322/postgres
+  # Migrations e seeds: privilégio total.
+  DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+  NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-ficticia-de-ci
+
+jobs:
+  quality:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Formatação
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Testes unitários e de integração
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  rls:
+    name: Isolamento (Row Level Security)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      # Sobe o mesmo stack usado localmente. Testar RLS contra um Postgres
+      # genérico não valeria: os papéis `authenticated` e `anon`, sobre os
+      # quais as políticas são escritas, vêm do Supabase.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Subir o Supabase local
+        run: supabase start
+
+      - name: Aplicar migrations do zero
+        run: pnpm db:migrate
+
+      - name: Semear dados fictícios
+        run: pnpm db:seed
+
+      # Esta é a suíte que impede um incidente de privacidade. Falha aqui
+      # bloqueia o merge, sem exceção (docs/TESTING.md §3).
+      - name: Suíte de isolamento
+        run: pnpm test:rls
+
+  e2e:
+    name: Testes end-to-end
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar navegadores do Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Executar e2e
+        run: pnpm test:e2e
+
+      - name: Publicar relatório
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  security:
+    name: Segredos e dependências
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Histórico completo: o scan precisa olhar os commits, não só o topo.
+          fetch-depth: 0
+
+      - name: Scan de segredos
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      # Vulnerabilidade alta ou crítica bloqueia o merge (docs/SECURITY.md §11).
+      - name: Auditoria de dependências
+        run: pnpm audit --audit-level high
