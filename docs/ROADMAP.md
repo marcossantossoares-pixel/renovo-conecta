@@ -191,12 +191,13 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 - [x] Duplicidade impedida no banco, sem proibir sair e voltar (migration 0010)
 - [x] **Quem decide enxerga quem pediu** — sem isso o líder não podia decidir, e o Fluxo 5 dizia que ele decide (migration 0011)
 
-**7c — hierarquia e multiplicação (pendente):**
+**7c — hierarquia e multiplicação (concluída):**
 
-- [ ] Fluxo 9 de `USER_FLOWS.md` funcionando
-- [ ] Árvore hierárquica correta com mais de 20 Elos — o seed tem 4, o teste precisa criá-los
-- [ ] Hierarquia também em lista e em cards
-- [ ] Multiplicação preserva todo o histórico
+- [x] Fluxo 9 de `USER_FLOWS.md` funcionando
+- [x] Árvore hierárquica correta com mais de 20 Elos — o seed tem 4, e os testes os criam: 30 em memória para a forma, 25 no banco para o recorte da RLS
+- [x] Hierarquia também em lista e em cards
+- [x] Multiplicação preserva todo o histórico
+- [x] **Ciclo impedido no banco** (migration 0012) — uma consulta recursiva sobre ciclo não termina, e nada impedia criar um
 
 ---
 

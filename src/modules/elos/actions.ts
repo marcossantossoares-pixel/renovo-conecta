@@ -15,6 +15,7 @@ import {
   rejectedStructuralFields,
 } from './fields';
 import { DuplicateCodeError } from './errors';
+import { multiplyElo } from './multiplication';
 import {
   createElo,
   endLeadership,
@@ -30,6 +31,7 @@ import {
   endLeadershipSchema,
   endSupervisionSchema,
   leadershipSchema,
+  multiplyEloSchema,
   supervisionSchema,
   updateEloOperationalSchema,
   updateEloStructuralSchema,
@@ -208,6 +210,69 @@ export async function deleteEloAction(
 
   revalidatePath('/elos');
   redirect('/elos');
+}
+
+/**
+ * Multiplicar um Elo — Fluxo 9.
+ *
+ * `elo.multiply` é da coordenação apenas, e a razão é a mesma da transferência:
+ * a operação mexe em **dois** Elos. O líder alcança a origem e não o destino,
+ * que sequer existe quando ele clica — deixá-lo multiplicar seria deixá-lo criar
+ * uma estrutura que ele não pode enxergar depois.
+ */
+export async function multiplyEloAction(
+  _anterior: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { claims } = await requireAuthenticatedContext();
+  const congregationId = claims.congregation_ids[0];
+
+  if (!can(claims, 'elo.multiply', { congregationId })) {
+    return { error: 'Só a coordenação multiplica Elos.' };
+  }
+
+  const analise = multiplyEloSchema.safeParse({
+    ...readForm(formData, [
+      'originEloId',
+      'name',
+      'internalCode',
+      'weekday',
+      'startTime',
+      'leaderPersonId',
+      'multipliedAt',
+      'notes',
+    ]),
+    // Caixas de seleção repetem o mesmo `name`: `getAll` é o que devolve todas.
+    participantIds: formData
+      .getAll('participantIds')
+      .filter((v) => typeof v === 'string'),
+  });
+
+  if (!analise.success) {
+    return { fieldErrors: fieldErrors(analise.error.issues) };
+  }
+
+  let resultado: Awaited<ReturnType<typeof multiplyElo>>;
+
+  try {
+    resultado = await multiplyElo(claims, analise.data);
+  } catch (erro) {
+    if (erro instanceof DuplicateCodeError) {
+      return { fieldErrors: { internalCode: erro.message } };
+    }
+    throw erro;
+  }
+
+  if (resultado === 'origem-nao-encontrada') {
+    return { error: 'Elo de origem não encontrado.' };
+  }
+
+  revalidatePath('/elos');
+  revalidatePath('/elos/hierarquia');
+  revalidatePath(`/elos/${analise.data.originEloId}`);
+  revalidatePath(`/elos/${analise.data.originEloId}/participantes`);
+
+  redirect(`/elos/${resultado.newEloId}`);
 }
 
 /* ---------------------------------------------------------------------- */

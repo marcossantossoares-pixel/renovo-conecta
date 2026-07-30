@@ -167,6 +167,40 @@ export async function listElos(
   });
 }
 
+export interface EloHierarchyRow extends EloListRow {
+  readonly origin_elo_id: string | null;
+}
+
+/**
+ * Todos os Elos alcançáveis, com a origem de cada um.
+ *
+ * Sem paginação de propósito: uma árvore desenhada com metade dos nós não é
+ * meia árvore, é uma árvore errada — o filho apareceria como raiz só porque o
+ * pai caiu na página seguinte. A igreja tem dezenas de Elos, e a consulta é uma
+ * varredura de `elo` com as mesmas laterais da listagem.
+ *
+ * A montagem em si acontece em `hierarchy.ts`, sobre estas linhas. Uma CTE
+ * recursiva faria o mesmo trabalho no banco e traria dois problemas: a RLS
+ * recorta por linha, então a recursão perderia o ramo inteiro ao esbarrar num
+ * ancestral fora do alcance; e recursão sobre ciclo não termina. Aqui a RLS
+ * recorta o **conjunto**, e quem monta decide o que fazer com o órfão.
+ */
+export async function listHierarchyRows(
+  claims: UserClaims,
+): Promise<readonly EloHierarchyRow[]> {
+  return withUserContext(claims, (tx) =>
+    tx.execute<EloHierarchyRow>(sql`
+      SELECT ${PUBLIC_COLUMNS},
+             lider.full_name AS leader_name,
+             supervisor.full_name AS supervisor_name,
+             COALESCE(participantes.total, 0) AS participant_count
+      ${LIST_SOURCE}
+       WHERE e.deleted_at IS NULL
+       ORDER BY e.name
+    `),
+  );
+}
+
 export async function getElo(
   claims: UserClaims,
   eloId: string,

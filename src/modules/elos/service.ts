@@ -3,6 +3,7 @@ import 'server-only';
 import { ForbiddenError, hasPermissionAnywhere } from '@/core/authz/can';
 import type { UserClaims } from '@/core/db/with-user-context';
 import { canReadFullAddress, canWriteStructural } from './fields';
+import { buildEloTree, type EloTreeNode } from './hierarchy';
 import type {
   EloAddress,
   EloDetail,
@@ -16,6 +17,7 @@ import {
   getEloFullAddress,
   listElos,
   listLeadership,
+  listHierarchyRows,
   listSupervision,
   listTransferTargets,
 } from './repository';
@@ -67,6 +69,24 @@ export async function listTransferTargetsForViewer(
   assertReadsElos(claims);
 
   return listTransferTargets(claims, excludeEloId);
+}
+
+/**
+ * A hierarquia inteira que a sessão alcança.
+ *
+ * Portão próprio: `elo.read_hierarchy` não é `elo.read`. A matriz de
+ * `docs/PERMISSIONS.md` §4 dá a hierarquia à coordenação e ao supervisor, e
+ * **não** ao líder — quem conduz um Elo não precisa do mapa da igreja inteira, e
+ * o mapa mostra Elos que ele não alcança um a um.
+ */
+export async function getHierarchyForViewer(
+  claims: UserClaims,
+): Promise<readonly EloTreeNode[]> {
+  if (!hasPermissionAnywhere(claims, 'elo.read_hierarchy')) {
+    throw new ForbiddenError('elo.read_hierarchy');
+  }
+
+  return buildEloTree(await listHierarchyRows(claims));
 }
 
 export interface EloDetailResult {

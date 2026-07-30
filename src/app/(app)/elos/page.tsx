@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { EloIcon } from '@/components/ui/icons';
 import { UrlPagination } from '@/components/ui/url-pagination';
 import { requireAuthenticatedContext } from '@/core/auth/session';
-import { can } from '@/core/authz/can';
+import { can, hasPermissionAnywhere } from '@/core/authz/can';
 import { doMapa, rotulo } from '@/lib/labels';
 import type { EloListRow } from '@/modules/elos/repository';
 import {
@@ -49,6 +49,7 @@ export default async function ElosPage({
   const { rows, total } = await listElosForViewer(claims, query);
 
   const podeCriar = can(claims, 'elo.create', { congregationId });
+  const podeVerHierarquia = hasPermissionAnywhere(claims, 'elo.read_hierarchy');
   const colunas: readonly DataTableColumn<EloListRow>[] = [
     {
       id: 'nome',
@@ -119,10 +120,22 @@ export default async function ElosPage({
       <PageHeader
         title="Elos"
         description="Os pequenos grupos da igreja. Você enxerga os que estão no seu alcance."
-        // A hierarquia em árvore e em cards é da Fase 7c; nenhum botão para ela
-        // aparece aqui antes de a tela existir — link que leva a 404 ensina a
-        // desconfiar da navegação.
-        actions={podeCriar ? <ButtonLink href="/elos/novo">Novo Elo</ButtonLink> : null}
+        actions={
+          <>
+            {/*
+             * `elo.read_hierarchy` é permissão à parte de `elo.read`: a matriz
+             * dá a hierarquia à coordenação e ao supervisor, e não ao líder. O
+             * botão segue a mesma régua, para não oferecer o que responderia
+             * "sem acesso".
+             */}
+            {podeVerHierarquia && (
+              <ButtonLink href="/elos/hierarquia" variant="secondary">
+                Hierarquia
+              </ButtonLink>
+            )}
+            {podeCriar && <ButtonLink href="/elos/novo">Novo Elo</ButtonLink>}
+          </>
+        }
       />
 
       <div className="mt-6">

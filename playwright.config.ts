@@ -67,6 +67,9 @@ export default defineConfig({
         '**/people.spec.ts',
         '**/elos.spec.ts',
         '**/participants.spec.ts',
+        // `hierarchy`: multiplica um Elo do seed e devolve as participações no
+        // fim; duas execuções disputariam as mesmas linhas.
+        '**/hierarchy.spec.ts',
       ],
     },
   ],

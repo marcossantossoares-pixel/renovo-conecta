@@ -68,6 +68,7 @@ export default async function EloPage({ params }: { params: Promise<{ id: string
 
   const podeEditar = can(claims, 'elo.update', { congregationId, eloId: elo.id });
   const podeExcluir = can(claims, 'elo.delete', { congregationId });
+  const podeMultiplicar = can(claims, 'elo.multiply', { congregationId });
 
   return (
     <AppShell userName={email} allowedHrefs={allowedNavHrefs(claims, congregationId)}>
@@ -82,6 +83,11 @@ export default async function EloPage({ params }: { params: Promise<{ id: string
             <ButtonLink href={`/elos/${elo.id}/solicitacoes`} variant="secondary">
               Solicitações
             </ButtonLink>
+            {podeMultiplicar && (
+              <ButtonLink href={`/elos/${elo.id}/multiplicar`} variant="secondary">
+                Multiplicar
+              </ButtonLink>
+            )}
             {podeEditar && (
               <ButtonLink href={`/elos/${elo.id}/editar`}>Editar</ButtonLink>
             )}

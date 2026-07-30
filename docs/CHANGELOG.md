@@ -6,6 +6,32 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ## [Não lançado]
 
+### Adicionado
+
+#### Fase 7c — Hierarquia e multiplicação (2026-07-30)
+
+- **Hierarquia dos Elos** em três apresentações — árvore, lista e cards
+  (`MASTER_SPEC` §4.5) —, todas montadas sobre a mesma consulta: se uma mostra doze
+  Elos, as três mostram doze, porque é o mesmo objeto percorrido de três jeitos. A
+  vista escolhida vive na URL, então é compartilhável e sobrevive ao botão voltar.
+- **Permissão à parte**: `elo.read_hierarchy` não é `elo.read`. A matriz dá a
+  hierarquia à coordenação e ao supervisor, e não ao líder — o botão e a rota seguem
+  a mesma régua.
+- **Multiplicação de Elo (Fluxo 9)**: o Elo novo nasce ligado à origem, quem migra
+  sai de lá com data e motivo, e a passagem anterior permanece. Tudo numa transação —
+  um Elo novo sem líder, ou pessoas que saíram da origem sem chegar ao destino, seria
+  estado que alguém teria de reconciliar à mão.
+- **Ciclo impedido no banco** (migration 0012): nada impedia gravar `A → B → A`, e
+  uma consulta recursiva sobre ciclo não devolve resultado errado — ela **não
+  termina**. Um gatilho recusa o vínculo que fecharia o ciclo, e uma `CHECK` recusa o
+  caso degenerado de um Elo ser a própria origem.
+- **Índice em `origin_elo_id`**: a travessia da hierarquia caminha um nível por vez,
+  e cada nível era uma varredura da tabela inteira.
+- **O órfão sobe para a raiz**: o supervisor alcança os Elos que acompanha e nem
+  sempre o pai deles. Um nó "Elo não visível" contaria que existe algo ali — a mesma
+  informação que a Fase 7a decidiu não dar ao responder "não encontrado" em vez de
+  "sem permissão".
+
 ### Corrigido
 
 #### Revisão de qualidade da Fase 7 (2026-07-30)

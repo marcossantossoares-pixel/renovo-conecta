@@ -292,6 +292,76 @@ export const elosQuerySchema = z.object({
 export type ElosQuery = z.infer<typeof elosQuerySchema>;
 
 /* ---------------------------------------------------------------------- */
+/* Hierarquia — Fase 7c                                                    */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * As três apresentações da mesma hierarquia (`MASTER_SPEC` §4.5).
+ *
+ * A escolha vive na URL, e não no estado do componente, pela mesma razão dos
+ * filtros: a vista escolhida precisa sobreviver ao botão voltar e ser
+ * compartilhável — "olha a árvore dos Elos do Norte" é um link.
+ */
+export const HIERARCHY_VIEWS = ['arvore', 'lista', 'cards'] as const;
+
+export const HIERARCHY_VIEW_LABELS: Readonly<
+  Record<(typeof HIERARCHY_VIEWS)[number], string>
+> = {
+  arvore: 'Árvore',
+  lista: 'Lista',
+  cards: 'Cards',
+};
+
+export type HierarchyView = (typeof HIERARCHY_VIEWS)[number];
+
+export const hierarchyQuerySchema = z.object({
+  vista: z.enum(HIERARCHY_VIEWS).default('arvore').catch('arvore'),
+});
+
+/**
+ * Multiplicação de Elo — Fluxo 9.
+ *
+ * O Elo novo nasce com o mínimo: nome, código, dia e horário. O resto —
+ * endereço, descrição, perfil do público — se preenche na edição depois, porque
+ * exigir tudo no momento da multiplicação transformaria um ato de dois minutos
+ * numa segunda passagem pelo formulário completo.
+ *
+ * `participantIds` pode vir vazio: multiplicar levando só o líder é decisão
+ * legítima da coordenação. Quem não pode faltar é o líder — um Elo sem líder é
+ * um registro à espera de alguém completá-lo, como diz `createEloSchema`.
+ */
+export const multiplyEloSchema = z.object({
+  originEloId: z.uuid(),
+  name: z
+    .string()
+    .trim()
+    .min(3, 'Informe o nome do novo Elo.')
+    .max(120, 'O nome pode ter no máximo 120 caracteres.'),
+  internalCode: z
+    .string()
+    .trim()
+    .min(2, 'Informe o código interno.')
+    .max(30, 'O código pode ter no máximo 30 caracteres.')
+    .regex(
+      /^[A-Za-z0-9-]+$/,
+      'Use apenas letras, números e hífen — o código aparece em relatórios.',
+    ),
+  weekday: z.enum(WEEKDAYS),
+  startTime: timeSchema,
+  leaderPersonId: z.uuid('Escolha quem vai liderar o novo Elo.'),
+  multipliedAt: requiredDate('Informe a data da multiplicação.'),
+  notes: optionalText,
+  /**
+   * Quem migra junto. Chega do formulário como uma lista de `uuid`, e o líder
+   * novo entra por conta própria no serviço — ele passa a liderar o Elo novo,
+   * então participar dele é consequência, não escolha.
+   */
+  participantIds: z.array(z.uuid()).default([]),
+});
+
+export type MultiplyEloInput = z.infer<typeof multiplyEloSchema>;
+
+/* ---------------------------------------------------------------------- */
 /* Participantes                                                           */
 /* ---------------------------------------------------------------------- */
 

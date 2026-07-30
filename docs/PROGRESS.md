@@ -2,16 +2,28 @@
 
 ## Fase atual
 
-**Fase 7 — Elos: metades 7a e 7b concluídas e revisadas.**
+**Fase 7 — Elos: concluída (7a, 7b e 7c).**
 
 A Fase 7 é a primeira marcada **G** no roadmap e entrega sete frentes; foi
 dividida em três: **7a** (CRUD do Elo, liderança com vigência, supervisão e
 privacidade do endereço nas duas pontas), **7b** (participantes, solicitação e
 aprovação) e **7c** (hierarquia em lista, cards e árvore, e multiplicação).
 
-Próxima: **Fase 7c — hierarquia e multiplicação**. Fases 0 a 6 concluídas.
+Próxima: **Fase 8 — Relatório semanal**, marcada no roadmap como a de maior risco de
+adoção. Fases 0 a 7 concluídas.
 
-Antes de abrir a 7c, o código das duas metades passou por uma revisão de qualidade
+A 7c entregou a hierarquia em árvore, lista e cards, e a multiplicação do Fluxo 9. Dois
+achados durante a construção, ambos registrados no código:
+
+- **Ciclo na hierarquia travava a aplicação, não a corrompia.** Nada impedia gravar
+  `A → B → A`, e a consulta recursiva sobre um ciclo não termina. A migration 0012 fecha
+  isso no banco, com gatilho e `CHECK`; a montagem em memória tem a própria proteção,
+  porque roda sobre dado que pode ter entrado antes da guarda.
+- **A primeira montagem da árvore perdia os Elos de um ciclo em vez de travar.** Num
+  ciclo fechado não existe raiz, então a varredura não alcançava nenhum nó e eles
+  sumiam da tela sem erro. Os testes pegaram; quem sobra agora entra como raiz.
+
+Antes de abrir a 7c, o código das duas primeiras metades passou por uma revisão de qualidade
 (reuso, simplificação, eficiência e altitude). O detalhe está em `docs/CHANGELOG.md`,
 em "Revisão de qualidade da Fase 7"; o resumo é que cinco defeitos apareceram — um
 deles alargando silenciosamente a política de escrita de `person` — e que a Fase 7c
