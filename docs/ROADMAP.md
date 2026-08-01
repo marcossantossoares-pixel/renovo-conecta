@@ -209,11 +209,11 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Aceite:**
 
-- [x] Fluxo 6 de `USER_FLOWS.md` funcionando **até o envio** (8a). Aprovação, correção e reabertura são da 8b
+- [x] Fluxo 6 de `USER_FLOWS.md` funcionando por inteiro (8a envio, 8b decisão)
 - [ ] Preenchimento completo em **≤ 2 minutos** em celular real — medido, não estimado. **Pendente de campo:** o formulário foi construído para isso (uma coluna, teclado numérico, total somado sozinho), mas navegador automatizado não mede polegar
 - [x] Rascunho sobrevive a queda de conexão e a fechamento do navegador
 - [x] Rascunho apagado após envio e no logout
-- [ ] Líder não aprova o próprio relatório (teste)
+- [x] Líder não aprova o próprio relatório (teste) — a trava é por linha, em `approvalBlock`, porque a coordenação também lidera Elos e `can()` diria sim para ela
 - [x] Soma das parcelas validada no servidor — em Zod **e** como `CHECK` no banco
 - [ ] Exportação registrada em `audit_log`
 

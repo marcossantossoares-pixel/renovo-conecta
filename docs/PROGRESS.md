@@ -2,7 +2,7 @@
 
 ## Fase atual
 
-**Fase 8 — Relatório semanal: metade 8a concluída.**
+**Fase 8 — Relatório semanal: metades 8a e 8b concluídas.**
 
 A Fase 8 é a que o roadmap marca como a de **maior risco de adoção** — o Fluxo 6 se
 chama "o fluxo mais importante do produto", e se preencher o relatório for penoso o
@@ -10,8 +10,14 @@ líder para de preencher. Foi dividida em três, como a 7: **8a** (formulário, 
 local e envio), **8b** (aprovação, correção, reabertura, histórico e indicador de
 atraso) e **8c** (exportação PDF/Excel e indicadores do dashboard).
 
-A 8a entrega o Fluxo 6 até o envio: tabelas, RLS, formulário mobile, rascunho local e
-validação da soma em duas camadas. Fases 0 a 7 concluídas.
+A 8a entregou o Fluxo 6 até o envio; a 8b fechou o ciclo com aprovação, correção,
+reabertura, histórico e indicador de atraso (3 dias após o encontro). Próxima: **8c**
+— exportação PDF/Excel e indicadores do dashboard. Fases 0 a 7 concluídas.
+
+Um defeito de interface apareceu na 8b e foi pego pelos testes: o painel de decisão
+sumia depois de decidir, porque o status novo não tem mais decisões disponíveis e o
+componente retornava cedo demais — a supervisão clicava, a decisão era gravada, e nada
+na tela confirmava.
 
 **Dois critérios da Fase 8 dependem de campo, não de código:**
 
@@ -40,15 +46,15 @@ compartilhados, em vez de copiá-los uma terceira vez.
 
 **Pendências conhecidas, deliberadamente fora desta revisão:**
 
-| Item                                                                   | Por que ficou de fora                                                                                   |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `listPersonOptions` serializa até 500 pessoas para quatro telas        | A correção é uma busca incremental (typeahead) com `LIMIT 20`, que é funcionalidade nova, não limpeza   |
-| Falta índice trigram em `elo` para as buscas por nome, código e bairro | Espelha a migration 0008; hoje `elo` tem centenas de linhas, e criar migration nova é mudança de schema |
-| `listElos` avalia o filtro duas vezes (linhas + `COUNT`)               | `count(*) OVER ()` resolveria, mas muda o total informado quando a página pedida passa da última        |
-| Cada consulta abre a própria transação RLS                             | É a convenção da casa desde a Fase 6; mudá-la é decisão de arquitetura, não de revisão                  |
-| Seis escritas fazem `SELECT` da congregação antes do `INSERT`          | Dobrá-los em `INSERT ... SELECT` reescreveria seis caminhos de escrita testados                         |
-| `DeleteElo` é cópia de `DeletePerson`                                  | A 7c não criou um terceiro caso de exclusão; segue com dois                                             |
-| `listPersonParticipations` ainda não tem chamador                      | A hierarquia da 7c usou `origin_elo_id`, não a trajetória da pessoa. Decidir na 8b se entra ou sai      |
+| Item                                                                   | Por que ficou de fora                                                                                              |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `listPersonOptions` serializa até 500 pessoas para quatro telas        | A correção é uma busca incremental (typeahead) com `LIMIT 20`, que é funcionalidade nova, não limpeza              |
+| Falta índice trigram em `elo` para as buscas por nome, código e bairro | Espelha a migration 0008; hoje `elo` tem centenas de linhas, e criar migration nova é mudança de schema            |
+| `listElos` avalia o filtro duas vezes (linhas + `COUNT`)               | `count(*) OVER ()` resolveria, mas muda o total informado quando a página pedida passa da última                   |
+| Cada consulta abre a própria transação RLS                             | É a convenção da casa desde a Fase 6; mudá-la é decisão de arquitetura, não de revisão                             |
+| Seis escritas fazem `SELECT` da congregação antes do `INSERT`          | Dobrá-los em `INSERT ... SELECT` reescreveria seis caminhos de escrita testados                                    |
+| `DeleteElo` é cópia de `DeletePerson`                                  | A 7c não criou um terceiro caso de exclusão; segue com dois                                                        |
+| `listPersonParticipations` continua sem chamador                       | Nem a 7c nem a 8b precisaram dela. Serve à linha do tempo da pessoa (`MASTER_SPEC` §4.3) — decidir na 8c ou apagar |
 
 ---
 

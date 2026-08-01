@@ -2,8 +2,13 @@ import 'server-only';
 
 import { ForbiddenError, can, hasPermissionAnywhere } from '@/core/authz/can';
 import type { UserClaims } from '@/core/db/with-user-context';
-import type { ReportRow } from './repository';
-import { getReportByDate, listReports } from './repository';
+import type { ReportRow, StatusHistoryRow } from './repository';
+import {
+  getReport,
+  getReportByDate,
+  listReports,
+  listStatusHistory,
+} from './repository';
 
 /**
  * Leitura dos relatórios.
@@ -27,6 +32,24 @@ export async function listReportsForViewer(
   assertReadsReports(claims);
 
   return listReports(claims, eloId);
+}
+
+export async function getReportForViewer(
+  claims: UserClaims,
+  reportId: string,
+): Promise<ReportRow | null> {
+  assertReadsReports(claims);
+
+  return getReport(claims, reportId);
+}
+
+export async function listStatusHistoryForViewer(
+  claims: UserClaims,
+  reportId: string,
+): Promise<readonly StatusHistoryRow[]> {
+  assertReadsReports(claims);
+
+  return listStatusHistory(claims, reportId);
 }
 
 export async function getReportByDateForViewer(

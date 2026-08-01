@@ -88,6 +88,9 @@ export default async function EloPage({ params }: { params: Promise<{ id: string
                 Relatório da semana
               </ButtonLink>
             )}
+            <ButtonLink href={`/elos/${elo.id}/relatorios`} variant="secondary">
+              Relatórios
+            </ButtonLink>
             <ButtonLink href={`/elos/${elo.id}/participantes`} variant="secondary">
               Participantes
             </ButtonLink>

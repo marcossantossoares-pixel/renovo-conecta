@@ -187,6 +187,21 @@ export const reportDraftSchema = z.object({
 
 export type ReportDraft = z.infer<typeof reportDraftSchema>;
 
+/**
+ * A decisão da supervisão sobre um relatório.
+ *
+ * `para` é o estado de destino, e não um verbo ("aprovar"): a máquina de
+ * estados em `status.ts` raciocina sobre estados, e traduzir verbo → estado em
+ * dois lugares seria a chance de os dois discordarem.
+ */
+export const decideReportSchema = z.object({
+  reportId: z.uuid(),
+  para: z.enum(['aprovado', 'correcao_solicitada', 'reaberto']),
+  comment: optionalText,
+});
+
+export type DecideReportInput = z.infer<typeof decideReportSchema>;
+
 /** Campos que o formulário posta, na ordem em que aparecem na tela. */
 export const REPORT_FORM_KEYS = [
   'eloId',

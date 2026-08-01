@@ -8,6 +8,33 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 8b — Relatório semanal: aprovação, correção e reabertura (2026-08-01)
+
+- **O ciclo do Fluxo 6 fecha**: enviado → correção solicitada → reenviado → aprovado, e
+  reabertura a partir do aprovado. As transições vivem numa **tabela**, em módulo puro
+  (`modules/reports/status.ts`), e não numa cadeia de `if` — "o que pode acontecer a
+  partir daqui?" se responde lendo uma linha.
+- **O líder não decide sobre o próprio relatório** — o critério de aceite que faltava.
+  A trava é por linha, e não no catálogo: a coordenação tem `report.approve` **e**
+  lidera Elos, então `can()` diria sim para o relatório dela mesma. Vale para as três
+  decisões, porque pedir correção do próprio relatório é tão autorrevisão quanto
+  aprová-lo.
+- **A transição vai no `WHERE` do `UPDATE`**, não num `if` antes dele: dois supervisores
+  abrindo o mesmo relatório aprovariam os dois, e o segundo sobrescreveria o primeiro
+  sem que ninguém soubesse. Agora o segundo afeta zero linhas e recebe a recusa.
+- **Pedir correção e reabrir exigem comentário** — no banco (`CHECK`), no schema e na
+  tela. Um relatório devolvido sem motivo é reenviado igual.
+- **Indicador de atraso**: 3 dias após o encontro. Num Elo semanal um prazo de 7 dias
+  venceria no dia do encontro seguinte, e o líder chegaria à reunião nova ainda devendo
+  a anterior. Relatório aprovado nunca conta como atrasado — cobrar o que já foi
+  resolvido ensina a ignorar o indicador.
+- **Histórico de decisões visível na lista**, com autor, data e comentário. Um pedido de
+  correção que o líder não vê é um relatório parado sem ninguém entender por quê.
+- **Defeito encontrado pelos testes**: o painel de decisão sumia após a decisão, porque
+  o status novo não tem mais decisões disponíveis e o componente retornava `null` antes
+  de renderizar a confirmação. A supervisão clicava, a decisão era gravada, e nada na
+  tela dizia isso.
+
 #### Fase 8a — Relatório semanal: formulário, rascunho e envio (2026-07-30)
 
 - **Tabelas `elo_report` e `elo_report_status_history`** (migration 0013), com RLS,

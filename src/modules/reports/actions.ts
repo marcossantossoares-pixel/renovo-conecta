@@ -3,12 +3,14 @@
 import { revalidatePath } from 'next/cache';
 
 import { requireAuthenticatedContext } from '@/core/auth/session';
+import { can } from '@/core/authz/can';
 import { fieldErrors, readForm } from '@/lib/form-data';
 import type { FormState } from '@/modules/auth/actions';
 import { DuplicateReportError } from './errors';
-import { submitReport } from './repository';
-import { REPORT_FORM_KEYS, submitReportSchema } from './schemas';
-import { canSubmitReport } from './service';
+import { decideReport, submitReport } from './repository';
+import { REPORT_FORM_KEYS, decideReportSchema, submitReportSchema } from './schemas';
+import { encontrarTransicao } from './status';
+import { approvalBlock, canSubmitReport, getReportForViewer } from './service';
 
 /**
  * Ações do relatório semanal.
@@ -70,3 +72,94 @@ export async function submitReportAction(
       : 'Relatório reenviado.',
   };
 }
+
+/**
+ * Aprovar, pedir correção ou reabrir — Fluxo 6, segunda metade.
+ *
+ * ⚠️ **O LÍDER NÃO APROVA O PRÓPRIO RELATÓRIO** (nota 3 da §4 de
+ * `docs/PERMISSIONS.md`), e a razão de isso morar aqui e não no catálogo é que
+ * o catálogo raciocina sobre **papéis**: a coordenação tem `report.approve` e
+ * também lidera Elos, então `can()` diria sim para o relatório dela mesma.
+ * `approvalBlock` compara quem decide com quem enviou, por linha.
+ *
+ * A trava vale para as três decisões, e não só para aprovar: pedir correção do
+ * próprio relatório e reabri-lo são igualmente uma pessoa revisando a si mesma.
+ */
+export async function decideReportAction(
+  _anterior: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { claims } = await requireAuthenticatedContext();
+  const congregationId = claims.congregation_ids[0];
+
+  const analise = decideReportSchema.safeParse(
+    readForm(formData, ['reportId', 'para', 'comment']),
+  );
+
+  if (!analise.success) {
+    return { fieldErrors: fieldErrors(analise.error.issues) };
+  }
+
+  const relatorio = await getReportForViewer(claims, analise.data.reportId);
+
+  if (!relatorio) return { error: 'Relatório não encontrado.' };
+
+  const transicao = encontrarTransicao(relatorio.status, analise.data.para);
+
+  if (!transicao) {
+    return {
+      error: `Não é possível ${DECISAO_VERBO[analise.data.para]} um relatório neste estado.`,
+    };
+  }
+
+  if (!can(claims, transicao.permissao, { congregationId, eloId: relatorio.elo_id })) {
+    return { error: 'Você não pode decidir sobre este relatório.' };
+  }
+
+  const bloqueio = approvalBlock(claims, congregationId, relatorio);
+
+  if (bloqueio === 'proprio-relatorio') {
+    return {
+      error:
+        'Você não decide sobre o relatório que enviou. Peça a outro supervisor ou à coordenação.',
+    };
+  }
+
+  if (transicao.exigeComentario && analise.data.comment === null) {
+    return {
+      fieldErrors: {
+        comment: 'Diga o que precisa ser corrigido — sem isso, o líder reenvia igual.',
+      },
+    };
+  }
+
+  const resultado = await decideReport(claims, {
+    reportId: analise.data.reportId,
+    de: relatorio.status,
+    para: analise.data.para,
+    comment: analise.data.comment,
+  });
+
+  if (resultado === 'transicao-invalida') {
+    return { error: 'Alguém decidiu sobre este relatório antes de você. Recarregue.' };
+  }
+
+  revalidatePath(`/elos/${relatorio.elo_id}/relatorios`);
+  revalidatePath(`/elos/${relatorio.elo_id}`);
+
+  return { success: DECISAO_SUCESSO[analise.data.para] };
+}
+
+type Decisao = 'aprovado' | 'correcao_solicitada' | 'reaberto';
+
+const DECISAO_VERBO: Readonly<Record<Decisao, string>> = {
+  aprovado: 'aprovar',
+  correcao_solicitada: 'pedir correção de',
+  reaberto: 'reabrir',
+};
+
+const DECISAO_SUCESSO: Readonly<Record<Decisao, string>> = {
+  aprovado: 'Relatório aprovado.',
+  correcao_solicitada: 'Correção solicitada. O líder vê o comentário ao abrir o Elo.',
+  reaberto: 'Relatório reaberto para ajuste.',
+};

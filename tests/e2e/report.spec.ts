@@ -1,6 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-import { COORDENADORA, ELO_SEMEAR, LIDER_1 } from '../../supabase/seeds/fixtures.ts';
+import {
+  COORDENADORA,
+  ELO_SEMEAR,
+  LIDER_1,
+  SUPERVISOR_A,
+} from '../../supabase/seeds/fixtures.ts';
 import { conexao, entrar } from './helpers/session';
 
 /**
@@ -183,4 +188,125 @@ test('o supervisor não preenche relatório — ele acompanha', async ({ page })
   // A coordenação preenche: é quem tem `report.submit` além da liderança.
   await page.goto(`/elos/${ELO_SEMEAR.id}`);
   await expect(page.getByRole('link', { name: 'Relatório da semana' })).toBeVisible();
+});
+
+/* ======================================================================
+ * Fase 8b — aprovação, correção e reabertura.
+ *
+ * Moram NESTE arquivo, e não num próprio, porque disputam o mesmo recurso: há
+ * um relatório por Elo por data, e limpar o histórico só é possível com
+ * `TRUNCATE` — que é global, porque a tabela é append-only e recusa `DELETE`.
+ * Em arquivos separados o Playwright os roda em paralelo e cada um derruba o
+ * outro pela metade; foi o que aconteceu na primeira tentativa. Um arquivo em
+ * modo serial resolve sem truque.
+ *
+ * ⚠️ A trava do "próprio relatório" NÃO está no catálogo de permissões, e não
+ * poderia estar: a coordenação tem `report.approve` e também lidera Elos, então
+ * `can()` diria sim para ela. Quem fecha a porta é a comparação por linha, em
+ * `approvalBlock` — daí ela precisar de teste de ponta a ponta.
+ * ==================================================================== */
+
+const PREFIXO_APROV = 'Zeaprov';
+
+/** O líder envia o relatório da semana, que é o ponto de partida do ciclo. */
+async function enviarComoLider(page: Page, estudo: string) {
+  await entrar(page, LIDER_1.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorio`);
+
+  await page.getByLabel('Estudo utilizado').fill(estudo);
+  await page.getByLabel('Membros').fill('9');
+  await page.getByLabel('Membros').blur();
+
+  // O botão diz 'Reenviar relatório' quando já existe relatório para a data.
+  await page.getByRole('button', { name: /(Enviar|Reenviar) relatório/ }).click();
+  await expect(page.getByText(/Relatório (enviado|reenviado)/)).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
+test('o líder envia e vê o próprio relatório na lista', async ({ page }) => {
+  await enviarComoLider(page, `${PREFIXO_APROV} primeiro`);
+
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await expect(page.getByText('Enviado').first()).toBeVisible();
+  await expect(page.getByText(`${PREFIXO_APROV} primeiro`)).toBeVisible();
+});
+
+/*
+ * O caso central da fase. O líder tem `report.read` no Elo e vê a tela — o que
+ * ele não pode é decidir sobre o que ele mesmo enviou.
+ */
+test('o líder não recebe botão de decisão sobre o próprio relatório', async ({
+  page,
+}) => {
+  await entrar(page, LIDER_1.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await expect(page.getByRole('button', { name: 'Aprovar' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pedir correção' })).toHaveCount(0);
+});
+
+test('o supervisor pede correção, e o comentário chega ao líder', async ({ page }) => {
+  await entrar(page, SUPERVISOR_A.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await page.getByRole('button', { name: 'Pedir correção' }).click();
+
+  // O campo só aparece para as decisões que o exigem.
+  const comentario = page.getByLabel(/Pedir correção — o que precisa mudar\?/);
+  await expect(comentario).toBeVisible();
+  await comentario.fill('Faltou o número de visitantes.');
+
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(
+    page.getByText('Correção solicitada. O líder vê o comentário ao abrir o Elo.'),
+  ).toBeVisible({ timeout: 15_000 });
+
+  // O líder precisa ver o motivo sem procurar por ele.
+  await page.getByRole('button', { name: 'Sair' }).click();
+  await expect(page).toHaveURL(/\/entrar/, { timeout: 15_000 });
+
+  await entrar(page, LIDER_1.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await expect(page.getByText('Correção solicitada').first()).toBeVisible();
+  await expect(page.getByText('Faltou o número de visitantes.')).toBeVisible();
+});
+
+test('o líder reenvia e o relatório volta para enviado', async ({ page }) => {
+  await enviarComoLider(page, `${PREFIXO_APROV} corrigido`);
+
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+  await expect(page.getByText('Enviado').first()).toBeVisible();
+});
+
+test('o supervisor aprova, e o relatório deixa de aceitar decisão', async ({
+  page,
+}) => {
+  await entrar(page, SUPERVISOR_A.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await page.getByRole('button', { name: 'Aprovar' }).click();
+  await expect(page.getByText('Relatório aprovado.')).toBeVisible({ timeout: 15_000 });
+
+  await page.reload();
+
+  // Aprovado só aceita reabrir — aprovar de novo não é oferecido.
+  await expect(page.getByRole('button', { name: 'Aprovar' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reabrir' })).toBeVisible();
+});
+
+test('reabrir exige dizer o motivo', async ({ page }) => {
+  await entrar(page, COORDENADORA.email);
+  await page.goto(`/elos/${ELO_SEMEAR.id}/relatorios`);
+
+  await page.getByRole('button', { name: 'Reabrir' }).click();
+
+  const comentario = page.getByLabel(/Reabrir — o que precisa mudar\?/);
+  await expect(comentario).toBeVisible();
+  await comentario.fill('Os números não batem com a lista de presença.');
+
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.getByText(/Relatório reaberto/)).toBeVisible({ timeout: 15_000 });
 });

@@ -289,6 +289,52 @@ describe('as regras de conteúdo valem até para o administrador', () => {
   });
 });
 
+/*
+ * A transição vai no `WHERE` do UPDATE, e não num `if` antes dele.
+ *
+ * Perguntar "qual é o status?" e depois gravar deixa uma janela: dois
+ * supervisores abrindo o mesmo relatório aprovariam os dois, e o segundo
+ * sobrescreveria o primeiro sem que ninguém soubesse. Com a condição na própria
+ * escrita, o segundo afeta zero linhas.
+ */
+describe('a transição é atômica', () => {
+  it('a segunda decisão sobre o mesmo relatório não encontra linha', async () => {
+    await relatorioDeTeste(ELO_SEMEAR.id);
+
+    const primeira = await asUser(claimsSupervisorA, async (tx) => {
+      const linhas = await tx<{ id: string }[]>`
+        UPDATE elo_report SET status = 'aprovado'::report_status
+         WHERE elo_id = ${ELO_SEMEAR.id}::uuid
+           AND status = 'enviado'::report_status
+        RETURNING id
+      `;
+      return linhas.length;
+    });
+
+    expect(primeira).toBe(1);
+  });
+
+  it('e quem chega depois, com o status já mudado, não afeta nada', async () => {
+    const id = await relatorioDeTeste(ELO_SEMEAR.id);
+
+    await adminSql`
+      UPDATE elo_report SET status = 'aprovado'::report_status WHERE id = ${id}::uuid
+    `;
+
+    const segunda = await asUser(claimsSupervisorA, async (tx) => {
+      const linhas = await tx<{ id: string }[]>`
+        UPDATE elo_report SET status = 'aprovado'::report_status
+         WHERE id = ${id}::uuid
+           AND status = 'enviado'::report_status
+        RETURNING id
+      `;
+      return linhas.length;
+    });
+
+    expect(segunda).toBe(0);
+  });
+});
+
 describe('o histórico de situação', () => {
   it('aceita inserção do líder no próprio Elo', async () => {
     const id = await relatorioDeTeste(ELO_SEMEAR.id);

@@ -108,6 +108,100 @@ export async function getReport(
   return linhas[0] ?? null;
 }
 
+export interface StatusHistoryRow extends Record<string, unknown> {
+  readonly id: string;
+  readonly from_status: string | null;
+  readonly to_status: string;
+  readonly comment: string | null;
+  readonly created_at: string;
+  readonly author_name: string | null;
+}
+
+/** A trajetória do relatório, da mais recente para a mais antiga. */
+export async function listStatusHistory(
+  claims: UserClaims,
+  reportId: string,
+): Promise<readonly StatusHistoryRow[]> {
+  return withUserContext(claims, (tx) =>
+    tx.execute<StatusHistoryRow>(sql`
+      SELECT h.id, h.from_status::text, h.to_status::text, h.comment, h.created_at,
+             autor.full_name AS author_name
+        FROM elo_report_status_history h
+        LEFT JOIN app_user u ON u.id = h.created_by
+        LEFT JOIN person autor ON autor.id = u.person_id
+       WHERE h.report_id = ${reportId}::uuid
+       ORDER BY h.created_at DESC
+    `),
+  );
+}
+
+/**
+ * Aplica uma decisão sobre o relatório — aprovar, pedir correção ou reabrir.
+ *
+ * A transição é conferida **no `WHERE`**, e não num `if` antes do `UPDATE`.
+ * Perguntar "qual é o status?" e depois gravar deixa uma janela: dois
+ * supervisores abrindo o mesmo relatório aprovariam os dois, e o segundo
+ * sobrescreveria o primeiro sem que ninguém soubesse. Com a condição na
+ * própria escrita, o segundo afeta zero linhas e recebe a recusa.
+ *
+ * O histórico entra na mesma transação. Um sem o outro é pior que nenhum: o
+ * status mudaria sem explicação, ou a explicação existiria para uma mudança que
+ * não aconteceu.
+ */
+export async function decideReport(
+  claims: UserClaims,
+  params: {
+    reportId: string;
+    de: string;
+    para: string;
+    comment: string | null;
+  },
+): Promise<'ok' | 'transicao-invalida'> {
+  return withUserContext(claims, async (tx) => {
+    const linhas = await tx.execute<{ congregation_id: string; elo_id: string }>(sql`
+      UPDATE elo_report
+         SET status = ${params.para}::report_status,
+             approved_at = CASE
+               WHEN ${params.para} = 'aprovado' THEN now()
+               ELSE NULL
+             END,
+             updated_by = ${claims.app_user_id}::uuid
+       WHERE id = ${params.reportId}::uuid
+         AND status = ${params.de}::report_status
+         AND deleted_at IS NULL
+      RETURNING congregation_id, elo_id
+    `);
+
+    const linha = linhas[0];
+
+    // Zero linhas: ou o relatório saiu do alcance, ou alguém decidiu antes.
+    if (!linha) return 'transicao-invalida';
+
+    await tx.execute(sql`
+      INSERT INTO elo_report_status_history (
+        tenant_id, report_id, from_status, to_status, comment, created_by
+      )
+      VALUES (
+        ${claims.tenant_id}::uuid, ${params.reportId}::uuid,
+        ${params.de}::report_status, ${params.para}::report_status,
+        ${params.comment}, ${claims.app_user_id}::uuid
+      )
+    `);
+
+    await recordAudit(tx, {
+      tenantId: claims.tenant_id,
+      congregationId: linha.congregation_id,
+      actorAppUserId: claims.app_user_id,
+      action: 'update',
+      resourceType: 'elo_report',
+      resourceId: params.reportId,
+      changes: { de: params.de, para: params.para },
+    });
+
+    return 'ok';
+  });
+}
+
 /**
  * Envia o relatório — cria ou atualiza, na mesma transação da auditoria.
  *
