@@ -77,6 +77,24 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-08-01 — ADR-008: anexos em bucket privado sem políticas, com URL assinada emitida pelo servidor
+
+- **Contexto:** a Fase 9b precisa entregar anexos de estudo em Storage privado, e o aceite exige que eles sejam _"acessíveis apenas por URL assinada com expiração"_. O projeto tem uma regra permanente forte: **autorização não vive apenas na aplicação** (ADR-001, `CLAUDE.md`), e até aqui isso sempre significou uma política de RLS no banco. Storage não tem equivalente automático: `storage.objects` aceita políticas, mas elas são avaliadas com o JWT bruto do Supabase, que carrega apenas `sub` — **não** as claims resolvidas (`tenant_id`, `roles`, `elo_ids`) que toda a RLS do sistema consulta.
+- **Decisão:** o bucket é privado e **não recebe política alguma** para `authenticated` nem para `anon` — `storage.objects` já nasce com RLS habilitada e zero políticas, e a migration 0015 mantém assim. Todo acesso a arquivo passa pelo servidor: ele **primeiro lê a linha de `study_attachment` sob a RLS de quem pediu**, e só então usa a chave `service_role`, isolada em `src/core/storage/`, para emitir uma URL assinada de curta duração.
+- **O que preserva a regra permanente:** a autorização continua sendo da RLS. Ela apenas acontece na linha que **nomeia** o arquivo, e não no arquivo. Um líder que peça o anexo de um rascunho não recebe a linha, logo não existe `storage_path`, logo não há o que assinar — e o caminho nunca chega ao navegador. A aplicação não decide quem pode; ela só não consegue perguntar pelo que a RLS não devolveu.
+- **Alternativas consideradas:**
+  - **Políticas em `storage.objects` com funções `SECURITY DEFINER` que resolvem o usuário a partir de `auth.uid()`** — seria a resposta arquitetural mais simétrica, e teria valor real contra acesso direto à API de Storage. Custo: reimplementar, num segundo dialeto, a resolução de papéis que `app.resolve_claims()` já faz, mais o casamento entre o caminho do objeto e a linha do banco. Duas implementações da mesma regra divergem — foi o que aconteceu com a anti-escalação de privilégio na Fase 5. E o ganho é pequeno: **a URL assinada ignora políticas de qualquer forma**, porque quem a valida é a assinatura. **Descartada, com o gatilho registrado:** se um dia o cliente precisar falar direto com o Storage (upload do navegador, por exemplo), esta decisão precisa ser revista.
+  - **Bucket público com caminhos difíceis de adivinhar** — dispensaria a chave administrativa e é o que muitos projetos fazem. Significa que o material da igreja fica a um endereço de distância de qualquer pessoa, para sempre, e que a expiração deixa de existir. **Descartada.**
+  - **Guardar o arquivo no banco (`bytea`)** — RLS resolveria tudo, sem chave administrativa e sem segundo sistema. Custo: backup, memória e transferência de arquivos de dezenas de MB pelo mesmo canal das consultas. **Descartada.**
+- **Consequências:**
+  - A chave `service_role` ganha um segundo consumidor legítimo. Isso obrigou a fechar uma divergência: `supabase-admin.ts` sempre afirmou que seu import era proibido fora de uma lista de exceções, e a regra de ESLint que o proibia **não existia** — passava por verdadeira porque só havia um consumidor. Agora existe, com as exceções nomeadas.
+  - `src/core/storage/` não decide autorização e não aceita caminho vindo do cliente. É a propriedade que sustenta a decisão, e está escrita no topo do módulo.
+  - A URL assinada **não verifica quem a usa**: quem a tiver, abre. Daí o prazo curto (`STORAGE_SIGNED_URL_TTL_SECONDS`, 15 minutos) — tempo de abrir o PDF no encontro, não de virar endereço permanente num grupo de mensagens.
+  - `allowed_mime_types` no bucket recusa `.html` e `.svg`, que seriam conteúdo ativo servido a partir de um endereço confiável.
+- **Status:** aprovada.
+
+---
+
 ## 2026-07-25 — ADR-005: TypeScript 6, e não a versão `latest`
 
 - **Contexto:** na Fase 1, o `latest` do TypeScript no npm era a versão **7.0.2** (a reescrita nativa do compilador). A §6 do `MASTER_SPEC.md` pede que se verifiquem as versões estáveis atuais antes de iniciar.

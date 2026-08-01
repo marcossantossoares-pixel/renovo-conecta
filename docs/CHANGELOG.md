@@ -8,6 +8,93 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 9b — Estudos semanais: anexos, leitura mobile e mensagem (2026-08-01)
+
+- **Anexos em Storage privado** (migration 0015): PDF, áudio e vídeo até 10 MB, ou
+  link externo para o que é grande demais para valer a pena guardar. Uma tabela, duas
+  naturezas, e um `CHECK` garantindo que cada linha seja só uma delas — a alternativa
+  produziria a linha que não aponta para lugar nenhum, e ela só apareceria no clique.
+- **O bucket não tem política alguma, e isso é a decisão** (ADR-008). `storage.objects`
+  nasce com RLS habilitada e zero políticas; a migration não abre exceção. O acesso é
+  por URL assinada que o servidor emite **depois** de ler, sob a RLS de quem pediu, a
+  linha que nomeia o arquivo. Estudo em rascunho não devolve linha ao líder, logo não
+  existe `storage_path`, logo não há o que assinar. A autorização continua sendo da
+  RLS — só acontece na linha que nomeia o arquivo, e não no arquivo.
+- **A URL assinada nunca vai para o HTML.** Os anexos apontam para
+  `/api/estudos/anexos/[id]`, que confere o acesso e redireciona. Assinatura embutida
+  na página sobreviveria no histórico, em cache e em captura de tela — e URL assinada
+  não verifica quem a usa: quem a tiver, abre.
+- **Abrir anexo fica registrado em `audit_log`**, inclusive o link externo. Arquivo
+  aberto é dado saindo do sistema, mesma régua das exportações das Fases 6 e 8.
+- **Mensagem para o grupo de líderes**, com as sete partes da §4.7 e **sem integração
+  com WhatsApp** — texto num campo visível, e não escondido atrás do botão: quem envia
+  em nome da igreja precisa ler antes, e se `navigator.clipboard` falhar ainda dá para
+  selecionar à mão.
+- **Leitura em 360 px** verificada por e2e, sem rolagem horizontal e com o material de
+  apoio no fim da página — no topo, ele empurraria o texto base para fora da primeira
+  tela do celular, e é o texto base que abre a conversa.
+- **Envio, assinatura e download provados ponta a ponta**: os bytes voltam pela URL
+  assinada, e o mesmo objeto **sem** a assinatura é recusado.
+
+### Corrigido
+
+- **`file_attachment` era legível apenas pela coordenação**, mais estreito do que
+  `PERMISSIONS.md` §5 sempre disse ("somente pelo recurso que o referencia"). Na
+  prática o líder não saberia sequer que o estudo publicado tem um PDF: o `JOIN`
+  perderia a linha, como aconteceu com a solicitação de participação na Fase 7b. A
+  política nova segue o recurso e se fecha sozinha.
+- **A regra de ESLint que `supabase-admin.ts` afirmava ter não existia.** O arquivo
+  dizia, desde a Fase 4, que seu import era proibido fora de uma lista de exceções — e
+  nada o proibia. A afirmação passava por verdadeira porque só havia um consumidor. Ao
+  surgir o segundo (o Storage privado), a regra foi escrita, com as exceções nomeadas,
+  e verificada com um arquivo de violação temporário.
+- **Dois campos com o mesmo rótulo na tela de anexos** ("Como chamar"), um em cada
+  formulário. Ambíguo para quem usa leitor de tela; a ambiguidade apareceu primeiro no
+  teste, que não conseguia distingui-los.
+
+#### Fase 9a — Estudos semanais: banco, RLS e gestão (2026-08-01)
+
+- **`weekly_study` e `study_section`** (migration 0014), com o Fluxo 7 do rascunho à
+  leitura: criar, editar, publicar, agendar, arquivar e excluir; e a tela que o líder
+  abre no encontro, em uma coluna e na ordem da leitura em voz alta.
+- **A publicação agendada é resolvida por data dentro da política de RLS**
+  (`app.study_is_public`), e não na aplicação. Não há fila de jobs no MVP
+  (`ARCHITECTURE.md` §11): nada acorda à meia-noite para mudar o status, e um estudo
+  agendado para ontem já está no ar embora `status` continue gravado como `agendado`.
+  Se esse predicado morasse no repositório, a primeira consulta futura que o
+  esquecesse publicaria cedo o estudo da semana que vem, para todo mundo, sem erro.
+- **Caso 10 de `PERMISSIONS.md` §7 provado nas duas pontas** — na RLS e na tela —, com
+  quatro mutações confirmando que a suíte guarda algo: tornar o agendado sempre
+  público quebrou 4 testes, dar `lider` a `authors_studies()` quebrou 8, afrouxar a
+  política das seções quebrou 1, tirar `deleted_at` do `USING` do `UPDATE` quebrou 1.
+- **`published_at` separado de `publish_at`**, o que sustenta o arquivamento: um
+  estudo arquivado que já foi público continua legível para quem o usou, e um rascunho
+  arquivado **não** passa a ser público por ter mudado de status.
+- **Agendar exige o mesmo conteúdo que publicar.** Um agendado vai ao ar sozinho na
+  data, sem ninguém reler: deixar o rascunho vazio passar não resolve o problema, só o
+  adia para a noite do encontro, quando o líder abre uma tela em branco às 19h50.
+- **Cinco permissões de `study` no catálogo**, e a linha de `study.delete` que faltava
+  na matriz de `PERMISSIONS.md` §4 — ela constava apenas na lista da §3.
+- **Dois estudos de demonstração** (`DEMO_DATA.md` §4), um publicado e um agendado,
+  com datas **relativas a hoje**: um `publish_at` cravado em 2026 viraria passado
+  sozinho, e a suíte quebraria meses depois sem ninguém ter tocado no código.
+
+### Corrigido
+
+- **`deleted_at IS NULL` numa política de `SELECT` quebra o soft delete.** O primeiro
+  rascunho da migration 0014 filtrava o soft delete na política, o que parecia mais
+  rigoroso que a convenção de `person` e `elo` — que filtram nas consultas. O efeito
+  foi a exclusão parar de funcionar: o Postgres avalia a política de leitura **também
+  contra a linha nova** do `UPDATE`, mesmo sem `RETURNING`, e a linha nova é justamente
+  a que tem `deleted_at` preenchido. Isolado política a política no banco; o filtro
+  voltou para `repository.ts` e há teste de RLS fixando a fronteira nos dois sentidos.
+- **Política permissiva `FOR ALL` vale também para `SELECT`.** A escrita do estudo
+  nasceu como uma `FOR ALL`, e como as permissivas se somam com OU, ela devolvia à
+  coordenação linhas que a política de leitura recortava. Virou `INSERT`, `UPDATE` e
+  `DELETE` separadas, onde cada expressão diz sobre qual linha ela fala.
+- **O item "Estudos" do menu exigia `elo.read`**, e passou a exigir `study.read` — que
+  é a permissão que a matriz de fato associa àquela tela.
+
 #### Fase 8c — Relatório semanal: exportação (2026-08-01)
 
 - **Excel** por rota de API, com `write-excel-file` (ADR-006) — nenhuma dependência

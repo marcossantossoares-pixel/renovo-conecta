@@ -73,6 +73,9 @@ export default defineConfig({
         // `report`: um relatório por Elo por data, e a suíte faz logout —
         // duas execuções disputariam a linha e a sessão.
         '**/report.spec.ts',
+        // `studies`: cria e publica um estudo em série; duas execuções
+        // disputariam a mesma linha e a veriam pela metade.
+        '**/studies.spec.ts',
       ],
     },
   ],

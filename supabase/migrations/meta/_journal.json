@@ -99,6 +99,20 @@
       "when": 1785448940422,
       "tag": "0013_elo_report",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785594908823,
+      "tag": "0014_weekly_study",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1785597320796,
+      "tag": "0015_study_attachment",
+      "breakpoints": true
     }
   ]
 }

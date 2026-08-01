@@ -2,6 +2,113 @@
 
 ## Fase atual
 
+**Fase 9 — Estudos semanais: 9a e 9b concluídas.**
+
+A fase foi dividida em duas, pelo mesmo motivo das Fases 7 e 8: cada metade
+termina verde e documentada. A **9a** entregou o Fluxo 7 do rascunho à leitura; a
+**9b** entregou os anexos em Storage privado, a leitura em 360 px e o gerador de
+mensagem para o grupo de líderes.
+
+### 9b — o que a decisão de Storage custou pensar
+
+O aceite pede anexos _"acessíveis apenas por URL assinada com expiração"_, e o
+projeto tem uma regra permanente forte: **autorização não vive apenas na
+aplicação**. Até aqui isso sempre significou uma política de RLS. Storage não tem
+equivalente automático — `storage.objects` aceita políticas, mas elas são
+avaliadas com o JWT bruto do Supabase, que carrega apenas `sub`, e **não** as
+claims resolvidas (`tenant_id`, `roles`, `elo_ids`) que toda a RLS do sistema
+consulta.
+
+A saída está na **ADR-008**: o bucket é privado e **não recebe política alguma**,
+e o servidor emite a URL assinada **depois** de ler, sob a RLS de quem pediu, a
+linha que nomeia o arquivo. Estudo em rascunho não devolve linha ao líder, logo
+não existe `storage_path`, logo não há o que assinar — e o caminho nunca chega ao
+navegador. A autorização continua sendo da RLS; ela só acontece na linha que
+**nomeia** o arquivo, e não no arquivo. Há teste guardando as duas pontas: o
+caminho não vaza, e `storage.objects` continua sem política.
+
+**A URL assinada nunca vai para o HTML.** Os anexos apontam para
+`/api/estudos/anexos/[id]`, que confere e redireciona. Assinatura embutida na
+página sobreviveria no histórico, em cache e em qualquer captura de tela do
+encontro — e URL assinada não verifica quem a usa: quem a tiver, abre.
+
+**Duas divergências entre documentação e implementação, fechadas:**
+
+| O que dizia                                                                    | O que era                                                                       |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `PERMISSIONS.md` §5: `file_attachment` legível "pelo recurso que o referencia" | Só a coordenação lia. O líder não saberia que o estudo publicado tem um PDF     |
+| `supabase-admin.ts`: "import proibido fora da lista de exceções"               | A regra de ESLint **não existia** — passava por verdadeira com um consumidor só |
+
+A segunda só apareceu porque a 9b criou o **segundo** consumidor legítimo da
+chave `service_role`. A regra foi escrita e verificada com um arquivo de violação
+temporário, como na Fase 1.
+
+**Três proteções da 9b mutadas, cada uma quebrando o que devia:** remover a
+política nova de `file_attachment` quebrou 1 teste; afrouxar a leitura do anexo
+quebrou 1; acrescentar uma política permissiva em `storage.objects` quebrou 1.
+
+**Achados menores:** o Postgres recusa `DELETE` direto em `storage.objects` com
+mensagem explícita — a limpeza do e2e passou a usar a API de Storage, e a suíte
+deixou de acumular um PDF por execução. E o cliente HTTP do Playwright não envia
+cookie `Secure` sobre `http://127.0.0.1`, embora o navegador envie: a suíte roda
+contra o build de produção, então os cookies vão à mão no caso que exercita a
+rota do anexo.
+
+**O risco desta fase é de visibilidade, não de escrita.** O caso 10 de
+`PERMISSIONS.md` §7 — "rascunho de estudo não é visível para líder nem
+supervisor" — é um dos dez que precisam ser provados antes de produção, e o
+Fluxo 7 acrescenta o agendado, que é a parte capciosa: sem fila de jobs
+(`ARCHITECTURE.md` §11), a publicação agendada se resolve **por data na leitura**.
+Esse predicado ficou dentro da política de RLS (`app.study_is_public`), e não na
+aplicação — se morasse no repositório, qualquer consulta futura que o esquecesse
+publicaria cedo o estudo da semana que vem, para todo mundo, sem erro nenhum.
+
+**Achado que custou caro, e vale para todo o projeto:** `deleted_at IS NULL`
+**não pode entrar numa política de `SELECT`** de tabela com soft delete. O
+primeiro rascunho da migration 0014 o colocou lá, parecendo mais rigoroso que a
+convenção de `person` e `elo` — que filtram nas consultas. O efeito foi a
+exclusão parar de funcionar: o Postgres avalia a política de leitura **também
+contra a linha nova** do `UPDATE`, mesmo sem `RETURNING`, e a linha nova é
+justamente a que tem `deleted_at` preenchido. Gravar a exclusão passava a violar
+a política que autoriza excluir. Isolado política a política no banco; a
+convenção da casa estava certa e o filtro voltou para `repository.ts`. Há teste
+de RLS fixando a fronteira nos dois sentidos.
+
+**Um segundo erro meu, também pego pelos testes:** a escrita nasceu como uma
+política `FOR ALL`. Política permissiva `FOR ALL` vale **também para `SELECT`**,
+e as permissivas se somam com OU — então a política de escrita devolvia à
+coordenação linhas que a de leitura recortava. Virou `INSERT`, `UPDATE` e
+`DELETE` separadas, onde cada expressão diz sobre qual linha ela fala.
+
+**Lacuna de documentação fechada:** `study.delete` constava na lista de
+permissões de `PERMISSIONS.md` §3 e **não tinha linha na matriz §4**. Decidido
+com o usuário: superadmin, pastor e coordenação — quem escreve o conteúdo
+descarta o próprio rascunho. A §4 recebeu a linha e duas notas novas (9 e 10),
+esta última registrando que o caminho para tirar do ar um estudo já publicado é
+**arquivar**, não excluir.
+
+**Duas decisões de modelagem que os testes protegem:**
+
+| Decisão                                     | Por quê                                                                                                                                          |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `published_at` separado de `publish_at`     | Sustenta o arquivamento: arquivado que já foi público continua legível; **rascunho arquivado não passa a ser público** por ter mudado de status  |
+| Agendar exige o mesmo conteúdo que publicar | Um agendado vai ao ar sozinho na data, sem ninguém reler. Deixar o rascunho vazio passar não resolve o problema, adia-o para a noite do encontro |
+
+**Quatro proteções mutadas, cada uma quebrando exatamente o que devia:** tornar
+o agendado sempre público quebrou 4 testes; dar `lider` a `authors_studies()`
+quebrou 8; afrouxar a política das seções quebrou 1; tirar `deleted_at` do
+`USING` do `UPDATE` quebrou 1.
+
+**Armadilha de ambiente encontrada no caminho:** derrubar e recriar o schema
+`public` **não** restaura o `GRANT USAGE ... TO PUBLIC` que o `initdb` dá ao
+schema original. Sem ele, a conexão da aplicação passa a receber "relation does
+not exist" onde antes recebia "permission denied", e dois testes de isolamento
+falham por motivo enganoso. Quem recriar o schema à mão precisa reconceder.
+
+---
+
+## Fase anterior
+
 **Fase 8 — Relatório semanal: 8a, 8b e 8c concluídas no que depende de código.**
 
 A Fase 8 é a que o roadmap marca como a de **maior risco de adoção** — o Fluxo 6 se
@@ -670,17 +777,96 @@ dentro do Elo, e oferecer o cadastro inteiro fazia procurar um dos oito entre ce
 
 ---
 
-## Pendente
+### Fase 9a — Estudos: banco, RLS e gestão (2026-08-01)
 
-### Fase 7c — Hierarquia e multiplicação
+**Migration `0014_weekly_study.sql`**, escrita à mão sobre o esqueleto gerado pelo
+Drizzle.
 
-Hierarquia em lista, cards e árvore (`elo.read_hierarchy`), e o fluxo de multiplicação
-(Fluxo 9). O aceite exige árvore correta com mais de 20 Elos; o seed tem 4, então o
-teste precisa criá-los. Decisão tomada: a árvore desce até o **Elo**, com contagem de
-participantes, e não até cada participante — com 20+ Elos e ~200 pessoas, uma árvore
-que abre cada participante deixa de ser navegável, e o aceite exige justamente que ela
-funcione nessa escala. O botão "Hierarquia" **não** existe na lista de Elos até a tela
-existir.
+| Objeto                                                  | Por quê                                                                                                                                                         |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app.study_is_public(status, publish_at, published_at)` | O predicado da publicação agendada, **dentro da política**. Uma função só, usada na leitura do estudo e das seções                                              |
+| `app.authors_studies()`                                 | Quem escreve estudo. Mesma lista de `has_congregation_scope()` hoje, e função própria pelo motivo da 0009: o nome diz de qual linha do catálogo o conjunto veio |
+| `weekly_study_publicado_tem_data`                       | Publicado sem `published_at` ficaria visível hoje e, ao ser arquivado, invisível para sempre — sem nada explicando por quê                                      |
+| `weekly_study_agendado_tem_data`                        | Agendar sem dizer quando é rascunho com outro nome                                                                                                              |
+| `study_section` com `ON DELETE CASCADE`                 | A seção é parágrafo de um documento, não registro histórico. É a única `cascade` do sistema, e o motivo está no arquivo                                         |
+
+**Arquivos criados:**
+
+| Área      | Arquivos                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration | `supabase/migrations/0014_weekly_study.sql` + `meta/0014_snapshot.json`                                                                            |
+| Schema    | `src/core/db/schema/studies.ts`                                                                                                                    |
+| Módulo    | `src/modules/studies/{schemas,status,repository,service,actions}.ts`                                                                               |
+| Telas     | `src/app/(app)/estudos/{page,study-filters,study-form}.tsx`, `novo/page.tsx`, `[id]/{page,publish-panel,delete-study}.tsx`, `[id]/editar/page.tsx` |
+| Testes    | `tests/unit/modules/studies/schemas.test.ts`, `tests/rls/studies.test.ts`, `tests/e2e/studies.spec.ts`                                             |
+
+**Alterados:** `src/core/authz/catalog.ts` (cinco permissões de `study`),
+`src/core/db/schema/{_shared,index}.ts` (dois enums), `src/lib/format.ts`
+(`listaComE`, compartilhada entre servidor e tela), `src/components/layout/navigation.ts`
+(o item de Estudos passou a exigir `study.read`, não `elo.read`),
+`supabase/seeds/{fixtures,seed}.ts` (os dois estudos de `DEMO_DATA.md` §4),
+`playwright.config.ts`, `docs/PERMISSIONS.md` (§4 e §5),
+`tests/unit/core/authz/can.test.ts`.
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **369** (era 342) |
+| `pnpm test:rls`                                 | ✅ **196** (era 175) |
+| `pnpm test:e2e`                                 | ✅ **155** (era 147) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+Aplicada **do zero** quatro vezes, com `db:migrate` e `db:seed` refeitos a cada
+correção de política.
+
+**Decisão de escopo desta metade:** a tela de leitura (`/estudos/[id]`) entrou na
+9a, e não na 9b. Sem ela a lista não levaria a lugar nenhum e o aceite "rascunho
+invisível ao líder" não teria como ser verificado pela interface. A 9b refinou
+essa mesma tela para 360 px e acrescentou anexos e o gerador de mensagem.
+
+---
+
+### Fase 9b — Anexos, leitura mobile e mensagem (2026-08-01)
+
+**Migration `0015_study_attachment.sql`**, escrita à mão.
+
+| Objeto                              | Por quê                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `study_attachment`                  | Arquivo **ou** link, nunca os dois — dois `CHECK` fecham a linha que não aponta para lugar nenhum                                                      |
+| `study_attachment_link_http`        | `javascript:alert(1)` como "link do estudo" viraria `<a href>` na tela de todo líder. O Zod recusa e explica; o `CHECK` não depende de ninguém lembrar |
+| `file_attachment_read_via_study`    | A §5 sempre disse "somente pelo recurso que o referencia"; a 0001 dera a leitura só à coordenação                                                      |
+| Bucket privado, criado na migration | O `config.toml` só governa a instância local; a migration vale em qualquer ambiente                                                                    |
+| `allowed_mime_types`                | Segurança, não conveniência: `.html` e `.svg` no bucket viram conteúdo ativo servido de um endereço confiável                                          |
+
+**Arquivos criados:**
+
+| Área      | Arquivos                                                                            |
+| --------- | ----------------------------------------------------------------------------------- |
+| Migration | `supabase/migrations/0015_study_attachment.sql` + `meta/0015_snapshot.json`         |
+| Storage   | `src/core/storage/private-bucket.ts`                                                |
+| Módulo    | `src/modules/studies/{attachments,message}.ts`                                      |
+| Rota      | `src/app/api/estudos/anexos/[id]/route.ts`                                          |
+| Telas     | `src/app/(app)/estudos/[id]/{attachment-manager,attachment-list,share-message}.tsx` |
+| Testes    | `tests/rls/study-attachments.test.ts`, `tests/unit/modules/studies/message.test.ts` |
+
+**Alterados:** `src/core/db/schema/{_shared,studies}.ts`, `src/modules/studies/{schemas,actions}.ts`,
+`src/app/(app)/estudos/[id]/{page,editar/page}.tsx`, `eslint.config.mjs`
+(a regra que faltava para `supabase-admin`), `docs/{DECISIONS,PERMISSIONS}.md`,
+`tests/e2e/studies.spec.ts`.
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **389** (era 369) |
+| `pnpm test:rls`                                 | ✅ **209** (era 196) |
+| `pnpm test:e2e`                                 | ✅ **165** (era 155) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+**O que ficou de fora, e por quê:**
+
+| Item                                                  | Motivo                                                                                                                                                |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Políticas em `storage.objects` com `SECURITY DEFINER` | Reimplementaria a resolução de papéis num segundo dialeto, e a URL assinada ignora políticas de qualquer forma. Gatilho de revisão na ADR-008         |
+| Apagar o objeto do bucket ao remover o anexo          | Tornaria a exclusão irreversível na hora; um clique errado custaria o material da semana. O preço é espaço, e a limpeza é rotina, não decisão de tela |
+| Enviar arquivo direto do navegador para o Storage     | Exigiria abrir política no bucket. Não há necessidade: os arquivos do estudo são pequenos                                                             |
 
 ---
 
@@ -716,6 +902,17 @@ aplicando `FORCE` (e então o seed precisa de tratamento explícito), ou corrigi
 §5 para descrever o que de fato existe e por quê. Não foi alterado na Fase 6a por
 estar fora do escopo da fase e por mexer no comportamento de migration e seed.
 
+### Rota do menu sem tela: `/relatorios`
+
+Encontrada ao entrar na Fase 9, e **fora do escopo dela**. O menu principal tem o
+item "Relatórios" apontando para `/relatorios`, e essa rota não existe: a Fase 8
+entregou os relatórios **dentro do Elo** (`/elos/[id]/relatorios`), e a lista
+geral por período e supervisor pertence à Fase 10. Hoje o item leva a 404.
+
+Não foi corrigido aqui porque criar a tela seria implementar Fase 10, e remover o
+item do menu apagaria o esqueleto que a Fase 2 deixou de propósito. Fica
+registrado no próprio `navigation.ts`, com a data em que deixa de ser verdade.
+
 ### Bloqueios externos
 
 Não impedem o desenvolvimento com dados fictícios:
@@ -730,10 +927,23 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**Fase 7c — Hierarquia e multiplicação.**
+**Fase 10 — Dashboard e relatórios.**
+
+Indicadores da §4.2 do `MASTER_SPEC` relativos ao MVP, filtros por período,
+congregação, supervisor e Elo, gráficos com tabela equivalente e exportação. Dois
+pontos já conhecidos antes de abrir a fase:
+
+- o módulo de métricas **chegou a ser escrito na 8c e foi removido**, por
+  pertencer a esta fase e não atender aos critérios dela (gráfico com tabela
+  equivalente, filtros por período e supervisor);
+- a rota `/relatorios` do menu ainda leva a 404, e é aqui que ela ganha tela.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. Se quiser um banco limpo: `pnpm db:migrate` e `pnpm db:seed`.
+
+⚠️ Se precisar recriar o schema `public` à mão, reconceda
+`GRANT USAGE ON SCHEMA public TO PUBLIC` — o `CREATE SCHEMA` não repete o que o
+`initdb` faz, e dois testes de isolamento falham com mensagem enganosa sem isso.
 
 Contas de demonstração: os e-mails de `supabase/seeds/fixtures.ts`, todos com a senha
 de `SEED_DEMO_PASSWORD`.

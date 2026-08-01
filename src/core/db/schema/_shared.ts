@@ -117,6 +117,51 @@ export const reportStatusEnum = pgEnum('report_status', [
   'reaberto',
 ]);
 
+/**
+ * Situação do estudo semanal (`MASTER_SPEC` §4.7, Fluxo 7).
+ *
+ * `agendado` é o valor que exige atenção: ele **não vira `publicado` sozinho**.
+ * Não há fila de jobs no MVP (`ARCHITECTURE.md` §11), então a publicação é
+ * resolvida por comparação de data na leitura — um estudo agendado cuja hora já
+ * passou é lido como público, mantendo o status `agendado` gravado. A coluna
+ * descreve o que a coordenação pediu; quem responde "está no ar?" é
+ * `app.study_is_public()`.
+ */
+export const studyStatusEnum = pgEnum('study_status', [
+  'rascunho',
+  'agendado',
+  'publicado',
+  'arquivado',
+]);
+
+/**
+ * Tipo de seção do estudo.
+ *
+ * Introdução, conclusão, desafio e oração são colunas de `weekly_study`, porque
+ * existem no máximo uma vez cada. Estas três se repetem — três tópicos, três
+ * perguntas — e por isso viram linhas ordenadas (`DATABASE.md` §4).
+ */
+export const studySectionKindEnum = pgEnum('study_section_kind', [
+  'topico',
+  'pergunta',
+  'aplicacao',
+]);
+
+/**
+ * Tipo de anexo do estudo (`MASTER_SPEC` §4.7).
+ *
+ * `link` é o único que **não** tem arquivo em Storage: é um endereço externo,
+ * quase sempre um vídeo hospedado fora. Os outros três apontam para
+ * `file_attachment`, e o tipo existe para a tela saber o que oferecer — abrir um
+ * PDF e abrir um áudio são gestos diferentes.
+ */
+export const studyAttachmentKindEnum = pgEnum('study_attachment_kind', [
+  'pdf',
+  'audio',
+  'video',
+  'link',
+]);
+
 /** Escopo de uma atribuição de papel. Ver docs/PERMISSIONS.md §2. */
 export const scopeTypeEnum = pgEnum('scope_type', [
   'global',

@@ -26,9 +26,11 @@ export interface NavItem {
 /**
  * Destinos da navegação principal.
  *
- * ⚠️ Rotas ainda não construídas — pessoas (Fase 6), Elos (7), relatórios (8) e
- * estudos (9) — continuam na lista para que o esqueleto do menu exista. Elas
- * levam a 404 até serem implementadas.
+ * ⚠️ **`/relatorios` ainda não existe, e o item abaixo leva a 404.** A Fase 8
+ * entregou os relatórios **dentro do Elo** (`/elos/[id]/relatorios`); a lista
+ * geral, com filtros por período e supervisor, é entrega da Fase 10. O item
+ * continua aqui porque é o esqueleto que a Fase 2 deixou de propósito — e
+ * porque removê-lo agora significaria recolocá-lo em duas fases.
  */
 export const mainNavigation: readonly NavItem[] = [
   { href: '/dashboard', label: 'Início', shortLabel: 'Início', icon: HomeIcon },
@@ -58,7 +60,7 @@ export const mainNavigation: readonly NavItem[] = [
     label: 'Estudos',
     shortLabel: 'Estudos',
     icon: StudyIcon,
-    permission: 'elo.read',
+    permission: 'study.read',
   },
   {
     href: '/usuarios',

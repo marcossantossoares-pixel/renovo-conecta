@@ -321,3 +321,109 @@ export function participantesDoElo(elo: EloSeed): readonly PersonSeed[] {
 
 export const TELEFONE_FICTICIO = (index: number) =>
   `(71) 90000-${index.toString().padStart(4, '0')}`;
+
+/* ---------------------------------------------------------------------- */
+/* Estudos semanais                                                        */
+/*                                                                         */
+/* `docs/DEMO_DATA.md` §4 pede dois: um publicado e um agendado para data   */
+/* futura. O segundo não é decoração — é o que permite verificar que o      */
+/* agendado é invisível ao líder e ao supervisor, que é o caso 10 de        */
+/* `docs/PERMISSIONS.md` §7.                                               */
+/*                                                                         */
+/* ⚠️ Todo o texto abaixo foi escrito para a demonstração. As referências   */
+/* bíblicas são citadas normalmente; os comentários, perguntas e aplicações */
+/* são originais — nunca material real da igreja, nunca conteúdo de         */
+/* terceiros protegido por direito autoral.                                */
+/* ---------------------------------------------------------------------- */
+
+export interface StudySeed {
+  readonly id: string;
+  readonly title: string;
+  readonly theme: string;
+  readonly baseText: string;
+  readonly supportVerses: string;
+  readonly introduction: string;
+  readonly topicos: readonly string[];
+  readonly perguntas: readonly string[];
+  readonly aplicacoes: readonly string[];
+  readonly conclusion: string;
+  readonly weeklyChallenge: string;
+  readonly closingPrayer: string;
+  readonly status: 'publicado' | 'agendado';
+  /** Dias a contar de hoje. Negativo no passado, positivo no futuro. */
+  readonly emDias: number;
+}
+
+export const ESTUDO_PUBLICADO: StudySeed = {
+  id: demoId(7, 1),
+  title: 'Permanecer, e não apenas frequentar',
+  theme: 'Comunhão',
+  baseText: 'João 15.1-8',
+  supportVerses: 'Salmos 1.3; Atos 2.42',
+  introduction:
+    'Existe diferença entre estar por perto e estar ligado. A imagem da videira ' +
+    'trata dessa diferença: o ramo não produz por esforço próprio, produz porque ' +
+    'continua ligado. Comece o encontro perguntando o que cada um entende por ' +
+    '"permanecer".',
+  topicos: [
+    'Permanecer é uma decisão que se repete, não um acontecimento único.',
+    'O fruto é consequência da ligação, não condição para ela.',
+    'A poda dói e não é castigo: ela existe para tirar o que consome sem produzir.',
+  ],
+  perguntas: [
+    'O que na sua semana funciona como o galho seco que precisa ser podado?',
+    'Você já confundiu frequentar a igreja com permanecer ligado a Cristo? Como percebeu?',
+    'Que fruto desta comunhão você tem visto na vida de alguém do Elo?',
+  ],
+  aplicacoes: [
+    'Escolha um hábito para retomar esta semana: leitura, oração ou serviço.',
+    'Procure, até domingo, alguém do Elo que esteve ausente nas últimas semanas.',
+  ],
+  conclusion:
+    'O convite do texto não é para trabalhar mais, é para permanecer. O resto vem ' +
+    'de quem sustenta a videira.',
+  weeklyChallenge:
+    'Reserve quinze minutos por dia, no mesmo horário, para leitura e oração — e ' +
+    'traga na próxima semana o que mudou.',
+  closingPrayer:
+    'Pai, ensina-nos a permanecer quando a rotina aperta. Que o nosso fruto seja ' +
+    'sinal da tua obra, e não do nosso esforço. Amém.',
+  status: 'publicado',
+  emDias: -3,
+};
+
+export const ESTUDO_AGENDADO: StudySeed = {
+  id: demoId(7, 2),
+  title: 'Hospitalidade: a casa como lugar de encontro',
+  theme: 'Serviço',
+  baseText: 'Romanos 12.9-13',
+  supportVerses: 'Hebreus 13.2; 1 Pedro 4.9',
+  introduction:
+    'O Elo se reúne em casas, e isso não é detalhe de logística. Abrir a casa é um ' +
+    'gesto de fé: ele expõe a nossa vida comum a quem ainda está chegando.',
+  topicos: [
+    'Hospitalidade bíblica é receber quem não tem como retribuir.',
+    'A casa desarruma a hierarquia: na sala, todos sentam à mesma altura.',
+    'Servir sem murmurar é a parte difícil, e é a parte citada no texto.',
+  ],
+  perguntas: [
+    'Qual foi a última vez que você recebeu alguém sem esperar nada de volta?',
+    'O que impede a sua casa de ser um lugar de encontro?',
+    'Quem, no seu bairro, ainda não foi convidado para o Elo?',
+  ],
+  aplicacoes: [
+    'Convide uma pessoa nova para o próximo encontro, pessoalmente.',
+    'Divida entre os participantes o preparo do lanche da próxima semana.',
+  ],
+  conclusion:
+    'A hospitalidade não depende do tamanho da sala. Depende da disposição de ' +
+    'abrir a porta antes de a casa estar pronta.',
+  weeklyChallenge: 'Convide alguém que nunca veio, e vá buscá-lo se for preciso.',
+  closingPrayer:
+    'Senhor, abre a nossa casa e o nosso tempo. Que ninguém saia daqui sentindo ' +
+    'que estava sobrando. Amém.',
+  status: 'agendado',
+  emDias: 21,
+};
+
+export const ESTUDOS: readonly StudySeed[] = [ESTUDO_PUBLICADO, ESTUDO_AGENDADO];

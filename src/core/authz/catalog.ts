@@ -70,6 +70,11 @@ export type PermissionCode =
   | 'report.request_changes'
   | 'report.reopen'
   | 'report.export'
+  | 'study.read'
+  | 'study.create'
+  | 'study.update'
+  | 'study.publish'
+  | 'study.delete'
   | 'dashboard.read'
   | 'user.read'
   | 'user.invite'
@@ -301,6 +306,62 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     pastor_admin: 'congregation',
     coordenador_elos: 'congregation',
     supervisor: 'elo',
+  },
+
+  /* --- Estudo semanal — Fase 9 ---------------------------------------
+   *
+   * A matriz da §4, e a linha de leitura é a mais larga do sistema: **todos os
+   * papéis leem estudo em escopo de congregação**, inclusive supervisor, líder
+   * e vice — que em `person.read` e `elo.read` só alcançam os próprios Elos.
+   *
+   * Não é descuido de matriz. Todo o resto do domínio é dado de pessoa, e por
+   * isso se recorta por Elo; o estudo é material de ensino, o mesmo texto para
+   * todos os líderes da igreja. Esconder de um líder o estudo da semana não
+   * protege ninguém — atrapalha o encontro de quinta.
+   *
+   * ⚠️ **O ESCOPO NÃO É O QUE SEPARA RASCUNHO DE PUBLICADO.** Ele responde
+   * "quais estudos, uma vez no ar, esta pessoa alcança?". O que ainda não está
+   * no ar é recortado pela RLS (migration 0014), e não por escopo — daí o caso
+   * 10 de `PERMISSIONS.md` §7 ser um teste de banco, e não de motor. Um leitor
+   * apressado desta linha concluiria que o líder lê rascunho, e ele não lê.
+   */
+  'study.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'congregation',
+    lider: 'congregation',
+    vice_lider: 'congregation',
+    // O membro lê só o estudo do próprio Elo — o "(L)" da matriz. Ele não tem
+    // login no MVP (ADR-003); a linha existe para quando tiver.
+    membro: 'elo',
+  },
+  'study.create': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  'study.update': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  'study.publish': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  /*
+   * `study.delete` não tinha linha na matriz da §4 — só aparecia na lista de
+   * permissões da §3. A lacuna foi decidida na Fase 9a e a §4 foi corrigida:
+   * quem escreve o conteúdo descarta o próprio rascunho. Exclusão é soft
+   * delete, como no resto do sistema, e o caminho normal para tirar do ar um
+   * estudo já publicado é **arquivar**, não excluir.
+   */
+  'study.delete': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
   },
 
   // --- Painel -----------------------------------------------------------

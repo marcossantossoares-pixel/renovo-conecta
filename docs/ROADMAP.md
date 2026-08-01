@@ -223,13 +223,24 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Entrega:** criação · publicação · agendamento · anexos em Storage privado · leitura mobile · gerador de mensagem para o grupo de líderes.
 
+Dividida em duas, como as Fases 7 e 8: **9a** (banco, RLS, módulo e telas de gestão) e **9b** (anexos, leitura mobile e mensagem).
+
 **Aceite:**
 
-- [ ] Fluxo 7 de `USER_FLOWS.md` funcionando
-- [ ] Rascunho e agendado invisíveis a líder e supervisor (teste)
-- [ ] Anexos acessíveis apenas por URL assinada com expiração
-- [ ] Leitura confortável em tela de 360 px
-- [ ] Mensagem gerada é texto copiável — **sem integração com WhatsApp**
+**9a — banco, RLS e gestão (concluída):**
+
+- [x] Fluxo 7 de `USER_FLOWS.md` funcionando do rascunho à leitura
+- [x] Rascunho e agendado invisíveis a líder e supervisor — caso 10 de `PERMISSIONS.md` §7, provado na RLS **e** na tela, com quatro mutações confirmando que a suíte guarda algo
+- [x] **Agendado vira público sozinho na data, sem job** — o predicado vive na política de RLS, não na aplicação (`ARCHITECTURE.md` §11)
+- [x] Publicar e agendar exigem conteúdo mínimo, recusado no servidor com o motivo por extenso
+- [x] `study.delete` ganhou a linha que faltava na matriz §4
+
+**9b — anexos, leitura mobile e mensagem (concluída):**
+
+- [x] Anexos acessíveis apenas por URL assinada com expiração — bucket privado **sem política alguma**, e o endereço nasce no clique, nunca no HTML (ADR-008). Provado ponta a ponta: os bytes voltam pela URL assinada e o mesmo objeto sem a assinatura é recusado
+- [x] Leitura em tela de 360 px sem rolagem horizontal, com o material de apoio ao alcance — **mas "confortável" continua pendente de campo**, pela mesma razão do cronômetro da Fase 8: quem julga é quem conduz o encontro
+- [x] Mensagem gerada é texto copiável — **sem integração com WhatsApp**, com as sete partes que a §4.7 pede
+- [x] Link externo como alternativa ao envio, recusando o que não é `http(s)` no servidor **e** no banco
 
 ---
 

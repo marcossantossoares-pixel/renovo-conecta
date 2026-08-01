@@ -191,6 +191,21 @@ export function formatNumber(value: number): string {
 }
 
 /**
+ * Enumera itens como se escreve em português: vírgulas, e "e" antes do último.
+ *
+ * Mora aqui porque as duas pontas precisam da mesma frase — o servidor, ao
+ * recusar a publicação de um estudo incompleto, e a tela, ao avisar antes de a
+ * pessoa tentar. Duas cópias produziriam duas listas ligeiramente diferentes
+ * para a mesma pendência, e quem lesse as duas concluiria que são coisas
+ * distintas.
+ */
+export function listaComE(itens: readonly string[]): string {
+  if (itens.length <= 1) return itens[0] ?? '';
+
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+}
+
+/**
  * Iniciais para avatar. Usa o primeiro e o último nome — ignorar partículas
  * ("de", "da", "dos") evita gerar iniciais como "MD" para "Maria da Silva".
  */

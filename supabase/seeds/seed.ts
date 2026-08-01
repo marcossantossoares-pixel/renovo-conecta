@@ -24,8 +24,10 @@ import { ALL_PERMISSIONS, PERMISSION_GRANTS } from '../../src/core/authz/catalog
 import {
   CONGREGACAO_CENTRAL,
   CONGREGACAO_OUTRA,
+  COORDENADORA,
   ELOS,
   ELO_OUTRO_TENANT,
+  ESTUDOS,
   LIDERANCA,
   PARTICIPANTES,
   PASTOR_OUTRO_TENANT,
@@ -290,6 +292,68 @@ async function main(): Promise<void> {
       }
     }
 
+    /* --- Estudos semanais ------------------------------------------------
+     *
+     * Dois, como pede `docs/DEMO_DATA.md` §4: um publicado e um agendado para
+     * data futura. O agendado é o que dá o que provar ao caso 10 de
+     * `docs/PERMISSIONS.md` §7 — sem ele, "rascunho e agendado são invisíveis
+     * ao líder" é uma afirmação sem teste.
+     *
+     * As datas são **relativas a hoje**, e não fixas. Um `publish_at` cravado
+     * em 2026 vira passado sozinho com o tempo, e o dia em que isso
+     * acontecesse o estudo agendado passaria a ser público — a suíte quebraria
+     * meses depois, sem que ninguém tivesse tocado no código.
+     */
+    for (const estudo of ESTUDOS) {
+      const agendado = estudo.status === 'agendado';
+
+      await tx.execute(sql`
+        INSERT INTO weekly_study (
+          id, tenant_id, congregation_id, title, theme, base_text,
+          support_verses, introduction, conclusion, weekly_challenge,
+          closing_prayer, usable_from, usable_until, status,
+          publish_at, published_at, author_person_id
+        )
+        VALUES (
+          ${estudo.id}::uuid, ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+          ${estudo.title}, ${estudo.theme}, ${estudo.baseText},
+          ${estudo.supportVerses}, ${estudo.introduction}, ${estudo.conclusion},
+          ${estudo.weeklyChallenge}, ${estudo.closingPrayer},
+          (CURRENT_DATE + ${estudo.emDias}::integer),
+          (CURRENT_DATE + ${estudo.emDias + 6}::integer),
+          ${estudo.status}::study_status,
+          ${agendado ? sql`now() + ${`${estudo.emDias} days`}::interval` : sql`NULL`},
+          ${agendado ? sql`NULL` : sql`now() + ${`${estudo.emDias} days`}::interval`},
+          ${COORDENADORA.personId}::uuid
+        )
+        ON CONFLICT (id) DO NOTHING
+      `);
+
+      const secoes: readonly (readonly [string, readonly string[]])[] = [
+        ['topico', estudo.topicos],
+        ['pergunta', estudo.perguntas],
+        ['aplicacao', estudo.aplicacoes],
+      ];
+
+      for (const [kind, itens] of secoes) {
+        for (const [posicao, conteudo] of itens.entries()) {
+          await tx.execute(sql`
+            INSERT INTO study_section (
+              tenant_id, weekly_study_id, kind, position, content
+            )
+            SELECT ${TENANT_DEMO}::uuid, ${estudo.id}::uuid,
+                   ${kind}::study_section_kind, ${posicao}, ${conteudo}
+             WHERE NOT EXISTS (
+               SELECT 1 FROM study_section
+                WHERE weekly_study_id = ${estudo.id}::uuid
+                  AND kind = ${kind}::study_section_kind
+                  AND position = ${posicao}
+             )
+          `);
+        }
+      }
+    }
+
     // --- Segundo tenant, para os testes de isolamento --------------------
     await tx.execute(sql`
       INSERT INTO person (
@@ -340,6 +404,7 @@ async function main(): Promise<void> {
     `Concluído. ${linhas[0]?.pessoas ?? 0} pessoas no tenant de demonstração.`,
   );
   console.log(`${ELOS.length} Elos, ${LIDERANCA.length} contas de liderança.`);
+  console.log(`${ESTUDOS.length} estudos: um publicado e um agendado.`);
   console.log('Segundo tenant criado para os testes de isolamento.');
 }
 
