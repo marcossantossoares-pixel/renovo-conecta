@@ -2,7 +2,7 @@
 
 ## Fase atual
 
-**Fase 8 — Relatório semanal: metades 8a e 8b concluídas.**
+**Fase 8 — Relatório semanal: 8a, 8b e 8c concluídas no que depende de código.**
 
 A Fase 8 é a que o roadmap marca como a de **maior risco de adoção** — o Fluxo 6 se
 chama "o fluxo mais importante do produto", e se preencher o relatório for penoso o
@@ -11,8 +11,21 @@ local e envio), **8b** (aprovação, correção, reabertura, histórico e indica
 atraso) e **8c** (exportação PDF/Excel e indicadores do dashboard).
 
 A 8a entregou o Fluxo 6 até o envio; a 8b fechou o ciclo com aprovação, correção,
-reabertura, histórico e indicador de atraso (3 dias após o encontro). Próxima: **8c**
-— exportação PDF/Excel e indicadores do dashboard. Fases 0 a 7 concluídas.
+reabertura, histórico e indicador de atraso (3 dias após o encontro); a 8c entregou a
+exportação em Excel e PDF, registrada em `audit_log`. Fases 0 a 7 concluídas.
+
+**Correção de escopo feita na 8c:** o plano inicial incluía os indicadores do
+dashboard nesta fase. Estão na **Fase 10**, não na 8 — a entrega da Fase 8 no roadmap
+termina em "exportação PDF e Excel". O módulo de métricas chegou a ser escrito e foi
+removido, porque o `CLAUDE.md` proíbe implementar fora da fase atual e a Fase 10 tem
+critérios próprios (gráfico com tabela equivalente, filtros por período e supervisor)
+que ele não atenderia.
+
+**Instabilidade conhecida na suíte E2E:** em 6 execuções, 2 falharam — ambas na
+primeira rodada logo após `supabase db reset`, com erros de timeout
+(`toBeVisible`, `toHaveURL`). As 4 seguintes deram 147/147. A causa não foi isolada;
+a hipótese é lentidão de partida a frio, mas não foi confirmada. Vale observar antes
+de confiar no verde do CI.
 
 Um defeito de interface apareceu na 8b e foi pego pelos testes: o painel de decisão
 sumia depois de decidir, porque o status novo não tem mais decisões disponíveis e o

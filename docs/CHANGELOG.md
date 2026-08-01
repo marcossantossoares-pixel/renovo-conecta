@@ -8,6 +8,25 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 8c — Relatório semanal: exportação (2026-08-01)
+
+- **Excel** por rota de API, com `write-excel-file` (ADR-006) — nenhuma dependência
+  nova. Reutiliza `neutralizeFormula` da exportação de pessoas: "quem dirigiu" e
+  "estudo utilizado" são texto digitado pelo líder, e um `=HYPERLINK(...)` ali é texto
+  inofensivo no banco que vira fórmula executável ao abrir a planilha.
+- **PDF pela folha de impressão** (ADR-007), numa tela crua sem navegação — o que
+  seria escondido por `@media print` simplesmente não é renderizado.
+- **Exportação registrada em `audit_log`**, gravada **antes** de o arquivo existir: se
+  a montagem falhar depois, sobra um registro a mais, não um a menos.
+- **O registro é honesto sobre o que o servidor observou.** Com PDF por impressão, o
+  servidor **não sabe** se a pessoa imprimiu — só que abriu a tela. O campo `observado`
+  diz isso por extenso, para ninguém ler "exportou em PDF" onde só cabe "abriu a tela
+  de impressão". É consequência conhecida da ADR-007, não lacuna da implementação.
+- **Pedidos de oração, testemunhos e necessidades não entram** na planilha nem na
+  impressão. São os campos mais sensíveis do relatório, e arquivo exportado sai de
+  qualquer controle de acesso (`docs/LGPD.md` §6). Quem precisa lê na tela, onde a RLS
+  vale e o acesso fica registrado.
+
 #### Fase 8b — Relatório semanal: aprovação, correção e reabertura (2026-08-01)
 
 - **O ciclo do Fluxo 6 fecha**: enviado → correção solicitada → reenviado → aprovado, e

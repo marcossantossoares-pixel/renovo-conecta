@@ -1,7 +1,14 @@
 import 'server-only';
 
-import { ForbiddenError, can, hasPermissionAnywhere } from '@/core/authz/can';
+import { recordAudit } from '@/core/audit/record';
+import {
+  ForbiddenError,
+  assertCan,
+  can,
+  hasPermissionAnywhere,
+} from '@/core/authz/can';
 import type { UserClaims } from '@/core/db/with-user-context';
+import { withUserContext } from '@/core/db/with-user-context';
 import type { ReportRow, StatusHistoryRow } from './repository';
 import {
   getReport,
@@ -60,6 +67,53 @@ export async function getReportByDateForViewer(
   assertReadsReports(claims);
 
   return getReportByDate(claims, eloId, meetingDate);
+}
+
+/**
+ * Prepara a exportação dos relatórios e a **registra**.
+ *
+ * O registro é gravado antes de o arquivo existir, e em transação própria —
+ * mesma decisão de `people/service.ts`: se a montagem falhar depois, o que fica
+ * no log é uma exportação a mais, não uma a menos. Entre errar para cima e para
+ * baixo em registro de acesso a dado, erra-se para cima.
+ *
+ * `formato` distingue os dois caminhos, e a distinção é honesta sobre o que o
+ * servidor sabe:
+ *
+ *   - `xlsx` — o arquivo é montado aqui. O registro é exato;
+ *   - `impressao` — o PDF sai da folha de impressão do navegador (ADR-007), e
+ *     **o servidor não sabe se a pessoa imprimiu**. O que se registra é a
+ *     abertura da tela de impressão, que é o máximo observável. É consequência
+ *     conhecida da ADR-007, não lacuna desta implementação.
+ */
+export async function prepareReportExport(
+  claims: UserClaims,
+  congregationId: string | undefined,
+  eloId: string,
+  formato: 'xlsx' | 'impressao',
+): Promise<readonly ReportRow[]> {
+  assertCan(claims, 'report.export', { congregationId, eloId });
+
+  const linhas = await listReports(claims, eloId);
+
+  await withUserContext(claims, (tx) =>
+    recordAudit(tx, {
+      tenantId: claims.tenant_id,
+      congregationId: congregationId ?? null,
+      actorAppUserId: claims.app_user_id,
+      action: 'export',
+      resourceType: 'elo_report',
+      resourceId: eloId,
+      changes: {
+        formato,
+        registros: linhas.length,
+        // Deixa explícito no próprio log o que ele pode e não pode afirmar.
+        observado: formato === 'xlsx' ? 'arquivo gerado' : 'tela de impressão aberta',
+      },
+    }),
+  );
+
+  return linhas;
 }
 
 /**

@@ -215,7 +215,7 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 - [x] Rascunho apagado após envio e no logout
 - [x] Líder não aprova o próprio relatório (teste) — a trava é por linha, em `approvalBlock`, porque a coordenação também lidera Elos e `can()` diria sim para ela
 - [x] Soma das parcelas validada no servidor — em Zod **e** como `CHECK` no banco
-- [ ] Exportação registrada em `audit_log`
+- [x] Exportação registrada em `audit_log` — com o formato e o que o servidor de fato observou: `xlsx` é arquivo gerado, `impressao` é apenas a tela aberta (ADR-007)
 
 ---
 

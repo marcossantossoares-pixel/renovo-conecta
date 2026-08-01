@@ -10,6 +10,7 @@ import { DescriptionItem } from '@/components/ui/description-item';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ReportIcon } from '@/components/ui/icons';
 import { requireAuthenticatedContext } from '@/core/auth/session';
+import { can } from '@/core/authz/can';
 import { formatDateTime, isoDateToBr, todayIso } from '@/lib/format';
 import { doMapa, rotulo } from '@/lib/labels';
 import { getEloForViewer } from '@/modules/elos/service';
@@ -76,6 +77,7 @@ export default async function RelatoriosPage({
   const { elo } = resultado;
   const hoje = todayIso();
   const podeRelatar = canSubmitReport(claims, congregationId, elo.id);
+  const podeExportar = can(claims, 'report.export', { congregationId, eloId: elo.id });
 
   /*
    * O histórico de cada relatório vem junto, numa onda só. São poucos por Elo
@@ -97,6 +99,27 @@ export default async function RelatoriosPage({
               <ButtonLink href={`/elos/${elo.id}/relatorio`}>
                 Relatório da semana
               </ButtonLink>
+            )}
+            {podeExportar && relatorios.length > 0 && (
+              <>
+                {/*
+                 * Link comum, e não botão com ação: a rota devolve um arquivo
+                 * com `Content-Disposition`, e o navegador sabe baixar isso
+                 * sozinho. A auditoria acontece no servidor, dentro da rota.
+                 */}
+                <ButtonLink
+                  href={`/api/elos/${elo.id}/relatorios/exportar`}
+                  variant="secondary"
+                >
+                  Excel
+                </ButtonLink>
+                <ButtonLink
+                  href={`/elos/${elo.id}/relatorios/imprimir`}
+                  variant="secondary"
+                >
+                  Imprimir / PDF
+                </ButtonLink>
+              </>
             )}
             <ButtonLink href={`/elos/${elo.id}`} variant="secondary">
               Voltar ao Elo
