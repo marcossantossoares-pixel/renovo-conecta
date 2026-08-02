@@ -1,14 +1,17 @@
 import 'server-only';
 
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 
 import { recordAudit } from '@/core/audit/record';
 import { isUniqueViolation } from '@/core/db/errors';
 import type { UserClaims } from '@/core/db/with-user-context';
 import { withUserContext } from '@/core/db/with-user-context';
-import { congregationOf } from '@/modules/elos/repository';
+import type { Janela } from '@/lib/periodo';
+import { PAGE_SIZE } from '@/lib/schema-fragments';
+import type { OpcaoDeFiltro } from '@/modules/elos/repository';
+import { carregarOpcoesDeFiltro, congregationOf } from '@/modules/elos/repository';
 import { DuplicateReportError } from './errors';
-import type { SubmitReportInput } from './schemas';
+import type { ReportsQuery, SubmitReportInput } from './schemas';
 
 /**
  * Acesso a dados do relatório semanal.
@@ -106,6 +109,135 @@ export async function getReport(
   );
 
   return linhas[0] ?? null;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Lista geral — Fase 10b                                                  */
+/* ---------------------------------------------------------------------- */
+
+export interface ReportListRow extends ReportRow {
+  readonly elo_name: string;
+  readonly elo_internal_code: string;
+}
+
+/**
+ * Os filtros da lista geral, em SQL.
+ *
+ * ⚠️ **Nenhuma linha aqui recorta por papel**, e é deliberado — mesma decisão
+ * do painel (`modules/dashboard/metrics.ts`). O líder recebe só os relatórios do
+ * próprio Elo porque a política da migration 0013 recorta `elo_report` antes
+ * desta consulta. Um `WHERE` de escopo escrito aqui seria a segunda
+ * implementação da mesma regra, livre para divergir da primeira — e a que
+ * divergisse em silêncio seria esta, porque ninguém revisa um filtro que
+ * "sempre funcionou".
+ *
+ * Uma definição só para a página e para a exportação: a alternativa é exportar
+ * um conjunto diferente do que está na tela, que é o jeito mais discreto de
+ * tirar do sistema dado que ninguém pediu.
+ */
+function filtrosDaLista(query: ReportsQuery, janela: Janela): SQL {
+  const partes: SQL[] = [
+    sql`r.deleted_at IS NULL`,
+    sql`r.meeting_date BETWEEN ${janela.de}::date AND ${janela.ate}::date`,
+  ];
+
+  if (query.situacao) partes.push(sql`r.status = ${query.situacao}::report_status`);
+  if (query.elo) partes.push(sql`r.elo_id = ${query.elo}::uuid`);
+
+  if (query.supervisor) {
+    partes.push(sql`EXISTS (
+      SELECT 1 FROM supervision_assignment sa
+       WHERE sa.elo_id = r.elo_id
+         AND sa.supervisor_person_id = ${query.supervisor}::uuid
+         AND sa.deleted_at IS NULL
+         AND (sa.ends_at IS NULL OR sa.ends_at > CURRENT_DATE)
+    )`);
+  }
+
+  return sql.join(partes, sql` AND `);
+}
+
+/**
+ * A ordem da lista: encontro mais recente primeiro, Elo desempatando.
+ *
+ * O desempate por nome importa mais do que parece — sem ele, os relatórios de
+ * uma mesma semana saem em ordem indefinida e a página 2 pode repetir uma linha
+ * da página 1. Paginação sem ordem total não é paginação.
+ */
+const ORDEM_DA_LISTA = sql`ORDER BY r.meeting_date DESC, e.name, r.id`;
+
+const LISTA_SOURCE = sql`FROM elo_report r JOIN elo e ON e.id = r.elo_id`;
+
+const LISTA_COLUNAS = sql`${REPORT_COLUMNS}, e.name AS elo_name,
+  e.internal_code AS elo_internal_code`;
+
+export interface ReportsPage {
+  readonly rows: readonly ReportListRow[];
+  readonly total: number;
+  readonly opcoes: {
+    readonly supervisores: readonly OpcaoDeFiltro[];
+    readonly elos: readonly OpcaoDeFiltro[];
+  };
+}
+
+/**
+ * A lista geral de `/relatorios`, paginada.
+ *
+ * As três consultas — linhas, total e opções dos filtros — rodam **na mesma
+ * transação**, em sequência. É a lição da 10a: cada `withUserContext` toma uma
+ * conexão do pool de dez, e três por render limitaria a tela a três pessoas
+ * simultâneas.
+ */
+export async function listAllReports(
+  claims: UserClaims,
+  query: ReportsQuery,
+  janela: Janela,
+): Promise<ReportsPage> {
+  const filtros = filtrosDaLista(query, janela);
+  const offset = (query.page - 1) * PAGE_SIZE;
+
+  return withUserContext(claims, async (tx) => {
+    const rows = await tx.execute<ReportListRow>(sql`
+      SELECT ${LISTA_COLUNAS}
+      ${LISTA_SOURCE}
+       WHERE ${filtros}
+       ${ORDEM_DA_LISTA}
+       LIMIT ${PAGE_SIZE} OFFSET ${offset}
+    `);
+
+    const contagem = await tx.execute<{ total: number }>(sql`
+      SELECT count(*)::int AS total ${LISTA_SOURCE} WHERE ${filtros}
+    `);
+
+    const opcoes = await carregarOpcoesDeFiltro(tx);
+
+    return { rows, total: contagem[0]?.total ?? 0, opcoes };
+  });
+}
+
+/**
+ * As mesmas linhas, sem paginação, para a exportação.
+ *
+ * Sem `LIMIT` de propósito: uma planilha com a primeira página do resultado
+ * seria pior que nenhuma — quem exporta confere números, e um total que não
+ * fecha manda a pessoa procurar erro no lugar errado. Quem limita o tamanho é o
+ * período, que já vem no filtro.
+ */
+export async function listAllReportsForExport(
+  claims: UserClaims,
+  query: ReportsQuery,
+  janela: Janela,
+): Promise<readonly ReportListRow[]> {
+  const filtros = filtrosDaLista(query, janela);
+
+  return withUserContext(claims, (tx) =>
+    tx.execute<ReportListRow>(sql`
+      SELECT ${LISTA_COLUNAS}
+      ${LISTA_SOURCE}
+       WHERE ${filtros}
+       ${ORDEM_DA_LISTA}
+    `),
+  );
 }
 
 export interface StatusHistoryRow extends Record<string, unknown> {

@@ -248,13 +248,25 @@ Dividida em duas, como as Fases 7 e 8: **9a** (banco, RLS, módulo e telas de ge
 
 **Entrega:** indicadores núcleo · filtros por período, congregação, supervisor e Elo · gráficos acessíveis e tabelas equivalentes · exportação.
 
+Dividida em duas: **10a** (seed de relatórios, motor de indicadores e painel) e **10b** (lista geral em `/relatorios` e exportação).
+
 **Aceite:**
 
-- [ ] Todos os indicadores da §4.2 do `MASTER_SPEC` relativos ao MVP
-- [ ] Cada gráfico acompanhado da tabela com os mesmos dados
-- [ ] Números respeitam o escopo do usuário (supervisor vê apenas os seus)
-- [ ] Consultas agregadas no banco, com desempenho aceitável na massa de demonstração
-- [ ] "Elos sem relatório na semana" correto, inclusive com encontro cancelado
+**10a — indicadores e painel (concluída):**
+
+- [x] Indicadores da §4.2 relativos ao MVP — três ficaram de fora com o motivo registrado: próximos eventos, pedidos de oração e jornada do membro dependem de módulos da Prioridade 2
+- [x] Cada gráfico acompanhado da tabela com os mesmos dados — garantido pelo `BarChart` do design system, com teste que quebra se alguém o trocar por uma biblioteca que só desenha
+- [x] Números respeitam o escopo do usuário — e **sem que a tela ou o módulo filtrem**: a RLS recorta antes da agregação
+- [x] Consultas agregadas no banco. **Uma transação por render**, não cinco: o primeiro rascunho esgotava o pool de conexões com duas pessoas simultâneas
+- [x] "Elos sem relatório na semana" correto, inclusive com encontro cancelado — o cenário existe no seed desde esta fase
+- [x] **Os cenários de `DEMO_DATA.md` §3 passaram a existir no seed.** Não existiam; sem eles o painel mostra zeros, indistinguíveis de um painel quebrado
+
+**10b — lista geral e exportação (concluída):**
+
+- [x] `/relatorios` deixa de responder 404, com filtros por período, supervisor e situação — e também por Elo, que a entrega da fase nomeia
+- [x] Exportação registrada em `audit_log`, em Excel e na folha de impressão, **com o recorte da tela junto**
+- [x] **Filtrar não amplia o alcance** — filtrar pelo supervisor vizinho devolve lista vazia, provado na RLS e na tela
+- [x] **O `audit_log` deixou de registrar exportações que ninguém fez** — o `next/link` pré-carregava as rotas de exportação, e o defeito existia desde a Fase 6b
 
 ---
 
@@ -262,14 +274,27 @@ Dividida em duas, como as Fases 7 e 8: **9a** (banco, RLS, módulo e telas de ge
 
 **Entrega:** política e termos versionados · consentimentos · área de solicitações do titular · exportação · anonimização.
 
+Dividida em duas, como as Fases 7 a 10: **11a** (banco, RLS, motor de privacidade, anonimização e scrubbing de logs) e **11b** (telas do titular, política e termos versionados, e o checklist §10 revisado item a item).
+
 **Aceite:**
 
-- [ ] Fluxo 10 de `USER_FLOWS.md` funcionando
-- [ ] Exportação estruturada dos dados do titular
-- [ ] Anonimização preserva agregados históricos
-- [ ] Consentimento de imagem de menor implementado
-- [ ] Teste de scrubbing de logs passando
-- [ ] Checklist de `LGPD.md` §10 revisado item a item
+**11a — banco, motor e anonimização (concluída):**
+
+- [x] Exportação estruturada dos dados do titular — JSON, e não planilha: o inciso V pede formato legível por máquina, porque o destino é outro sistema
+- [x] Anonimização preserva agregados históricos — e alcança `person_change_log`, que é a cópia sombra do cadastro
+- [x] Consentimento de imagem de menor implementado — com responsável nomeado exigido no banco, e a finalidade de adulto recusada para criança (Art. 14)
+- [x] Teste de scrubbing de logs passando — com `console` proibido em todo o `src/`, senão o teste guardaria uma função que ninguém é obrigado a chamar
+- [x] **Consentimento é append-only** (ADR-009): revogar cria linha nova, e nem o administrador do banco reescreve a prova
+- [x] **Privacidade não é da coordenação** — mesma escolha de `audit.read`, provada por teste de isolamento
+- [x] As três permissões `privacy.*` existiam em `PERMISSIONS.md` §3 desde a Fase 0 e **nunca tinham entrado no catálogo**
+
+**11b — telas, política e checklist (concluída):**
+
+- [x] Fluxo 10 de `USER_FLOWS.md` funcionando ponta a ponta — registrar, responder no prazo, entregar o pacote e anonimizar, tudo provado por e2e
+- [x] Política de privacidade e termos versionados, exibidos no sistema — e **legíveis por qualquer sessão**: política que só a administração enxerga é rascunho interno
+- [x] Área de solicitações do titular e registro de consentimento na tela da pessoa — a fila ordenada pelo prazo, não pela chegada
+- [x] Checklist de `LGPD.md` §10 revisado item a item — **cinco dos doze itens não dependem de código**, e a revisão os separou dos que dependem
+- [x] **Abrir a solicitação não registra acesso aos dados** — a regressão da 10b aplicada ao caso mais sensível: o pacote de uma pessoa nomeada
 
 ---
 

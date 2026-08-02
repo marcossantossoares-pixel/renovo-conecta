@@ -82,7 +82,10 @@ export type PermissionCode =
   | 'user.deactivate'
   | 'audit.read'
   | 'setting.read'
-  | 'setting.update';
+  | 'setting.update'
+  | 'privacy.read_requests'
+  | 'privacy.handle_requests'
+  | 'privacy.export_subject_data';
 
 type Grants = Partial<Record<RoleCode, Scope>>;
 
@@ -410,6 +413,25 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     membro: 'self',
   },
   'setting.update': { superadmin: 'global', pastor_admin: 'congregation' },
+
+  /* --- Privacidade — Fase 11 -------------------------------------------
+   *
+   * A matriz da §4, e a ausência que importa é a da **coordenação**: ela
+   * administra o cadastro e não decide sobre os pedidos de exclusão feitos
+   * contra o próprio trabalho. É a mesma escolha de `audit.read`.
+   *
+   * `export_subject_data` chega ao **membro** em escopo `self` — é o Art. 18,
+   * II: o titular tem direito aos próprios dados. Ele ainda não tem login
+   * (ADR-003), e a linha existe assim mesmo, porque o dia de ativar o portal do
+   * membro não é o dia de decidir quem pode ver o quê.
+   */
+  'privacy.read_requests': { superadmin: 'global', pastor_admin: 'congregation' },
+  'privacy.handle_requests': { superadmin: 'global', pastor_admin: 'congregation' },
+  'privacy.export_subject_data': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    membro: 'self',
+  },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_GRANTS) as PermissionCode[];

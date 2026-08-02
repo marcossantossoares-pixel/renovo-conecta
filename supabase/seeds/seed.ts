@@ -29,12 +29,19 @@ import {
   ELO_OUTRO_TENANT,
   ESTUDOS,
   LIDERANCA,
+  MOTIVO_CORRECAO,
+  RELATORIOS,
   PARTICIPANTES,
+  PASTOR,
   PASTOR_OUTRO_TENANT,
   ROLES,
+  SOLICITACAO_DEMO,
   TELEFONE_FICTICIO,
+  TEXTO_POLITICA_DEMO,
+  TEXTO_TERMOS_DEMO,
   TENANT_DEMO,
   TENANT_OUTRO,
+  VERSAO_POLITICA_DEMO,
   VISITANTES,
   participantesDoElo,
 } from './fixtures.ts';
@@ -213,17 +220,33 @@ async function main(): Promise<void> {
 
     // --- Participantes e visitantes -------------------------------------
     for (const [index, pessoa] of [...PARTICIPANTES, ...VISITANTES].entries()) {
+      /*
+       * ⚠️ `created_at` é **espalhado ao longo do último ano**, e não deixado no
+       * padrão `now()`.
+       *
+       * Com todo mundo cadastrado no mesmo instante, o gráfico de crescimento
+       * mensal da Fase 10 vira uma barra só — um gráfico que não mostra
+       * crescimento nenhum e ocupa meia tela. Pior: ele se parece exatamente com
+       * um gráfico quebrado, e quem estivesse verificando a fase não teria como
+       * distinguir os dois casos.
+       *
+       * A distribuição é determinística (`index % 10`) para o seed continuar
+       * reproduzível: dois `db:seed` produzem os mesmos meses.
+       */
+      const mesesAtras = index % 10;
+
       await tx.execute(sql`
         INSERT INTO person (
           id, tenant_id, congregation_id, full_name, phone, church_status,
-          birth_date, first_visit_at
+          birth_date, first_visit_at, created_at
         )
         VALUES (
           ${pessoa.id}::uuid, ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
           ${pessoa.fullName}, ${TELEFONE_FICTICIO(index + 100)},
           ${pessoa.churchStatus}::church_status,
           ${pessoa.birthDate}::date,
-          ${pessoa.churchStatus === 'visitante' ? hoje : null}::date
+          ${pessoa.churchStatus === 'visitante' ? hoje : null}::date,
+          now() - ${`${mesesAtras} months`}::interval
         )
         ON CONFLICT (id) DO NOTHING
       `);
@@ -292,6 +315,85 @@ async function main(): Promise<void> {
       }
     }
 
+    /* --- Relatórios semanais ---------------------------------------------
+     *
+     * Os cenários de `docs/DEMO_DATA.md` §3. Sem eles o dashboard da Fase 10
+     * mostra zeros, e "Elos sem relatório na semana" — o indicador principal da
+     * coordenação — não tem como ser distinguido de um indicador quebrado.
+     *
+     * A data do encontro é calculada a partir de **quantas semanas atrás**, e
+     * não gravada fixa: o indicador fala da semana corrente, e uma data cravada
+     * sairia dela sozinha com o tempo.
+     */
+    for (const relatorio of RELATORIOS) {
+      const total = relatorio.happened
+        ? (relatorio.membersPresent ?? 0) +
+          (relatorio.visitorsPresent ?? 0) +
+          (relatorio.childrenPresent ?? 0)
+        : null;
+
+      const linhas = await tx.execute<{ id: string }>(sql`
+        INSERT INTO elo_report (
+          tenant_id, congregation_id, elo_id, meeting_date, happened,
+          cancellation_reason, study_title, members_present, visitors_present,
+          children_present, total_present, new_decisions, referred_for_follow_up,
+          status, submitted_at, approved_at
+        )
+        VALUES (
+          ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+          ${relatorio.eloId}::uuid,
+          (CURRENT_DATE - ${relatorio.semanasAtras * 7}::integer),
+          ${relatorio.happened}, ${relatorio.cancellationReason ?? null},
+          ${relatorio.studyTitle ?? null},
+          ${relatorio.membersPresent ?? null}, ${relatorio.visitorsPresent ?? null},
+          ${relatorio.childrenPresent ?? null}, ${total},
+          ${relatorio.newDecisions ?? null}, ${relatorio.referredForFollowUp ?? null},
+          ${relatorio.status}::report_status,
+          now() - ${`${relatorio.semanasAtras * 7} days`}::interval,
+          ${relatorio.status === 'aprovado' ? sql`now()` : sql`NULL`}
+        )
+        ON CONFLICT (elo_id, meeting_date) WHERE deleted_at IS NULL
+        DO NOTHING
+        RETURNING id
+      `);
+
+      const criado = linhas[0];
+
+      // `DO NOTHING` não devolve linha quando o relatório já existia: o seed é
+      // idempotente, e reescrever o histórico de um relatório já semeado seria
+      // pior que não fazer nada.
+      if (!criado) continue;
+
+      await tx.execute(sql`
+        INSERT INTO elo_report_status_history (
+          tenant_id, report_id, from_status, to_status, comment
+        )
+        VALUES (
+          ${TENANT_DEMO}::uuid, ${criado.id}::uuid, NULL,
+          'enviado'::report_status, NULL
+        )
+      `);
+
+      /*
+       * A segunda linha do histórico, quando o relatório não parou em
+       * `enviado`. O comentário é obrigatório na correção — o `CHECK` da
+       * migration 0013 recusa pedir correção sem dizer o que corrigir, porque
+       * o líder reenviaria igual.
+       */
+      if (relatorio.status !== 'enviado') {
+        await tx.execute(sql`
+          INSERT INTO elo_report_status_history (
+            tenant_id, report_id, from_status, to_status, comment
+          )
+          VALUES (
+            ${TENANT_DEMO}::uuid, ${criado.id}::uuid, 'enviado'::report_status,
+            ${relatorio.status}::report_status,
+            ${relatorio.status === 'correcao_solicitada' ? MOTIVO_CORRECAO : null}
+          )
+        `);
+      }
+    }
+
     /* --- Estudos semanais ------------------------------------------------
      *
      * Dois, como pede `docs/DEMO_DATA.md` §4: um publicado e um agendado para
@@ -354,6 +456,79 @@ async function main(): Promise<void> {
       }
     }
 
+    // --- Privacidade: política, consentimento e solicitação --------------
+    /*
+     * A versão da política precisa existir **antes** de qualquer consentimento:
+     * sem versão vigente, `recordConsent` recusa a coleta em vez de gravar uma
+     * prova que não prova nada (`modules/privacy/policy.ts`).
+     */
+    await tx.execute(sql`
+      INSERT INTO system_setting (tenant_id, key, value, description, is_public)
+      VALUES (
+        ${TENANT_DEMO}::uuid, 'privacy.policy_version',
+        ${JSON.stringify(VERSAO_POLITICA_DEMO)}::jsonb,
+        'Versão vigente da política de privacidade. Rascunho: o texto e a base '
+        'legal dependem de validação jurídica (docs/LGPD.md §2).', true
+      )
+      ON CONFLICT (tenant_id, key) DO NOTHING
+    `);
+
+    // O texto que a tela de política exibe. Rascunho declarado, pelo mesmo
+    // motivo da versão: fingir uma minuta aprovada seria pior que não ter.
+    for (const [chave, texto] of [
+      ['privacy.policy_text', TEXTO_POLITICA_DEMO],
+      ['privacy.terms_text', TEXTO_TERMOS_DEMO],
+    ] as const) {
+      await tx.execute(sql`
+        INSERT INTO system_setting (tenant_id, key, value, description, is_public)
+        VALUES (
+          ${TENANT_DEMO}::uuid, ${chave}, ${JSON.stringify(texto)}::jsonb,
+          'Texto de demonstração, sem validade jurídica (docs/LGPD.md §2).', true
+        )
+        ON CONFLICT (tenant_id, key) DO NOTHING
+      `);
+    }
+
+    /*
+     * Um consentimento concedido, para a tela ter o que mostrar — e os DOIS
+     * menores continuam **sem** consentimento de imagem, exatamente como
+     * `DEMO_DATA.md` §3 pede: é o cenário que exercita o bloqueio do Art. 14.
+     */
+    const titularDemo = PARTICIPANTES[0];
+
+    if (titularDemo) {
+      await tx.execute(sql`
+        INSERT INTO consent (
+          tenant_id, congregation_id, person_id, purpose, granted,
+          policy_version, collected_via, notes
+        )
+        SELECT ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+               ${titularDemo.id}::uuid, 'cadastro_pastoral'::consent_purpose, true,
+               ${VERSAO_POLITICA_DEMO}, 'presencial',
+               'Consentimento fictício, colhido em ficha de cadastro de demonstração.'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM consent
+            WHERE person_id = ${titularDemo.id}::uuid
+              AND purpose = 'cadastro_pastoral'::consent_purpose
+         )
+      `);
+
+      await tx.execute(sql`
+        INSERT INTO data_subject_request (
+          id, tenant_id, congregation_id, person_id, kind, status,
+          description, due_at, created_by
+        )
+        VALUES (
+          ${SOLICITACAO_DEMO.id}::uuid, ${TENANT_DEMO}::uuid,
+          ${CONGREGACAO_CENTRAL}::uuid, ${titularDemo.id}::uuid,
+          ${SOLICITACAO_DEMO.kind}::data_subject_request_kind, 'aberta',
+          ${SOLICITACAO_DEMO.description},
+          now() + interval '10 days', ${PASTOR.userId}::uuid
+        )
+        ON CONFLICT (id) DO NOTHING
+      `);
+    }
+
     // --- Segundo tenant, para os testes de isolamento --------------------
     await tx.execute(sql`
       INSERT INTO person (
@@ -405,6 +580,9 @@ async function main(): Promise<void> {
   );
   console.log(`${ELOS.length} Elos, ${LIDERANCA.length} contas de liderança.`);
   console.log(`${ESTUDOS.length} estudos: um publicado e um agendado.`);
+  console.log(
+    `${RELATORIOS.length} relatórios; o Elo Alicerce fica sem o da semana, de propósito.`,
+  );
   console.log('Segundo tenant criado para os testes de isolamento.');
 }
 

@@ -56,9 +56,17 @@ export default tseslint.config(
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
 
-      // Dados pessoais nunca em log (docs/SECURITY.md §9). `console.log` solto
-      // é o caminho mais comum para isso acontecer sem ninguém perceber.
-      'no-console': ['error', { allow: ['warn', 'error'] }],
+      /*
+       * Dados pessoais nunca em log (docs/SECURITY.md §9, `LGPD.md` §6).
+       *
+       * ⚠️ **Nem `warn`, nem `error`** — apertado na Fase 11. A permissão
+       * anterior deixava dois caminhos de saída sem filtro, e o descuido típico
+       * (`console.error('falhou', pessoa)`) mora justamente ali. Todo log passa
+       * por `src/core/log/logger.ts`, que oculta campo pessoal antes de
+       * escrever; sem ponto de saída único, o teste de scrubbing guardaria uma
+       * função que ninguém é obrigado a chamar.
+       */
+      'no-console': 'error',
 
       'no-restricted-imports': [
         'error',
@@ -105,6 +113,12 @@ export default tseslint.config(
       'src/modules/auth/service.ts',
     ],
     rules: { 'no-restricted-imports': 'off' },
+  },
+
+  // O único ponto de saída de log da aplicação. Ver o cabeçalho do arquivo.
+  {
+    files: ['src/core/log/logger.ts'],
+    rules: { 'no-console': 'off' },
   },
 
   // Migrations, seeds e scripts têm uso legítimo da conexão administrativa.

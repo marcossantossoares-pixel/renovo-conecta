@@ -1,5 +1,7 @@
 import postgres from 'postgres';
 
+import { restaurarRelatoriosDoSeed as restaurar } from '../shared/restaurar-relatorios.ts';
+
 import {
   CONGREGACAO_CENTRAL,
   CONGREGACAO_OUTRA,
@@ -223,3 +225,18 @@ export const claimsOutroTenant: Claims = {
 
 /** Sessão sem contexto: nenhuma claim publicada. */
 export const claimsVazias: Claims = {};
+
+/* ---------------------------------------------------------------------- */
+/* Restauração dos relatórios semeados                                     */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Repõe os cenários de relatório do seed, com a conexão de administrador.
+ *
+ * A implementação mora em `tests/shared/restaurar-relatorios.ts`, porque a
+ * suíte de ponta a ponta precisa exatamente da mesma reposição, com outra
+ * conexão. Ver o arquivo lá para o motivo de ela existir.
+ */
+export async function restaurarRelatoriosDoSeed(): Promise<void> {
+  await restaurar(adminSql);
+}

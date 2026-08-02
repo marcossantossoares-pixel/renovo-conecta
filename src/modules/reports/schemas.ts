@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
 import type { BadgeTone } from '@/components/ui/badge';
-import { optionalDate, optionalText, requiredDate } from '@/lib/schema-fragments';
+import { camposDePeriodo } from '@/lib/periodo';
+import {
+  optionalDate,
+  optionalText,
+  pageParam,
+  requiredDate,
+} from '@/lib/schema-fragments';
 
 /**
  * Schemas do relatório semanal — Fluxo 6.
@@ -201,6 +207,43 @@ export const decideReportSchema = z.object({
 });
 
 export type DecideReportInput = z.infer<typeof decideReportSchema>;
+
+/**
+ * Filtros da lista geral de `/relatorios` — Fase 10b.
+ *
+ * Os três do aceite (período, supervisor e situação) mais o Elo, que a entrega
+ * da Fase 10 nomeia junto com os outros e que é o recorte mais pedido de uma
+ * lista que cruza Elos.
+ *
+ * ⚠️ **Nenhum filtro aqui restringe o que a pessoa alcança**, e a distinção é a
+ * mesma do painel: quem alcança o quê é decisão da RLS, antes desta consulta.
+ * Filtrar por um supervisor cujos Elos a sessão não enxerga devolve lista vazia,
+ * e não a lista dele.
+ *
+ * Todo campo tem `.catch()`: quem edita a URL à mão — ou cola um link cortado
+ * pela metade num grupo de mensagens — merece uma lista, não uma tela de erro.
+ */
+export const reportsQuerySchema = z.object({
+  ...camposDePeriodo,
+  supervisor: z.uuid().optional().catch(undefined),
+  elo: z.uuid().optional().catch(undefined),
+  situacao: z.enum(REPORT_STATUSES).optional().catch(undefined),
+  page: pageParam,
+});
+
+export type ReportsQuery = z.infer<typeof reportsQuerySchema>;
+
+/**
+ * Situações oferecidas no filtro.
+ *
+ * `rascunho` fica de fora, e não por engano: pela ADR-004 o rascunho vive no
+ * dispositivo e **nunca** chega ao banco — o valor existe no `enum` reservado
+ * para o dia em que chegar. Oferecê-lo seria oferecer um filtro que devolve
+ * sempre vazio, e ensinar que existe uma pilha de relatórios escondida.
+ */
+export const SITUACOES_FILTRAVEIS = REPORT_STATUSES.filter(
+  (situacao) => situacao !== 'rascunho',
+);
 
 /** Campos que o formulário posta, na ordem em que aparecem na tela. */
 export const REPORT_FORM_KEYS = [

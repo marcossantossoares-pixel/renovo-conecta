@@ -19,8 +19,9 @@
 Migrations: `supabase/migrations/0000_core_schema.sql` (gerada e revisada) e
 `0001_rls_policies.sql` (escrita à mão).
 
-**Ainda não implementadas:** relatórios semanais (Fase 8), estudos (Fase 9),
-consentimentos e solicitações do titular (Fase 11) — ver seção 8.
+**Implementadas depois do núcleo:** relatórios semanais (Fase 8, migration 0013),
+estudos e anexos (Fase 9, migrations 0014 e 0015), consentimentos e solicitações
+do titular (Fase 11, migration 0016).
 
 ---
 
@@ -411,13 +412,15 @@ erDiagram
     consent {
         uuid id PK
         uuid tenant_id FK
+        uuid congregation_id FK
         uuid person_id FK
-        text purpose "finalidade do tratamento"
+        enum purpose "finalidade do tratamento"
         text policy_version
         boolean granted
-        timestamptz granted_at
-        timestamptz revoked_at
+        timestamptz occurred_at
         text collected_via
+        text responsible_name "Art. 14, quando menor"
+        text responsible_relationship
     }
     data_subject_request {
         uuid id PK
@@ -495,7 +498,11 @@ Os índices usados pelas políticas de RLS são críticos: sem eles, cada consul
 - `elo_report` — único por `elo_meeting_id` (um relatório por encontro).
 - `elo_meeting` — único por `(elo_id, meeting_date)`.
 - `app_user.auth_user_id` — único.
-- `consent` — histórico completo, sem sobrescrita: revogação cria transição, não apaga o registro.
+- `consent` — histórico completo, sem sobrescrita: revogação cria **uma linha nova**, não altera a existente. Garantido por gatilho append-only (migration 0016), como `audit_log`. Por isso **não existe `revoked_at`**: o ER previa `granted_at` e `revoked_at` na mesma linha, o que dá duas formas de dizer a mesma coisa — e a primeira escrita que esquecesse de uma delas deixaria um consentimento revogado com aparência de válido. O estado atual é a última linha de cada (pessoa, finalidade).
+- `consent.purpose` — `enum`, e não texto livre. Consentimento é prova jurídica: `imagem_menor` e `imagem-menor` digitados em meses diferentes seriam duas finalidades distintas, e a consulta "há autorização para esta criança?" responderia não sobre um registro que existe.
+- `consent` — autorização de imagem de **menor** exige responsável nomeado, e pessoa menor não aceita a finalidade `imagem` (Art. 14). Gatilho, não `CHECK`: a regra depende de `person.is_minor`, que está em outra tabela.
+- `data_subject_request` — concluir ou recusar exige `resolution` preenchida e `resolved_at`. Fechar sem dizer o que foi feito deixa o titular sem resposta e a igreja sem prova de que respondeu.
+- `person.anonymized_at` — a linha **permanece** após a anonimização, para preservar os agregados históricos (`LGPD.md` §4). A operação vive em `app.anonymize_person()`, e não na aplicação, porque precisa alcançar `person_change_log`, que é inescrevível pela aplicação desde a Fase 6a.
 - `audit_log` — sem `UPDATE` nem `DELETE`, garantido por permissão de banco e por trigger.
 - `person.birth_date` — não pode ser futura.
 - `elo_report` — soma das parcelas de presença precisa bater com `total_present` (validado no serviço e por `CHECK`).

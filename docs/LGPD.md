@@ -35,10 +35,12 @@ Por isso a privacidade é tratada como requisito de arquitetura, não como aviso
 
 Para dados sensíveis, a LGPD (Art. 11) admite o tratamento mediante **consentimento específico e destacado**, ou, sem consentimento, apenas nas hipóteses taxativas do inciso II. A lei brasileira **não reproduz** a isenção que o GDPR europeu concede a associações religiosas quanto aos seus próprios membros, o que torna a análise específica e não transponível de outros ordenamentos.
 
-**O que o sistema já oferece para sustentar qualquer decisão jurídica:**
+**O que o sistema já oferece para sustentar qualquer decisão jurídica** (implementado na Fase 11a, migration 0016):
 
-- Tabela `consent`, registrando titular, **finalidade**, versão da política, data de concessão, canal de coleta e data de revogação;
-- Histórico completo de consentimentos, sem sobrescrita — revogar cria uma transição, não apaga o registro;
+- Tabela `consent`, registrando titular, **finalidade**, versão da política, canal de coleta, data do evento e — quando o titular é menor — quem autorizou e em que qualidade;
+- Histórico completo de consentimentos, sem sobrescrita: **revogar cria uma linha nova**, e a tabela é append-only por gatilho — nem o administrador do banco reescreve a prova (ADR-009);
+- A finalidade é vocabulário controlado, e não texto livre: sem isso, `imagem_menor` e `imagem-menor` seriam finalidades distintas e a consulta que pergunta pela autorização de uma criança responderia não sobre um registro que existe;
+- **Nenhum consentimento é gravado sem versão de política vigente.** Se a política não foi publicada, a coleta é recusada com o motivo por extenso — um consentimento com versão inventada parece prova e não prova nada;
 - Registro da finalidade de cada tratamento, base para o inventário exigido pelo Art. 37.
 
 **O que precisa ser decidido por profissional jurídico ou pelo DPO:**
@@ -87,6 +89,16 @@ Implementados no MVP, no módulo `privacy`.
 **Fluxo:** a solicitação entra em `data_subject_request` com prazo (`due_at`), é atribuída a quem tem `privacy.handle_requests`, e toda ação sobre ela é auditada. Os prazos de resposta seguem o Art. 19 da LGPD e **devem ser confirmados juridicamente** antes da publicação da política.
 
 **Limite importante:** o direito à eliminação não é absoluto. Registros necessários ao cumprimento de obrigação legal ou ao exercício regular de direitos podem ser mantidos. Por isso o sistema usa **anonimização** em vez de exclusão física quando é preciso preservar histórico agregado (por exemplo, a contagem de presentes em um relatório antigo continua correta sem identificar ninguém).
+
+**O que a anonimização faz, e o que ela deliberadamente não faz** (`app.anonymize_person`, migration 0016):
+
+| Alcança                                                                                        | Não toca                                                                                                         |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Cadastro (nome, contato, nascimento, foto, observações), endereço, etiquetas, conta de acesso  | `audit_log` — é o instrumento de responsabilização; apagá-lo a pedido de quem quer sumir inverte a função dele   |
+| **`person_change_log`** — a cópia sombra do cadastro. Sem ele, a anonimização seria só fachada | `consent` — a prova de que houve autorização defende a igreja sobre o período em que tratou o dado legitimamente |
+| `elo_report.submitted_by_person_id`, que deixa de identificar quem enviou                      | As contagens dos relatórios e as participações em Elo — são os agregados que a lei permite preservar             |
+
+**Limitação conhecida:** texto livre de relatório pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita — a revisão é humana, registrada na resolução da solicitação (Fluxo 10).
 
 ---
 
@@ -159,15 +171,28 @@ Supabase e Vercel podem armazenar ou processar dados fora do Brasil, dependendo 
 
 ## 10. Checklist de privacidade antes de produção
 
-- [ ] Base legal definida e validada por profissional jurídico ou DPO
-- [ ] Encarregado (DPO) designado e contato publicado
-- [ ] Política de privacidade e termos de uso redigidos, versionados e publicados no sistema
-- [ ] Prazos de retenção definidos por categoria de dado
-- [ ] Fluxo de solicitação do titular testado ponta a ponta
-- [ ] Exportação dos dados do titular funcionando e auditada
-- [ ] Anonimização testada, preservando os agregados históricos
-- [ ] Consentimento de imagem de menores implementado e testado
-- [ ] Teste de scrubbing de logs passando
-- [ ] Nenhum dado real em ambientes que não sejam produção
-- [ ] Região de armazenamento definida e documentada
-- [ ] Procedimento de resposta a incidente documentado e conhecido pela liderança
+Revisado item a item ao fim da **Fase 11b**. A separação abaixo é o resultado da revisão, e ela importa mais que a contagem de caixas marcadas: **cinco dos doze itens não dependem de código** — dependem de uma decisão jurídica, de uma designação da igreja ou de uma conversa com a liderança. Nenhum deles fica pronto sozinho porque o sistema ficou pronto.
+
+**O que o sistema entrega, e está verificado:**
+
+- [x] Política de privacidade e termos **versionados e publicados no sistema** — tela `/privacidade/politica`, com o texto em `system_setting` e uma versão que cada consentimento registra. O que falta é o **texto jurídico**, e o sistema exibe isso em destaque na própria tela. Publicar sem texto validado seria pior que a ausência: pareceria pronto
+- [x] Fluxo de solicitação do titular **testado ponta a ponta** — Fluxo 10 em `tests/e2e/privacidade.spec.ts`: registrar, responder dentro do prazo, entregar o pacote e anonimizar
+- [x] Exportação dos dados do titular funcionando e auditada — JSON estruturado (Art. 18, V), registrada em `audit_log` na mesma transação da leitura, e **só quando acontece**: há caso que falha se abrir a tela voltar a registrar acesso
+- [x] Anonimização testada, preservando os agregados históricos — inclusive alcançando `person_change_log`, a cópia sombra do cadastro
+- [x] Consentimento de imagem de menores implementado e testado — responsável exigido no banco, na tela e no schema; finalidade de adulto recusada para criança
+- [x] Teste de scrubbing de logs passando — e `console` proibido em todo o `src/`, para que o teste guarde o caminho, e não uma função opcional
+- [x] Nenhum dado real em ambientes que não sejam produção — regra permanente, verificada desde a Fase 3
+
+**O que não depende de código, e continua aberto:**
+
+- [ ] **Base legal definida e validada** por profissional jurídico ou DPO — **bloqueia a produção com dados reais.** É a pendência principal do projeto desde a Fase 0
+- [ ] **Encarregado (DPO) designado** e contato publicado — decisão da igreja. Quando houver papel próprio para ele, o lugar de encaixá-lo já existe: `app.handles_privacy()`, uma função só
+- [ ] **Texto da política e dos termos** redigidos com apoio jurídico — o mecanismo de publicação está pronto e o rascunho de demonstração declara, na primeira linha, que não tem validade jurídica
+- [ ] **Prazos de retenção por categoria de dado** — a proposta da §7 continua proposta. O sistema não apaga nada por prazo hoje, e não deve começar antes de a política dizer quais são
+- [ ] **Procedimento de resposta a incidente conhecido pela liderança** — documentado em `SECURITY.md` §12; o que falta é a conversa, não o documento
+
+**O que depende da Fase 12:**
+
+- [ ] Região de armazenamento definida e documentada — decidida no provisionamento do Supabase e da Vercel
+
+**Uma observação que a revisão produziu, e que não estava em item nenhum:** o prazo de resposta ao titular adotado é de **15 dias** (`PRAZO_RESPOSTA_DIAS`), o do Art. 19, II. Outros incisos falam em "prazo razoável", que não é número. Adotamos o mais curto porque responder antes do exigido nunca descumpre a lei — mas **o número precisa ser confirmado** junto com a base legal, e está num lugar só do código para que a mudança seja de uma linha.

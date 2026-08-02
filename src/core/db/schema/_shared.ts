@@ -162,6 +162,58 @@ export const studyAttachmentKindEnum = pgEnum('study_attachment_kind', [
   'link',
 ]);
 
+/**
+ * Finalidade do tratamento consentido (LGPD, Art. 9º e `LGPD.md` §2).
+ *
+ * **Vocabulário controlado, e não texto livre** — divergência deliberada do que
+ * `DATABASE.md` §4 previa. Consentimento é prova jurídica: `imagem_menor` e
+ * `imagem-menor` digitados em momentos diferentes viram duas finalidades
+ * distintas, e a consulta que pergunta "há autorização de imagem para esta
+ * criança?" responderia não sobre um registro que existe. Um `enum` recusa o
+ * terceiro valor no banco.
+ *
+ * Acrescentar finalidade é migration, e isso é a intenção: a lista de
+ * finalidades é justamente o que o jurídico precisa aprovar (`LGPD.md` §2), e
+ * ela não deve crescer por digitação.
+ */
+export const consentPurposeEnum = pgEnum('consent_purpose', [
+  /** Cadastro e acompanhamento pastoral — a finalidade primária do sistema. */
+  'cadastro_pastoral',
+  /** Uso de imagem em fotos e vídeos das atividades. */
+  'imagem',
+  /**
+   * Uso de imagem de menor de idade, autorizado pelo responsável (Art. 14).
+   * Separado de `imagem` porque quem consente é outra pessoa, e a prova exigida
+   * é diferente.
+   */
+  'imagem_menor',
+  /** Comunicações da igreja por mensagem, e-mail ou telefone. */
+  'comunicacao',
+]);
+
+/**
+ * Direito exercido pelo titular (LGPD, Art. 18).
+ *
+ * `confirmacao` é o inciso I e parece redundante com `acesso` — não é: confirmar
+ * que existe tratamento não obriga a entregar os dados, e há quem só queira
+ * saber se está cadastrado.
+ */
+export const dataSubjectRequestKindEnum = pgEnum('data_subject_request_kind', [
+  'confirmacao',
+  'acesso',
+  'correcao',
+  'exclusao',
+  'portabilidade',
+  'revogacao_consentimento',
+]);
+
+export const dataSubjectRequestStatusEnum = pgEnum('data_subject_request_status', [
+  'aberta',
+  'em_analise',
+  'concluida',
+  'recusada',
+]);
+
 /** Escopo de uma atribuição de papel. Ver docs/PERMISSIONS.md §2. */
 export const scopeTypeEnum = pgEnum('scope_type', [
   'global',

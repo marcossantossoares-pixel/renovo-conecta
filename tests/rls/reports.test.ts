@@ -9,6 +9,7 @@ import {
   claimsMembro,
   claimsOutroTenant,
   claimsSupervisorA,
+  restaurarRelatoriosDoSeed,
   sql,
 } from './helpers.ts';
 
@@ -26,7 +27,16 @@ import {
  *   - **o histórico é append-only**, como o `audit_log`.
  */
 
+/**
+ * ⚠️ **Este arquivo esvazia `elo_report` a cada teste, e por isso o devolve.**
+ *
+ * Até a Fase 10 limpar a tabela era inofensivo: o seed não tinha relatório
+ * algum. A Fase 10 semeou os cenários de `docs/DEMO_DATA.md` §3, dos quais o
+ * painel depende — e sem a reposição, uma execução desta suíte deixava o banco
+ * sem eles. Ver `restaurarRelatoriosDoSeed` em `helpers.ts`.
+ */
 afterAll(async () => {
+  await restaurarRelatoriosDoSeed();
   await Promise.all([sql.end(), adminSql.end()]);
 });
 

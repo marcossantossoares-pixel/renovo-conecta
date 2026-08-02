@@ -290,13 +290,29 @@ function birthDateForMinor(): string {
  */
 const INDICES_MENORES = new Set([3, 11]);
 
+/**
+ * Aniversários espalhados pelos doze meses.
+ *
+ * ⚠️ Antes, todo participante nascia em março e todo visitante em novembro. O
+ * indicador "aniversariantes do mês" da Fase 10 mostrava zero em dez meses do
+ * ano — e zero é exatamente com o que um indicador quebrado também se parece.
+ *
+ * O dia é fixo em 09 e o mês vem do índice: determinístico, como o resto do
+ * seed, e garantido de existir no calendário (nenhum mês tem menos de 9 dias).
+ */
+function aniversario(ano: number, index: number): string {
+  const mes = String((index % 12) + 1).padStart(2, '0');
+
+  return `${ano}-${mes}-09`;
+}
+
 export const PARTICIPANTES: readonly PersonSeed[] = NOMES_PARTICIPANTES.map(
   (fullName, index) => ({
     id: demoId(5, index + 1),
     fullName,
     birthDate: INDICES_MENORES.has(index)
       ? birthDateForMinor()
-      : `${1975 + index}-03-09`,
+      : aniversario(1975 + index, index),
     churchStatus: 'membro' as const,
   }),
 );
@@ -305,7 +321,9 @@ export const VISITANTES: readonly PersonSeed[] = NOMES_VISITANTES.map(
   (fullName, index) => ({
     id: demoId(6, index + 1),
     fullName,
-    birthDate: `${1988 + index}-11-02`,
+    // Deslocados em relação aos participantes, para os dois grupos não caírem
+    // sempre nos mesmos meses.
+    birthDate: aniversario(1988 + index, index + 6),
     churchStatus: 'visitante' as const,
   }),
 );
@@ -427,3 +445,199 @@ export const ESTUDO_AGENDADO: StudySeed = {
 };
 
 export const ESTUDOS: readonly StudySeed[] = [ESTUDO_PUBLICADO, ESTUDO_AGENDADO];
+
+/* ---------------------------------------------------------------------- */
+/* Relatórios semanais                                                     */
+/*                                                                         */
+/* `docs/DEMO_DATA.md` §3 lista os cenários que os seeds precisam produzir, */
+/* e até a Fase 10 nenhum existia: a Fase 8 construiu o relatório e deixou  */
+/* o e2e criar os seus. Isso bastava enquanto a tela era do Elo. Um         */
+/* dashboard sobre banco sem relatórios mostra zeros, e nenhum aceite desta */
+/* fase teria como ser verificado.                                         */
+/*                                                                         */
+/* ⚠️ As semanas são **relativas a hoje**, e não datas fixas. A lição é a   */
+/* dos estudos: uma data cravada vira passado sozinha, e um dia a suíte     */
+/* quebra sem que ninguém tenha tocado no código. Aqui é pior — o indicador */
+/* principal do dashboard é "Elos sem relatório **na semana corrente**".    */
+/* ---------------------------------------------------------------------- */
+
+export interface ReportSeed {
+  readonly eloId: string;
+  /** Quantas semanas atrás foi o encontro. 0 = a semana corrente. */
+  readonly semanasAtras: number;
+  readonly happened: boolean;
+  readonly cancellationReason?: string;
+  readonly membersPresent?: number;
+  readonly visitorsPresent?: number;
+  readonly childrenPresent?: number;
+  readonly newDecisions?: number;
+  readonly referredForFollowUp?: number;
+  readonly status: 'enviado' | 'aprovado' | 'correcao_solicitada';
+  readonly studyTitle?: string;
+}
+
+/**
+ * A queda de frequência do Elo Semear, ao longo de quatro semanas.
+ *
+ * 12 → 10 → 8 → 6. É o cenário que o `DEMO_DATA` §3 pede para exercitar o
+ * gráfico de evolução, e o desenho é deliberado: uma queda monotônica é o que a
+ * supervisão precisa **enxergar**, e um gráfico que não a torna óbvia falhou.
+ *
+ * Este é também o Elo que recebe visitantes — o outro lado da comparação está
+ * no Elo Fonte, que não recebe nenhum.
+ */
+const QUEDA_SEMEAR: readonly ReportSeed[] = [3, 2, 1, 0].map((semanasAtras, i) => ({
+  eloId: ELO_SEMEAR.id,
+  semanasAtras,
+  happened: true,
+  membersPresent: 12 - i * 2,
+  visitorsPresent: i === 0 ? 3 : i === 1 ? 2 : 1,
+  childrenPresent: 2,
+  newDecisions: i === 0 ? 1 : 0,
+  referredForFollowUp: i === 0 ? 1 : 0,
+  status: semanasAtras === 0 ? 'enviado' : 'aprovado',
+  studyTitle: 'Permanecer, e não apenas frequentar',
+}));
+
+export const RELATORIOS: readonly ReportSeed[] = [
+  ...QUEDA_SEMEAR,
+
+  /*
+   * Elo Caminho: encontro **cancelado** na semana corrente, com motivo.
+   *
+   * O cenário existe para garantir que cancelamento **não conte como ausência
+   * de relatório** — é o segundo aceite da Fase 10. Um Elo que cancelou avisou;
+   * um Elo que sumiu, não. Tratar os dois igual apagaria a diferença que a
+   * supervisão precisa ver.
+   */
+  {
+    eloId: ELO_CAMINHO.id,
+    semanasAtras: 0,
+    happened: false,
+    cancellationReason:
+      'Casa do anfitrião sem energia; remarcado para a semana seguinte.',
+    status: 'enviado',
+  },
+  {
+    eloId: ELO_CAMINHO.id,
+    semanasAtras: 1,
+    happened: true,
+    membersPresent: 9,
+    visitorsPresent: 2,
+    childrenPresent: 3,
+    status: 'aprovado',
+    studyTitle: 'Permanecer, e não apenas frequentar',
+  },
+
+  /*
+   * Elo Fonte: relatório em **correção solicitada**, e nenhum visitante.
+   *
+   * Dois cenários numa linha só — o fluxo de revisão do supervisor tem o que
+   * exercitar, e a comparação "um Elo recebeu visitantes e outro não" ganha o
+   * outro lado.
+   */
+  {
+    eloId: ELO_FONTE.id,
+    semanasAtras: 0,
+    happened: true,
+    membersPresent: 7,
+    visitorsPresent: 0,
+    childrenPresent: 1,
+    status: 'correcao_solicitada',
+    studyTitle: 'Permanecer, e não apenas frequentar',
+  },
+
+  /*
+   * ⚠️ O Elo Alicerce **não aparece nesta lista**, e a ausência é o cenário.
+   *
+   * "Um Elo sem relatório na semana corrente" é o indicador principal do
+   * dashboard da coordenação. Ele só existe se algum Elo de fato não enviar —
+   * e um seed que preenchesse todos os quatro deixaria o número sempre em zero,
+   * que é o valor com que um indicador quebrado também se parece.
+   */
+];
+
+/**
+ * O comentário do supervisor ao pedir correção.
+ *
+ * Fica aqui porque `elo_report_status_history` exige comentário na transição
+ * para `correcao_solicitada` (migration 0013), e um seed que o omitisse
+ * quebraria o `CHECK`.
+ */
+export const MOTIVO_CORRECAO =
+  'O total informado não bate com a soma das parcelas. Confira os números.';
+
+/*
+ * Um cenário do `DEMO_DATA` §3 continua **impossível de produzir**, e não por
+ * esquecimento: *"um relatório em rascunho, não enviado"*. Pela ADR-004, o
+ * rascunho vive no dispositivo e só chega ao banco como `enviado` — o valor
+ * `rascunho` existe no tipo e nunca é gravado (migration 0013). A distinção que
+ * o cenário queria ("não preencheu" × "não enviou") não é observável pelo
+ * servidor, e fingi-la no seed ensinaria o contrário a quem lesse o dashboard.
+ */
+
+/* ---------------------------------------------------------------------- */
+/* Privacidade — Fase 11                                                   */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Versão da política de privacidade vigente no ambiente de demonstração.
+ *
+ * ⚠️ **É rascunho, e o valor diz isso em voz alta.** A base legal e o texto da
+ * política dependem de validação jurídica (`LGPD.md` §2), que é a pendência que
+ * bloqueia a produção. Um valor como `1.0` sugeriria um texto aprovado que não
+ * existe — e consentimento gravado contra uma versão inexistente é prova de
+ * nada.
+ */
+export const VERSAO_POLITICA_DEMO = '0.1-rascunho-sem-validacao-juridica';
+
+/**
+ * Texto de demonstração da política e dos termos.
+ *
+ * ⚠️ **Não é minuta jurídica, e diz isso na primeira linha.** Existe para que a
+ * tela tenha o que exibir e para que o fluxo de consentimento funcione ponta a
+ * ponta — o texto real depende de validação por profissional jurídico ou pelo
+ * encarregado (`LGPD.md` §2), que é a pendência que bloqueia a produção.
+ */
+export const TEXTO_POLITICA_DEMO = [
+  'RASCUNHO DE DEMONSTRAÇÃO — sem validade jurídica.',
+  '',
+  'Esta igreja trata dados pessoais para acompanhar a vida da comunidade: o',
+  'cadastro das pessoas, a participação nos Elos e os relatórios dos encontros.',
+  'Dados de participação religiosa são sensíveis pela Lei nº 13.709/2018, e por',
+  'isso recebem tratamento mais restrito que dados comuns.',
+  '',
+  'Você pode, a qualquer tempo: confirmar se tratamos seus dados, pedir acesso a',
+  'eles, corrigi-los, pedir a eliminação e revogar consentimentos. Fale com a',
+  'secretaria da igreja — o pedido é registrado e respondido dentro do prazo.',
+  '',
+  'Não compartilhamos dados com terceiros para fins comerciais. Fotografias de',
+  'crianças e adolescentes só são usadas com autorização do responsável.',
+].join('\n');
+
+export const TEXTO_TERMOS_DEMO = [
+  'RASCUNHO DE DEMONSTRAÇÃO — sem validade jurídica.',
+  '',
+  'O acesso ao sistema é pessoal e concedido por convite à liderança. A senha não',
+  'deve ser compartilhada, e o que se enxerga aqui é a vida de pessoas reais:',
+  'trate cada informação com o cuidado que você gostaria que tivessem com a sua.',
+  '',
+  'O uso indevido de dados — copiar listas, repassar contatos, divulgar pedidos',
+  'de oração — encerra o acesso e pode responsabilizar quem o fez.',
+].join('\n');
+
+/**
+ * A solicitação do titular que `DEMO_DATA.md` §3 pede: **uma, aberta.**
+ *
+ * Aberta e não resolvida, de propósito: é o estado que exercita a fila, o prazo
+ * e a decisão. Uma solicitação já concluída no seed mostraria a tela do jeito
+ * que ela fica quando não há nada a fazer.
+ *
+ * Quem pediu é um participante fictício; quem registrou é a administração,
+ * porque no MVP o titular não tem login (ADR-003).
+ */
+export const SOLICITACAO_DEMO = {
+  id: demoId(9, 1),
+  kind: 'acesso' as const,
+  description: 'Pediu por telefone uma cópia dos próprios dados cadastrados na igreja.',
+} as const;

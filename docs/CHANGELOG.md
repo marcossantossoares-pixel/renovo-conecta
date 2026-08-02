@@ -8,6 +8,143 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 11b — LGPD: telas do titular, política versionada e checklist (2026-08-02)
+
+- **O Fluxo 10 fecha**: `/privacidade` registra a solicitação, mostra a fila
+  **ordenada pelo prazo** — não pela chegada —, responde com a resolução escrita,
+  entrega o pacote de dados em JSON e anonimiza quando o pedido é de eliminação.
+- **Política de privacidade e termos versionados**, em `/privacidade/politica`:
+  o texto vive em `system_setting`, é **legível por qualquer sessão autenticada**
+  (política que só a administração enxerga é rascunho interno) e só `setting.update`
+  publica. Versão, política e termos mudam na mesma transação.
+- **Consentimentos na tela da pessoa**, com a finalidade filtrada pela idade: para
+  menor só `imagem_menor`, com o responsável obrigatório. A recusa do Art. 14
+  passou a ser explicada antes da tentativa, e não só imposta pelo banco.
+- **Sem política publicada, a tela avisa** — porque o servidor recusa a coleta de
+  consentimento, e descobrir isso no meio de um atendimento não ajudaria ninguém.
+- **Checklist de `LGPD.md` §10 revisado item a item**, e o resultado ficou
+  registrado: cinco dos doze itens não dependem de código.
+- **O link do pacote de dados é `NoPrefetchLink`**, com caso de e2e que falha se
+  alguém voltar ao `next/link` — a regressão da 10b aplicada ao acesso mais
+  sensível do sistema: os dados de uma pessoa nomeada.
+
+#### Fase 11a — LGPD: banco, motor de privacidade e anonimização (2026-08-02)
+
+- **`consent` e `data_subject_request` existem** (migration 0016). Constavam do ER
+  e da matriz de permissões desde a Fase 0; agora estão no banco, com RLS escrita
+  à mão e políticas que dão acesso a quem cuida de privacidade **e ao próprio
+  titular** — que ainda não tem login, e cuja regra fica decidida no banco desde
+  já.
+- **Consentimento é append-only** (ADR-009): revogar cria uma linha nova, e o
+  estado atual é a última linha de cada (pessoa, finalidade). Nem o administrador
+  do banco reescreve a prova.
+- **Imagem de menor exige responsável nomeado** (Art. 14), e pessoa menor não
+  aceita a finalidade de adulto — as duas regras no banco, por gatilho, porque
+  dependem de `person.is_minor`, que está em outra tabela.
+- **Anonimização preservando agregados** (`app.anonymize_person`): apaga cadastro,
+  endereço, etiquetas, conta de acesso e o **histórico de alterações** — a cópia
+  sombra do cadastro —, e não toca `audit_log`, `consent` nem as contagens dos
+  relatórios.
+- **Exportação estruturada dos dados do titular** em JSON (Art. 18, V), registrada
+  em `audit_log` na mesma transação da leitura.
+- **Nenhum consentimento sem política publicada.** Sem versão vigente em
+  `system_setting`, a coleta é recusada com o motivo por extenso: consentimento
+  com versão inventada parece prova e não prova nada.
+- **Logger com scrubbing** (`src/core/log/logger.ts`), ocultando por chave e por
+  formato — e-mail, telefone e CPF sob qualquer nome de campo —, com o teste que
+  `LGPD.md` §6 prometia desde a Fase 0.
+- **As três permissões `privacy.*` entraram no catálogo.** Estavam em
+  `PERMISSIONS.md` §3 e §4 desde a fundação e nunca tinham existido no motor
+  `can()` nem em `role_permission`.
+
+#### Fase 10b — Lista geral de relatórios e exportação (2026-08-02)
+
+- **`/relatorios` existe.** A rota respondia 404 desde a Fase 2, com o item do
+  menu apontando para ela: a Fase 8 entregou os relatórios **dentro do Elo**, que
+  é onde o líder trabalha, e faltava o lugar onde a supervisão olha o conjunto —
+  quem atrasou, quem cancelou, o que falta aprovar.
+- **Filtros por período, situação, supervisor e Elo**, com paginação. `rascunho`
+  não é oferecido como situação: pela ADR-004 ele vive no dispositivo e nunca
+  chega ao banco, e um filtro que devolve sempre vazio ensina que há algo
+  escondido.
+- **A mesma URL devolve listas diferentes, e a página não sabe disso.** O líder
+  vê o próprio Elo porque a RLS recorta `elo_report` antes da consulta — o portão
+  da tela é só "esta pessoa lida com relatórios?".
+- **Filtrar não amplia o alcance.** Filtrar pelo supervisor vizinho devolve lista
+  vazia, e não a lista dele: o filtro é interseção com o que a RLS já entregou.
+  Provado na suíte de isolamento e na de ponta a ponta.
+- **Exportação em Excel e folha de impressão**, com os filtros da tela junto e
+  **registro em `audit_log`** — com o recorte exportado, sem copiar o que foi
+  exportado. O `resource_id` fica nulo, porque aqui não há um Elo alvo: há um
+  recorte.
+- **O filtro de período virou compartilhado** (`src/lib/periodo.ts`). O painel e a
+  lista fazem a mesma pergunta, e duas implementações divergiriam no primeiro
+  preset novo — passando a responder coisas diferentes sobre a mesma semana.
+
+#### Fase 10a — Dashboard: indicadores e painel (2026-08-01)
+
+- **O painel de verdade**, substituindo o provisório da Fase 4: treze indicadores
+  da §4.2, filtros por período, congregação, supervisor e Elo, dois gráficos com a
+  tabela equivalente embutida e a **lista** dos Elos sem relatório — porque o
+  número informa e não permite agir; a lista diz para quem ligar.
+- **O recorte por papel não é feito pela tela nem pelo módulo.** O supervisor
+  recebe só os números dos Elos que acompanha porque a RLS recorta `elo`,
+  `person` e `elo_report` **antes** da agregação. Um `WHERE` de escopo no
+  dashboard seria a terceira implementação da mesma regra.
+- **Encontro cancelado não conta como ausência de relatório.** Um Elo que
+  cancelou e disse por quê enviou relatório; um que sumiu, não. Tratar os dois
+  igual apagaria a diferença que a supervisão precisa ver.
+- **Os cenários de `DEMO_DATA.md` §3 passaram a existir no seed.** Não existiam:
+  a Fase 8 construiu o relatório e deixou o e2e criar os seus. As datas são
+  relativas a hoje, porque o indicador principal fala da **semana corrente**.
+- **`aguardando acompanhamento` ganhou definição**: visitante que não participa de
+  Elo algum. Não há campo para isso no cadastro, e esta definição se mantém
+  sozinha — a pessoa sai da conta ao entrar num Elo.
+- **Três indicadores da §4.2 ficaram de fora**, com o motivo no código: próximos
+  eventos, pedidos de oração e jornada do membro dependem da Prioridade 2.
+  Cartões vazios ensinariam que o sistema está quebrado.
+
+### Corrigido
+
+- **`console` deixou de ser um caminho de log sem filtro.** A regra de lint
+  permitia `warn` e `error`, e o descuido típico (`console.error('falhou',
+pessoa)`) mora exatamente ali. Agora `console` é erro em todo o `src/`, com
+  exceção única do logger — sem ponto de saída único, o teste de scrubbing
+  guardaria uma função que ninguém é obrigado a chamar.
+- **O `audit_log` registrava exportações que ninguém fez — desde a Fase 6b.** O
+  `next/link` pré-carrega o destino dos links ao vê-los na tela e ao passar o
+  mouse, e as rotas de exportação **têm efeito**: geram o arquivo e gravam a
+  exportação. Abrir `/pessoas` bastava para registrar uma exportação de CSV; o
+  log tinha 156 delas onde deveria haver um punhado. Um registro de acesso a dado
+  pessoal que mente para mais é tão inútil quanto um que mente para menos — em
+  qualquer apuração, ele acusaria quem só abriu a tela. Nem `download` nem
+  `prefetch={false}` resolvem (o segundo desliga o pré-carregamento por viewport
+  e mantém o do mouse); o destino agora usa `NoPrefetchLink`, um `<a>` comum com a
+  mesma aparência. Vale para as três exportações: pessoas, relatórios do Elo e
+  lista geral. Há caso de ponta a ponta que falha se o `next/link` voltar.
+- **O projeto `painel` do Playwright não tinha o `workers: 1`** que o próprio
+  comentário do arquivo descrevia desde a 10a. Com duas suítes lá dentro repondo
+  `elo_report` no `beforeAll` — que roda uma vez por worker —, uma esvaziaria a
+  tabela no meio da asserção da outra.
+- **O painel abria cinco transações por render, contra um pool de dez.** Cinco
+  chamadas a `withUserContext` em `Promise.all` pareciam mais rápidas — e eram,
+  isoladamente —, mas **duas pessoas abrindo o painel ao mesmo tempo consumiam o
+  pool inteiro**. Apareceu como falhas espalhadas por suítes sem relação com o
+  painel, todas estourando a espera pelo `/dashboard`: é para lá que todo login
+  vai. Virou uma transação com as consultas em sequência.
+- **A substituição do painel provisório levou junto o botão "encerrar outras
+  sessões"** — a única entrada para uma funcionalidade da Fase 4. Restaurado.
+- **`tests/rls/reports.test.ts` esvaziava `elo_report` e não repunha.** Era
+  inofensivo enquanto o seed não tinha relatórios; a partir da 10a, uma execução
+  da suíte deixava o painel sem dados até alguém rodar `db:seed`. A reposição
+  agora é compartilhada e chamada dos dois lados, sem depender da ordem.
+- **O `beforeAll` destrutivo do e2e do painel rodava uma vez por worker**,
+  esvaziando a tabela no meio da asserção do outro. O arquivo ficou `serial`.
+- **A suíte de ponta a ponta rodava com onze workers** contra um servidor e um
+  banco. Medido: 11 dá falhas móveis em 2,0 min; 4 dá 174/174 em 2,6 min. O
+  paralelismo extra comprava trinta segundos e pagava com uma suíte em que não se
+  pode acreditar.
+
 #### Fase 9b — Estudos semanais: anexos, leitura mobile e mensagem (2026-08-01)
 
 - **Anexos em Storage privado** (migration 0015): PDF, áudio e vídeo até 10 MB, ou

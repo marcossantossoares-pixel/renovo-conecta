@@ -64,22 +64,35 @@ test.describe('login', () => {
     await entrar(page, LIDER_1.email);
 
     await expect(page).toHaveURL(/\/dashboard/);
-    await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Painel' })).toBeVisible();
   });
 
+  /*
+   * ⚠️ Estes dois casos liam a lista de escopo que o painel provisório da Fase 4
+   * exibia — "Papéis" e "Elos acessíveis" num `<dl>`. A Fase 10 substituiu
+   * aquela página pelo painel de verdade, e a lista deixou de existir.
+   *
+   * A prova não se perdeu: mudou de lugar e ficou mais forte. Antes, a asserção
+   * lia as **claims** que o servidor imprimira na tela; agora lê um indicador
+   * **agregado no banco**, que só chega ao número certo se a RLS tiver recortado
+   * pelas mesmas claims. O escopo continua sendo o que se verifica, e agora
+   * verificado pelo caminho que a igreja usa.
+   */
   test('a sessão recebe o escopo correto do papel', async ({ page }) => {
     // O líder do Elo Semear deve enxergar exatamente 1 Elo.
     await entrar(page, LIDER_1.email);
 
-    await expect(page.getByText('lider')).toBeVisible();
-    await expect(page.locator('dd', { hasText: /^1$/ }).first()).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Elos ativos', exact: true }),
+    ).toContainText('1');
   });
 
   test('o supervisor recebe os dois Elos que supervisiona', async ({ page }) => {
     await entrar(page, SUPERVISOR_A.email);
 
-    await expect(page.getByText('supervisor')).toBeVisible();
-    await expect(page.locator('dd', { hasText: /^2$/ }).first()).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Elos ativos', exact: true }),
+    ).toContainText('2');
   });
 
   test('senha errada não entra', async ({ page }) => {

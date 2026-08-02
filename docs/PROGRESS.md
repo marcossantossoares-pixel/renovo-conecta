@@ -2,6 +2,292 @@
 
 ## Fase atual
 
+**Fase 11b — LGPD: telas do titular, política versionada e o checklist §10. Concluída.**
+
+A 11b fecha o **Fluxo 10**: registrar a solicitação, responder dentro do prazo,
+entregar o pacote de dados e — quando o pedido é de eliminação — anonimizar. Tudo
+sobre o motor que a 11a deixou pronto e testado.
+
+**A tela mais estreita do sistema.** `/privacidade` é do pastor e do superadmin;
+a coordenação recebe "esta página não é sua" apesar de ter o alcance mais largo
+sobre pessoas. É a mesma escolha de `/auditoria`, e agora está provada na tela,
+não só na RLS.
+
+### Três decisões de produto desta metade
+
+| Decisão                                                  | Por quê                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A fila ordena **pelo prazo**, não pela chegada           | O que a lei cobra é a resposta dentro do prazo. Quem trabalha na fila precisa ver primeiro o que vence antes — a ordem cronológica esconde justamente isso          |
+| A política é legível por **qualquer sessão autenticada** | Uma política que só a administração enxerga não é política publicada, é rascunho interno (`LGPD.md` §3). Publicar é outra permissão: `setting.update`               |
+| O primeiro campo do formulário é **"quem pediu"**        | No MVP o titular não tem login (ADR-003): o pedido chega por conversa e alguém o registra. Um formulário que assumisse "eu sou o titular" descreveria outro sistema |
+
+**Uma consequência honesta e sem solução técnica:** o prazo começa a contar no
+**registro**, não no pedido original. O sistema só sabe o que lhe contam, e datar
+para trás seria inventar precisão que não existe.
+
+### A regressão da 10b, agora no caso mais sensível
+
+O link do pacote de dados usa `NoPrefetchLink`, e há caso de e2e que falha se
+alguém o trocar por `ButtonLink`. A diferença com a 10b é o que estaria em jogo:
+lá o `audit_log` acusava exportações de planilha que ninguém fez; aqui acusaria
+**acesso aos dados de uma pessoa nomeada** — o registro que responde "quem leu o
+cadastro de Fulana?".
+
+### Duas armadilhas de ambiente encontradas no caminho
+
+**O Playwright reutilizou o `pnpm dev` que eu havia aberto para inspeção
+visual.** `reuseExistingServer` é verdadeiro fora do CI, e o servidor de
+desenvolvimento na porta 3000 substituiu o build de produção: 12 falhas
+espalhadas por suítes sem relação — máscara de telefone não aplicada, diálogo não
+encontrado. Nenhuma era defeito de código. Derrubado o dev, tudo voltou a passar.
+
+**E a execução abortada deixou resíduo no banco.** O caso do Fluxo 4 que vincula
+um líder a outro Elo encerra o vínculo no fim; interrompido no meio, o vínculo
+ficou aberto e o teste seguinte passou a ver um Elo a mais. Removido à mão. Fica o
+registro: **suíte interrompida contra banco compartilhado exige conferir o que
+sobrou**, e não apenas rodar de novo.
+
+### O checklist §10, revisado item a item
+
+A revisão produziu o resultado que importa mais que a contagem de caixas:
+**cinco dos doze itens não dependem de código.** Base legal, encarregado (DPO),
+texto jurídico, prazos de retenção e a conversa com a liderança sobre incidentes
+continuam abertos, e nenhum deles fica pronto porque o sistema ficou pronto. A
+lista em `LGPD.md` §10 agora separa os três grupos — o que o sistema entrega, o
+que depende da igreja e o que depende da Fase 12.
+
+**Uma pendência que a revisão descobriu e que não estava em item nenhum:** o
+prazo de 15 dias (`PRAZO_RESPOSTA_DIAS`) vem do Art. 19, II; outros incisos falam
+em "prazo razoável", que não é número. Adotamos o mais curto — responder antes
+nunca descumpre a lei —, mas o número precisa ser confirmado junto com a base
+legal, e vive num lugar só para que a mudança seja de uma linha.
+
+---
+
+## Fase anterior
+
+**Fase 11a — LGPD: banco, motor de privacidade, anonimização e scrubbing de logs. Concluída.**
+
+A Fase 11 foi dividida em duas, como as Fases 7 a 10: a **11a** entrega o que o
+banco precisa garantir; a **11b**, as telas do titular, a política versionada e o
+checklist de `LGPD.md` §10 revisado item a item.
+
+**A fase que menos decide e mais registra.** Nada aqui define base legal — isso é
+do jurídico ou do encarregado (`LGPD.md` §2), e é a pendência que bloqueia a
+produção com dados reais. O que o código entrega é a **prova**: quem consentiu o
+quê, quando, sob qual versão da política, e o que a igreja fez quando alguém
+exerceu um direito do Art. 18.
+
+### Quatro decisões, e por que cada uma é assim
+
+| Decisão                                                          | Por quê                                                                                                                                                                                      |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `consent` é **append-only**, uma linha por evento                | Consentimento é prova. `granted_at` + `revoked_at` na mesma linha dá duas formas de dizer a mesma coisa, e a primeira escrita que esquecer de uma delas deixa um revogado com cara de válido |
+| `purpose` é **enum**, e não texto livre                          | `imagem_menor` e `imagem-menor` viram finalidades distintas, e a pergunta "há autorização para esta criança?" responde **não** sobre um registro que existe                                  |
+| Anonimização é **função do banco**, e não `UPDATE` na aplicação  | `person_change_log` guarda nome, telefone e e-mail antigos, e é inescrevível pela aplicação desde a Fase 6a. Anonimizar sem alcançá-lo seria apagar só a fachada                             |
+| Sem versão de política publicada, **não se colhe consentimento** | Um consentimento gravado contra versão inventada parece prova e não prova nada: ninguém consegue reconstruir o texto que a pessoa aceitou                                                    |
+
+As duas primeiras e a terceira estão na **ADR-009**.
+
+### O que a anonimização preserva, e o que ela não toca
+
+O aceite pede "preserva agregados históricos", e o teste mede exatamente isso:
+soma de presentes e número de relatórios idênticos antes e depois. O que muda é
+**quem** — não **quanto**.
+
+Duas omissões são deliberadas e estão escritas na própria função: `audit_log`
+(apagá-lo a pedido de quem quer sumir inverte a função dele) e `consent` (a
+prova de que houve autorização é o que defende a igreja sobre o período em que
+tratou o dado legitimamente).
+
+**Limitação conhecida, registrada em `LGPD.md` §4:** texto livre de relatório
+pode nomear quem foi anonimizado. Varrer texto atrás de nome é heurística, e
+heurística que apaga dado alheio por engano é pior que a exposição que evita — a
+revisão fica humana, na resolução da solicitação.
+
+### O teste de scrubbing só vale se não houver desvio
+
+`LGPD.md` §6 promete que "o teste falha o build se um campo proibido aparecer na
+saída do logger". Não havia logger: havia um `console.warn` e uma regra de lint
+que **permitia** `warn` e `error`. Um teste sobre uma função opcional guardaria
+nada.
+
+Então `console` virou erro em todo o `src/`, com exceção única do próprio
+logger, e o filtro faz duas coisas: oculta por **chave** (o que se sabe nomear) e
+por **formato** (e-mail, telefone e CPF sob qualquer nome de campo, porque
+`{ dado: 'maria@exemplo.test' }` passa por qualquer lista de chaves). A mensagem
+de erro também passa pelo filtro — é por ali que um e-mail duplicado chega ao log
+sem ninguém ter escrito nada, pela mensagem de violação de restrição do Postgres.
+
+### A lacuna que estava aberta desde a Fase 0
+
+As três permissões `privacy.*` constam de `PERMISSIONS.md` §3 e §4 desde a
+documentação de fundação, e **nunca tinham entrado no catálogo** — logo não
+existiam no motor `can()` nem em `role_permission`. Quem apontou foi o teste de
+contagem fixa do catálogo, que existe exatamente para isso: ele quebrou ao ver 44
+onde esperava 41, e obriga quem acrescenta permissão a conferir a matriz.
+
+**Três proteções mutadas, cada uma quebrando o que devia:** tornar
+`app.handles_privacy()` sempre verdadeiro quebrou 5 testes; remover o gatilho do
+responsável de menor quebrou 2; remover o gatilho append-only de `consent`
+quebrou 2 — e este último **corrompeu a linha semeada**, porque o `UPDATE` do
+administrador passou a funcionar de verdade. Restaurado antes de recriar o
+gatilho; fica o registro de que mutar uma proteção de escrita mexe em dado real.
+
+---
+
+### Antes dela
+
+**Fase 10b — Lista geral em `/relatorios` e exportação. Concluída.**
+
+A 10b entrega a rota que o menu promete desde a Fase 2 e que respondia **404**:
+a lista que cruza os Elos, com filtros por período, situação, supervisor e Elo,
+paginação, exportação em Excel e folha de impressão — as duas registradas em
+`audit_log`, com o recorte da tela junto.
+
+**A tela é uma só, e as listas são diferentes.** O líder abre a mesma URL da
+coordenação e recebe apenas o próprio Elo, sem que uma linha da página mencione
+papéis: quem recorta é a política da migration 0013, antes da consulta. O portão
+da tela responde só "esta pessoa lida com relatórios?" — perguntar
+`can(..., { eloId })` seria pior que inútil, porque a lista não tem um Elo em
+mãos, tem todos.
+
+**Filtrar não amplia.** O filtro por supervisor é um parâmetro de URL, e nada
+impede alguém de digitar ali o identificador do supervisor vizinho — inclusive
+colando um link que circulou no grupo de líderes. O filtro é uma **interseção**
+com o que a RLS já devolveu, então a resposta é lista vazia. Está fixado nos dois
+níveis, porque a resposta errada seria plausível: uma lista de relatórios de
+Elos alheios não tem nada na aparência que denuncie o vazamento.
+
+### O defeito que esta fase encontrou, e que era da Fase 6b
+
+**O `audit_log` registrava exportações que ninguém fez.** O `next/link`
+pré-carrega o destino dos links — ao entrarem na tela e ao passar o mouse — e as
+rotas de exportação **têm efeito**: geram o arquivo e gravam a exportação. Abrir
+`/pessoas` bastava para registrar uma exportação de CSV; o log tinha **156**
+delas onde deveria haver um punhado, e o mesmo valia para os relatórios do Elo
+desde a 8c.
+
+Um registro de acesso a dado pessoal que mente para mais é tão inútil quanto um
+que mente para menos: em qualquer apuração — "quem levou a lista de membros para
+fora?" — ele acusaria quem apenas abriu a tela.
+
+Nem `download` nem `prefetch={false}` resolvem: o primeiro mantém o `next/link`,
+e o segundo desliga o pré-carregamento por viewport e **mantém o do mouse**. A
+única garantia é não usar `next/link`, e é o que o `NoPrefetchLink` do design
+system faz — um `<a>` comum, com a mesma aparência. As três exportações passaram
+a usá-lo.
+
+**Como apareceu:** por acidente. Uma asserção do e2e novo conferia o filtro
+gravado no registro e leu `null` onde esperava `enviado` — havia **quatro**
+registros onde deveria haver um, e o mais recente era o de um clique que nunca
+houve. Virou caso de regressão: abrir a lista, passar o mouse pelo botão e
+exigir que a contagem não mude.
+
+**Um ajuste que estava só no comentário.** O projeto `painel` do Playwright
+descrevia um `workers: 1` que não existia no código. Com a lista entrando lá
+— são as duas suítes que leem o conjunto da igreja —, as duas repõem
+`elo_report` no `beforeAll`, que roda **uma vez por worker**: sem o ajuste, uma
+esvaziaria a tabela no meio da asserção da outra.
+
+**Duas peças passaram a ser compartilhadas, e nenhuma por gosto de arrumação:**
+
+| Peça                                                      | Por quê                                                                                                                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| O filtro de período (`src/lib/periodo.ts`)                | Painel e lista fazem a mesma pergunta. Duas cópias divergiriam no primeiro preset novo — e passariam a responder coisas diferentes sobre a mesma semana |
+| As opções de supervisor e Elo (`modules/elos/repository`) | São consultas de `elo` e `supervision_assignment`. Uma cópia no dashboard ofereceria ali uma lista de Elos que a outra tela não oferece                 |
+
+**Instabilidade observada, e não causada por esta fase:** numa das execuções da
+suíte completa, `elos.spec.ts` falhou em "o Elo criado guardou o endereço"; o
+arquivo passou sozinho em seguida e a execução completa seguinte também. É a
+mesma instabilidade já registrada na Fase 8, e continua sem causa isolada.
+
+---
+
+### Antes dela
+
+**Fase 10a — Dashboard: seed de relatórios, motor de indicadores e painel. Concluída.**
+
+A Fase 10 foi dividida em duas: a **10a** entregou os indicadores e o painel; a
+**10b**, a lista geral em `/relatorios` e a exportação.
+
+**O achado que mudou o tamanho da fase: o seed não tinha relatório nenhum.**
+`DEMO_DATA.md` §3 lista seis cenários que os seeds "precisam produzir" — Elo sem
+relatório na semana, correção solicitada, encontro cancelado com motivo, queda de
+frequência ao longo de quatro semanas, um Elo com visitantes e outro sem.
+Nenhum existia: a Fase 8 construiu o relatório e deixou o e2e criar os seus, o
+que bastava enquanto a tela era do Elo. Um painel sobre banco sem relatórios
+mostra zeros — e zero é o valor com que um indicador quebrado também se parece.
+Semear isso virou trabalho da 10a.
+
+**Um cenário do §3 continua impossível, e não por esquecimento:** _"um relatório
+em rascunho, não enviado"_. Pela ADR-004 o rascunho vive no dispositivo e só
+chega ao banco como `enviado`. A distinção que o cenário queria — "não preencheu"
+× "não enviou" — **não é observável pelo servidor**, e fingi-la no seed ensinaria
+o contrário a quem lesse o painel.
+
+**Três indicadores da §4.2 ficaram de fora, com o motivo registrado no código:**
+próximos eventos e pedidos de oração pertencem a módulos da Prioridade 2, e
+"indicadores da jornada do membro" depende da jornada configurável, também da
+Prioridade 2. Cartões vazios ensinariam que o sistema está quebrado.
+
+**Uma definição de produto que não existia no schema.** "Pessoas aguardando
+acompanhamento" não tem campo no cadastro. Decidido com o usuário: **visitante
+que não participa de Elo algum** — literalmente quem chegou e ainda não foi
+ligado a ninguém. A definição se mantém sozinha (a pessoa sai da conta ao entrar
+num Elo), sem depender de alguém lembrar de atualizar uma marcação.
+
+### O defeito que a suíte encontrou antes da igreja
+
+O painel nasceu abrindo **cinco transações simultâneas por render** — cinco
+chamadas a `withUserContext` em `Promise.all`, o que parecia mais rápido e era,
+isoladamente. O pool tem **dez conexões**: cinco por render significa que **duas
+pessoas abrindo o painel ao mesmo tempo consomem o pool inteiro**.
+
+Apareceu como falhas espalhadas por suítes que nada tinham a ver com o painel —
+`auth`, `mfa`, `people`, `participants` —, todas estourando os 15 segundos de
+espera pelo `/dashboard`. A causa comum é que **todo login desemboca no painel**.
+Virou uma transação e cinco consultas em sequência.
+
+**E um segundo limite, este do ambiente de teste.** Com 22 núcleos, o Playwright
+subia onze navegadores contra um servidor Next e um Postgres. Medido:
+
+| workers | resultado     | tempo   |
+| ------- | ------------- | ------- |
+| 11      | falhas móveis | 2,0 min |
+| 6       | 174/174       | 2,5 min |
+| 4       | 174/174       | 2,6 min |
+| 2       | 174/174       | 3,3 min |
+
+O paralelismo extra comprava trinta segundos e pagava com uma suíte em que não se
+pode acreditar. Fixado em 4 fora do CI (no CI já era 1).
+
+**Duas armadilhas de teste, ambas com a mesma raiz — estado compartilhado:**
+
+- `tests/rls/reports.test.ts` esvazia `elo_report` a cada teste, o que era
+  inofensivo enquanto o seed não tinha relatórios. Agora **repõe** o que apaga, a
+  partir da mesma origem do seed (`tests/shared/restaurar-relatorios.ts`), e a
+  reposição é chamada também no início do teste do painel — nenhum dos dois
+  depende da ordem do outro;
+- o `beforeAll` destrutivo do e2e do painel rodava **uma vez por worker**, e o
+  segundo esvaziava a tabela no meio da asserção do primeiro. O arquivo ficou
+  `serial`, como `report` e `studies`.
+
+**Uma regressão minha, pega pelos testes:** ao substituir o painel provisório da
+Fase 4, levei junto o botão **"encerrar outras sessões"** — a única entrada para
+uma funcionalidade entregue naquela fase. Quem tivesse deixado a sessão aberta
+num aparelho emprestado ficaria sem caminho para fechá-la, e nada na tela diria
+isso. Restaurado, com o motivo escrito ao lado.
+
+**Duas asserções da Fase 4 mudaram de lugar, e ficaram mais fortes.** Elas liam a
+lista de claims que o painel provisório imprimia na tela; agora leem um indicador
+**agregado no banco**, que só chega ao número certo se a RLS tiver recortado
+pelas mesmas claims.
+
+---
+
+## Fases anteriores
+
 **Fase 9 — Estudos semanais: 9a e 9b concluídas.**
 
 A fase foi dividida em duas, pelo mesmo motivo das Fases 7 e 8: cada metade
@@ -106,8 +392,6 @@ not exist" onde antes recebia "permission denied", e dois testes de isolamento
 falham por motivo enganoso. Quem recriar o schema à mão precisa reconceder.
 
 ---
-
-## Fase anterior
 
 **Fase 8 — Relatório semanal: 8a, 8b e 8c concluídas no que depende de código.**
 
@@ -870,6 +1154,168 @@ essa mesma tela para 360 px e acrescentou anexos e o gerador de mensagem.
 
 ---
 
+### Fase 10a — Dashboard: indicadores e painel (2026-08-01)
+
+**Sem migration.** A fase inteira é leitura: nenhuma tabela nova, nenhuma
+política nova. O que mudou no banco foi o **seed**, que passou a produzir os
+cenários de relatório de `DEMO_DATA.md` §3.
+
+**Arquivos criados:**
+
+| Área    | Arquivos                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| Módulo  | `src/modules/dashboard/{schemas,metrics,service}.ts`                                                         |
+| Telas   | `src/app/(app)/dashboard/{dashboard-filters,indicator-card}.tsx`                                             |
+| Testes  | `tests/unit/modules/dashboard/schemas.test.ts`, `tests/rls/dashboard.test.ts`, `tests/e2e/dashboard.spec.ts` |
+| Suporte | `tests/shared/restaurar-relatorios.ts`, `.claude/launch.json`                                                |
+
+**Alterados:** `src/app/(app)/dashboard/page.tsx` (o painel provisório da Fase 4
+virou o painel de verdade), `supabase/seeds/{fixtures,seed}.ts` (relatórios, e
+datas de cadastro e de aniversário espalhadas), `tests/rls/{helpers,reports}.ts`,
+`tests/e2e/{auth,mfa}.spec.ts`, `playwright.config.ts`.
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **405** (era 389) |
+| `pnpm test:rls`                                 | ✅ **219** (era 209) |
+| `pnpm test:e2e`                                 | ✅ **174** (era 165) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+**Duas decisões de leitura que os testes protegem:**
+
+| Decisão                                            | Por quê                                                                                                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Encontro cancelado **não** conta como ausência     | Um Elo que cancelou e disse por quê enviou relatório; um que sumiu não. "Não houve encontro" e "não houve relatório" soam parecido e são opostos |
+| Frequência média só olha encontros que aconteceram | Incluir cancelados como zero faria um Elo que avisou parecer um Elo que esvaziou                                                                 |
+
+**Por que o seed espalha datas.** Todo mundo era cadastrado no mesmo instante e
+nascia em março ou novembro. O gráfico de crescimento virava uma barra só, e
+"aniversariantes do mês" ficava em zero dez meses por ano — os dois
+indistinguíveis de um indicador quebrado. Agora são dez meses de crescimento e
+três aniversariantes no mês corrente, deterministicamente.
+
+**Fora do escopo, registrado:** a rota `/relatorios` do menu continua em 404 até
+a 10b.
+
+### Fase 10b — Lista geral de relatórios e exportação (2026-08-02)
+
+**Sem migration.** Como a 10a, a fase é leitura: nenhuma tabela nova, nenhuma
+política nova. A lista existente de `elo_report` já era recortada pela migration
+0013, e é ela que faz o trabalho.
+
+**Arquivos criados:**
+
+| Área   | Arquivos                                                                                                                                              |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Telas  | `src/app/(app)/relatorios/{page,report-filters}.tsx`, `src/app/(app)/relatorios/imprimir/page.tsx`                                                    |
+| Rota   | `src/app/api/relatorios/exportar/route.ts`                                                                                                            |
+| Comum  | `src/lib/periodo.ts`                                                                                                                                  |
+| Testes | `tests/unit/lib/periodo.test.ts`, `tests/unit/modules/reports/list-schemas.test.ts`, `tests/rls/reports-list.test.ts`, `tests/e2e/relatorios.spec.ts` |
+
+**Alterados:** `src/modules/reports/{schemas,repository,service,export}.ts` (a
+lista geral e a exportação com recorte), `src/modules/elos/repository.ts` (as
+opções de filtro vieram do dashboard), `src/modules/dashboard/{schemas,metrics,service}.ts`
+e `src/app/(app)/dashboard/{page,dashboard-filters}.tsx` (período e opções
+compartilhados), `src/components/ui/button.tsx` (`NoPrefetchLink`),
+`src/app/(app)/pessoas/export-buttons.tsx` e
+`src/app/(app)/elos/[id]/relatorios/page.tsx` (correção do pré-carregamento),
+`src/components/layout/navigation.ts` (a rota existe, e a permissão passou a ser
+`report.read`), `playwright.config.ts`,
+`tests/unit/modules/dashboard/schemas.test.ts`.
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **418** (era 405) |
+| `pnpm test:rls`                                 | ✅ **229** (era 219) |
+| `pnpm test:e2e`                                 | ✅ **187** (era 174) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+**Três decisões desta metade:**
+
+| Decisão                                                   | Por quê                                                                                                                                                       |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A exportação leva **o recorte da tela**, não a lista toda | Mesma regra da Fase 6b: levar mais do que foi pedido tira do sistema dado que ninguém pediu para tirar, e a planilha vive fora de qualquer controle de acesso |
+| O `resource_id` do registro de exportação fica **nulo**   | Aqui não há um Elo alvo, há um recorte. Os filtros vão no `changes` — responde "o que foi levado" sem copiar o que foi levado                                 |
+| O nome do arquivo carrega o **período**, e não a data     | Duas exportações do mesmo dia com filtros diferentes sairiam com o mesmo nome, e quem confere números compararia a planilha com ela mesma                     |
+
+### Fase 11a — LGPD: banco, motor e anonimização (2026-08-02)
+
+**Migration `0016_privacy.sql`**, escrita à mão.
+
+| Objeto                                           | Por quê                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `consent`, com gatilho append-only               | Consentimento é prova; prova que o administrador reescreve não prova nada                                                      |
+| `app.consent_requires_responsible()`             | Art. 14: imagem de menor exige responsável nomeado — e finalidade de adulto é recusada para criança                            |
+| `data_subject_request`, com `CHECK` de resolução | Fechar sem dizer o que foi feito deixa o titular sem resposta e a igreja sem prova de que respondeu                            |
+| `app.handles_privacy()`                          | Uma função nomeada, e não `is_admin()` espalhado: o dia em que a igreja designar um DPO com papel próprio, ele entra num lugar |
+| `app.anonymize_person()` (`SECURITY DEFINER`)    | Precisa alcançar `person_change_log`, inescrevível pela aplicação desde a Fase 6a — e fazer sete tabelas numa transação        |
+| `person.anonymized_at`                           | A linha permanece: são os agregados históricos que o aceite manda preservar                                                    |
+
+**Arquivos criados:**
+
+| Área      | Arquivos                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Migration | `supabase/migrations/0016_privacy.sql`                                                                                          |
+| Schema    | `src/core/db/schema/privacy.ts`                                                                                                 |
+| Módulo    | `src/modules/privacy/{schemas,policy,repository,service,export}.ts`                                                             |
+| Log       | `src/core/log/logger.ts`                                                                                                        |
+| Testes    | `tests/unit/core/log/logger.test.ts`, `tests/unit/modules/privacy/schemas.test.ts`, `tests/rls/{privacy,anonymization}.test.ts` |
+
+**Alterados:** `src/core/authz/catalog.ts` (as três permissões `privacy.*`, que
+faltavam desde a Fase 0), `src/core/db/schema/{_shared,identity,index}.ts`,
+`src/core/db/admin.ts` (passou pelo logger), `eslint.config.mjs` (`no-console`
+sem exceções fora do logger), `supabase/seeds/{fixtures,seed}.ts` (política
+versionada, um consentimento e a solicitação aberta que `DEMO_DATA.md` §3 pede),
+`tests/unit/core/authz/can.test.ts`, e a documentação (`LGPD.md`, `SECURITY.md`,
+`DATABASE.md`, `DECISIONS.md` com a ADR-009).
+
+| Comando                                         | Resultado                       |
+| ----------------------------------------------- | ------------------------------- |
+| `pnpm test`                                     | ✅ **464** (era 418)            |
+| `pnpm test:rls`                                 | ✅ **253** (era 229)            |
+| `pnpm test:e2e`                                 | ✅ 187 (sem telas nesta metade) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros                    |
+
+A migration foi aplicada **do zero** (`supabase db reset`), com seed e suíte de
+isolamento reexecutados verdes.
+
+### Fase 11b — LGPD: telas do titular, política e checklist (2026-08-02)
+
+**Sem migration.** A metade é de tela e de fluxo; o banco inteiro veio na 11a.
+
+**Arquivos criados:**
+
+| Área   | Arquivos                                                                                                                                  |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Telas  | `src/app/(app)/privacidade/{page,request-form}.tsx`, `[id]/{page,decision-panel,anonymize-person}.tsx`, `politica/{page,policy-form}.tsx` |
+| Rota   | `src/app/api/privacidade/[id]/dados/route.ts`                                                                                             |
+| Módulo | `src/modules/privacy/actions.ts`                                                                                                          |
+| Pessoa | `src/app/(app)/pessoas/[id]/consent-panel.tsx`                                                                                            |
+| Testes | `tests/e2e/privacidade.spec.ts` (8 casos)                                                                                                 |
+
+**Alterados:** `src/modules/privacy/{policy,schemas,service}.ts` (leitura e
+publicação da política), `src/app/(app)/pessoas/[id]/page.tsx` (painel de
+consentimentos), `src/components/layout/navigation.ts` (item "Privacidade"),
+`playwright.config.ts`, `supabase/seeds/{fixtures,seed}.ts` (texto de
+demonstração da política e dos termos), e a documentação (`LGPD.md` §10 revisado
+item a item, `ROADMAP.md`).
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ 464               |
+| `pnpm test:rls`                                 | ✅ 253               |
+| `pnpm test:e2e`                                 | ✅ **195** (era 187) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+**Duas decisões de tela que os testes protegem:**
+
+| Decisão                                             | Por quê                                                                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| O link do pacote de dados é `NoPrefetchLink`        | O destino monta o cadastro inteiro de uma pessoa e grava o acesso. Com `next/link`, abrir a tela registraria sozinha um acesso que ninguém pediu |
+| A finalidade de consentimento é filtrada pela idade | Oferecer `imagem` para uma criança seria oferecer o que o banco recusa — e a recusa chegaria depois do formulário preenchido                     |
+
+---
+
 ## Problemas conhecidos
 
 ### Limitação conhecida: `person.is_minor` envelhece
@@ -902,16 +1348,18 @@ aplicando `FORCE` (e então o seed precisa de tratamento explícito), ou corrigi
 §5 para descrever o que de fato existe e por quê. Não foi alterado na Fase 6a por
 estar fora do escopo da fase e por mexer no comportamento de migration e seed.
 
-### Rota do menu sem tela: `/relatorios`
+### Registros de exportação inflados no banco de desenvolvimento
 
-Encontrada ao entrar na Fase 9, e **fora do escopo dela**. O menu principal tem o
-item "Relatórios" apontando para `/relatorios`, e essa rota não existe: a Fase 8
-entregou os relatórios **dentro do Elo** (`/elos/[id]/relatorios`), e a lista
-geral por período e supervisor pertence à Fase 10. Hoje o item leva a 404.
+Consequência do defeito corrigido na 10b — o `next/link` pré-carregava as rotas
+de exportação e o `audit_log` acumulou centenas de exportações que ninguém fez
+(156 de CSV de pessoas, por exemplo). O log é **append-only por gatilho**, então
+esses registros não podem ser apagados, nem pelo administrador — e é assim que
+tem de ser.
 
-Não foi corrigido aqui porque criar a tela seria implementar Fase 10, e remover o
-item do menu apagaria o esqueleto que a Fase 2 deixou de propósito. Fica
-registrado no próprio `navigation.ts`, com a data em que deixa de ser verdade.
+Não afeta produção: nada foi implantado. O banco local volta ao normal com
+`supabase db reset`. Fica registrado porque, se alguém for medir "quantas
+exportações houve" no banco de desenvolvimento, os números anteriores a
+2026-08-02 não querem dizer nada.
 
 ### Bloqueios externos
 
@@ -927,16 +1375,30 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**Fase 10 — Dashboard e relatórios.**
+**Fase 12 — Qualidade e implantação.**
 
-Indicadores da §4.2 do `MASTER_SPEC` relativos ao MVP, filtros por período,
-congregação, supervisor e Elo, gráficos com tabela equivalente e exportação. Dois
-pontos já conhecidos antes de abrir a fase:
+PWA instalável, os 12 fluxos obrigatórios da §13 do `MASTER_SPEC` em e2e,
+auditoria de acessibilidade, hardening, homologação com usuários reais e plano de
+deploy. É a última fase do MVP, e a única que **não pode terminar sozinha**: a
+validação jurídica de LGPD bloqueia a entrada em produção.
 
-- o módulo de métricas **chegou a ser escrito na 8c e foi removido**, por
-  pertencer a esta fase e não atender aos critérios dela (gráfico com tabela
-  equivalente, filtros por período e supervisor);
-- a rota `/relatorios` do menu ainda leva a 404, e é aqui que ela ganha tela.
+Cinco coisas já sabidas antes de abrir:
+
+- **onze dos doze fluxos já têm e2e.** Falta mapear quais casos da suíte atual
+  cobrem cada fluxo da §13 antes de escrever qualquer teste novo — parte do
+  trabalho pode ser de organização, não de cobertura;
+- **a suíte e2e tem instabilidade conhecida e não isolada** (Fase 8, e um episódio
+  na 10b). Antes de confiar no verde do CI, vale reproduzir algumas vezes;
+- **`reuseExistingServer` reutiliza um `pnpm dev` aberto na porta 3000** e faz a
+  suíte rodar contra o servidor de desenvolvimento, produzindo falhas espalhadas
+  que não são defeito de código. Foi o que aconteceu na 11b;
+- **duas medições continuam pendentes de campo**, das Fases 8 e 9b: o relatório
+  preenchido em ≤ 2 minutos em celular real e a leitura confortável do estudo em
+  360 px. Navegador automatizado não mede nenhuma das duas;
+- **a limitação de `person.is_minor`** (a marcação envelhece) e o
+  `FORCE ROW LEVEL SECURITY` que a documentação promete e a migration 0001 não
+  aplica são os dois itens da lista de problemas conhecidos que pertencem ao
+  hardening desta fase.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. Se quiser um banco limpo: `pnpm db:migrate` e `pnpm db:seed`.

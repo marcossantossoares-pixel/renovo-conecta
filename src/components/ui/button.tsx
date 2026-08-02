@@ -1,5 +1,10 @@
 import Link from 'next/link';
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  ComponentProps,
+  ReactNode,
+} from 'react';
 
 import { cn } from '@/lib/cn';
 import { SpinnerIcon } from './icons';
@@ -125,8 +130,8 @@ export interface ButtonLinkProps extends ComponentProps<typeof Link> {
  * endereço, ser anunciado como link por leitor de tela, e funcionar antes de o
  * JavaScript carregar. Onde a ação leva a outro endereço, o elemento é `<a>`.
  *
- * Usa `next/link` para navegação sem recarregar a página — exceto em `download`
- * e destinos externos, em que o próprio Next devolve um `<a>` comum.
+ * Usa `next/link` para navegação sem recarregar a página, **exceto quando o
+ * destino não pode ser pré-carregado** — ver `NoPrefetchLink`.
  */
 export function ButtonLink({
   href,
@@ -149,5 +154,64 @@ export function ButtonLink({
       {children}
       {iconRight}
     </Link>
+  );
+}
+
+export interface NoPrefetchLinkProps extends Omit<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  'href'
+> {
+  href: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  fullWidth?: boolean;
+  iconLeft?: ReactNode;
+  iconRight?: ReactNode;
+}
+
+/**
+ * Botão-link para destino que **não pode ser pré-carregado**.
+ *
+ * ⚠️ **Existe por causa de um defeito real, encontrado na Fase 10b e nascido na
+ * 6b.** O `next/link` pré-carrega o destino dos links — ao entrarem na tela e
+ * ao passar o mouse. Isso é ótimo para uma página e é **grave** quando o
+ * destino tem efeito: as rotas de exportação geram o arquivo e gravam a
+ * exportação no `audit_log`. O log passou a acumular exportações que ninguém
+ * fez — 155 registros de CSV de pessoas onde deveria haver um punhado.
+ *
+ * Um registro de acesso a dado pessoal que mente para mais é tão inútil quanto
+ * um que mente para menos: em qualquer investigação, ele acusaria quem só abriu
+ * a tela.
+ *
+ * `prefetch={false}` **não** resolve: no App Router ele desliga o pré-carregamento
+ * por viewport e mantém o do mouse. `download` também não — o Next continua
+ * sendo `next/link`. A única garantia é não usar `next/link`, e é isto aqui:
+ * um `<a>` comum, com a mesma aparência.
+ *
+ * Custo: navegação com recarga da página. Para download não há custo nenhum — o
+ * navegador nem sai da tela —, e para a folha de impressão a recarga é
+ * irrelevante, porque dali se vai para a caixa de diálogo de impressão.
+ */
+export function NoPrefetchLink({
+  href,
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
+  iconLeft,
+  iconRight,
+  className,
+  children,
+  ...props
+}: NoPrefetchLinkProps) {
+  return (
+    <a
+      href={href}
+      className={buttonClasses(variant, size, fullWidth, className)}
+      {...props}
+    >
+      {iconLeft}
+      {children}
+      {iconRight}
+    </a>
   );
 }

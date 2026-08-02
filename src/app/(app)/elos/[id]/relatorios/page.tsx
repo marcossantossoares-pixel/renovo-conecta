@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
 import { Badge } from '@/components/ui/badge';
-import { ButtonLink } from '@/components/ui/button';
+import { ButtonLink, NoPrefetchLink } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DescriptionItem } from '@/components/ui/description-item';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -106,19 +106,27 @@ export default async function RelatoriosPage({
                  * Link comum, e não botão com ação: a rota devolve um arquivo
                  * com `Content-Disposition`, e o navegador sabe baixar isso
                  * sozinho. A auditoria acontece no servidor, dentro da rota.
+                 *
+                 * ⚠️ **`NoPrefetchLink` corrige um defeito da Fase 8c**,
+                 * encontrado pela suíte da 10b: o `next/link` pré-carrega o
+                 * destino, e estes dois destinos **têm efeito** — geram a
+                 * planilha e gravam a exportação no `audit_log`. Abrir esta
+                 * tela registrava exportações que ninguém fez, e o registro de
+                 * quem levou dado para fora passava a acusar inocentes.
                  */}
-                <ButtonLink
+                <NoPrefetchLink
                   href={`/api/elos/${elo.id}/relatorios/exportar`}
                   variant="secondary"
+                  download
                 >
                   Excel
-                </ButtonLink>
-                <ButtonLink
+                </NoPrefetchLink>
+                <NoPrefetchLink
                   href={`/elos/${elo.id}/relatorios/imprimir`}
                   variant="secondary"
                 >
                   Imprimir / PDF
-                </ButtonLink>
+                </NoPrefetchLink>
               </>
             )}
             <ButtonLink href={`/elos/${elo.id}`} variant="secondary">

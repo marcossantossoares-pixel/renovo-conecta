@@ -31,9 +31,33 @@ export default defineConfig({
   // Evita que um `.only` esquecido reduza a suíte do CI em silêncio.
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Espalhado condicionalmente porque `exactOptionalPropertyTypes` não aceita
-  // `undefined` explícito: ausente e "definido como undefined" são diferentes.
-  ...(process.env.CI ? { workers: 1 } : {}),
+  /*
+   * ⚠️ **Quatro workers, e não o padrão do Playwright (metade dos núcleos).**
+   *
+   * A suíte parece paralelizável e não é: os N navegadores disputam **um**
+   * servidor Next e **um** Postgres. Numa máquina de 22 núcleos, o padrão sobe
+   * onze navegadores, e o gargalo deixa de ser o teste e passa a ser o servidor
+   * — o login começa a estourar os 15 segundos de espera pelo painel, e as
+   * falhas aparecem espalhadas por suítes que nada têm a ver com a causa.
+   *
+   * Medido na Fase 10, quando o painel deixou de ser um cartão estático e passou
+   * a ser a página mais cara da aplicação — que é, justamente, onde todo login
+   * desemboca:
+   *
+   *   | workers | resultado      | tempo  |
+   *   | ------- | -------------- | ------ |
+   *   | 11      | falhas móveis  | 2,0 min |
+   *   | 6       | 174/174        | 2,5 min |
+   *   | 4       | 174/174        | 2,6 min |
+   *   | 2       | 174/174        | 3,3 min |
+   *
+   * Ou seja: o paralelismo extra comprava trinta segundos e pagava com uma
+   * suíte que não se pode acreditar. Quatro tem folga sobre o limite medido e
+   * não pesa numa máquina modesta.
+   *
+   * No CI continua 1, que já era a escolha anterior.
+   */
+  workers: process.env.CI ? 1 : 4,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
 
   use: {
@@ -44,7 +68,15 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: [
+        '**/dashboard.spec.ts',
+        '**/relatorios.spec.ts',
+        '**/privacidade.spec.ts',
+      ],
+    },
     {
       name: 'mobile',
       use: { ...devices['Pixel 7'] },
@@ -76,7 +108,49 @@ export default defineConfig({
         // `studies`: cria e publica um estudo em série; duas execuções
         // disputariam a mesma linha e a veriam pela metade.
         '**/studies.spec.ts',
+        // `dashboard`, `relatorios` e `privacidade`: têm projeto próprio, logo
+        // abaixo.
+        '**/dashboard.spec.ts',
+        '**/relatorios.spec.ts',
+        '**/privacidade.spec.ts',
       ],
+    },
+
+    /*
+     * O painel e a lista de relatórios rodam **sozinhos, e depois de todo o
+     * resto**.
+     *
+     * Não é preferência de organização: são as duas suítes que **leem o
+     * conjunto da igreja** — números agregados no painel, relatórios de todos
+     * os Elos na lista —, e por isso as únicas sensíveis a qualquer outra que
+     * crie um Elo, envie um relatório ou cadastre uma pessoa. Rodando em
+     * paralelo, "Elos sem relatório" passou a valer 2 porque outra suíte havia
+     * acabado de criar um Elo — uma falha que não diz nada sobre o painel.
+     *
+     * `dependencies` garante que venham por último. **`workers: 1` garante que
+     * não disputem entre si**, e isso deixou de ser opcional na Fase 10b: as
+     * duas repõem `elo_report` no `beforeAll`, e o `beforeAll` do Playwright
+     * roda uma vez por worker — com dois workers, uma esvaziaria a tabela no
+     * meio da asserção da outra. Este ajuste estava descrito neste comentário
+     * desde a 10a e **não** estava no código.
+     */
+    {
+      name: 'painel',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: [
+        '**/dashboard.spec.ts',
+        '**/relatorios.spec.ts',
+        /*
+         * `privacidade` entrou aqui na Fase 11b por duas razões, e as duas são
+         * a regra da Fase 7a — um arquivo não muta estado de que outro depende:
+         * ela cadastra o segundo fator do pastor, que `mfa.spec.ts` apaga a cada
+         * teste, e **anonimiza um cadastro**, que é irreversível. Rodando por
+         * último e sozinha, não atropela ninguém.
+         */
+        '**/privacidade.spec.ts',
+      ],
+      dependencies: ['desktop', 'mobile'],
+      workers: 1,
     },
   ],
 

@@ -282,10 +282,42 @@ describe('integridade do catálogo', () => {
    * correspondente — que é a única forma de as duas não divergirem em silêncio.
    *
    * 29 na Fase 5; 36 desde a Fase 8, que acrescentou as sete de `report`; 41
-   * desde a Fase 9, com as cinco de `study`.
+   * desde a Fase 9, com as cinco de `study`; 44 desde a Fase 11, com as três de
+   * `privacy` — que constavam na §3 desde a Fase 0 e **nunca tinham existido no
+   * catálogo**. Foi este caso que apontou a lacuna.
    */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(41);
+    expect(ALL_PERMISSIONS).toHaveLength(44);
+  });
+
+  /**
+   * Privacidade é a linha mais estreita da matriz, e a estreiteza é o ponto.
+   *
+   * A **coordenação fica de fora** embora tenha o alcance mais largo do sistema
+   * sobre pessoas: um pedido de exclusão é, com frequência, feito contra o
+   * trabalho de quem administra o cadastro. É a mesma escolha de `audit.read`.
+   */
+  it('privacidade é do pastor e do superadmin, e não da coordenação', () => {
+    for (const permission of [
+      'privacy.read_requests',
+      'privacy.handle_requests',
+      'privacy.export_subject_data',
+    ] as const) {
+      expect(PERMISSION_GRANTS[permission].superadmin, permission).toBe('global');
+      expect(PERMISSION_GRANTS[permission].pastor_admin, permission).toBe(
+        'congregation',
+      );
+      expect(
+        PERMISSION_GRANTS[permission].coordenador_elos,
+        permission,
+      ).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].supervisor, permission).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].lider, permission).toBeUndefined();
+    }
+
+    // O titular sobre os próprios dados (Art. 18, II), no escopo `self`.
+    expect(PERMISSION_GRANTS['privacy.export_subject_data'].membro).toBe('self');
+    expect(PERMISSION_GRANTS['privacy.handle_requests'].membro).toBeUndefined();
   });
 
   it('toda permissão de estudo existe, com o escopo da matriz §4', () => {

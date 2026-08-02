@@ -22,6 +22,8 @@ import {
 } from '@/modules/people/repository';
 import { CHURCH_STATUS_LABELS, MARITAL_STATUS_LABELS } from '@/modules/people/schemas';
 import { getPersonForViewer } from '@/modules/people/service';
+import { currentConsentsForViewer } from '@/modules/privacy/service';
+import { ConsentPanel } from './consent-panel';
 import { DeletePerson } from './delete-person';
 import { TagManager } from './tag-manager';
 
@@ -75,10 +77,21 @@ export default async function PessoaPage({
   const podeExcluir = can(claims, 'person.delete', { congregationId });
   const podeVerHistorico = can(claims, 'person.read_history', { congregationId });
 
-  const [etiquetas, disponiveis, historico] = await Promise.all([
+  /*
+   * Ver os consentimentos é `person.read` — quem já enxerga o cadastro precisa
+   * saber se pode publicar a foto. **Registrar** é `privacy.handle_requests`,
+   * que é do pastor e do superadmin: consentimento é prova, e quem a produz é
+   * quem responde pela privacidade (`PERMISSIONS.md` §4).
+   */
+  const podeRegistrarConsentimento = can(claims, 'privacy.handle_requests', {
+    congregationId,
+  });
+
+  const [etiquetas, disponiveis, historico, consentimentos] = await Promise.all([
     listPersonTags(claims, person.id),
     podeEditar ? listTags(claims) : Promise.resolve([]),
     podeVerHistorico ? listPersonHistory(claims, person.id) : Promise.resolve([]),
+    currentConsentsForViewer(claims, congregationId, person.id),
   ]);
 
   const contatoOculto = person.is_minor && !showsMinorContact;
@@ -204,6 +217,34 @@ export default async function PessoaPage({
                 valor={data(person.membership_at)}
               />
             </dl>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle as="h2">Consentimentos</CardTitle>
+              <CardDescription>
+                Cada decisão é um registro novo — revogar não apaga a autorização
+                anterior, e é isso que permite dizer "houve autorização entre março e
+                agosto".
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ConsentPanel
+              personId={person.id}
+              isMinor={person.is_minor}
+              atuais={consentimentos.map((consentimento) => ({
+                id: consentimento.id,
+                purpose: consentimento.purpose,
+                granted: consentimento.granted,
+                occurred_at: consentimento.occurred_at,
+                policy_version: consentimento.policy_version,
+                responsible_name: consentimento.responsible_name,
+              }))}
+              podeRegistrar={podeRegistrarConsentimento}
+            />
           </CardContent>
         </Card>
 

@@ -95,6 +95,27 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-08-02 — ADR-009: consentimento append-only e anonimização no banco
+
+- **Contexto:** a Fase 11 precisa sustentar dois direitos do Art. 18 com prova: o que a pessoa autorizou, e o que a igreja fez quando ela pediu a eliminação. O ER da Fase 0 previa `consent` com `granted_at` **e** `revoked_at` na mesma linha, e não dizia onde a anonimização aconteceria.
+- **Decisão, em duas partes:**
+  1. **`consent` é append-only, uma linha por evento.** Conceder e revogar são registros distintos; o estado atual é a última linha de cada (pessoa, finalidade). Não existe `revoked_at`. Gatilho recusa `UPDATE` e `DELETE`, inclusive para `postgres` — mesmo desenho de `audit_log`.
+  2. **A anonimização é uma função `SECURITY DEFINER` no banco** (`app.anonymize_person`), com o porteiro de permissão dentro dela, e não um conjunto de `UPDATE` no repositório.
+- **Por que append-only:** consentimento é prova. Duas formas de dizer a mesma coisa (`granted` + `revoked_at`) divergem no primeiro caminho de escrita que esquecer de uma delas, e o resultado é um consentimento revogado com aparência de válido. Com uma linha por evento, o histórico que `LGPD.md` §2 promete é literalmente a tabela.
+- **Por que a anonimização no banco:** `person_change_log` guarda o "antes e depois" de cada campo — nome, telefone, e-mail — e é **inescrevível pela aplicação** desde a Fase 6a, de propósito. Anonimizar o cadastro e deixar o histórico intacto seria apagar só a fachada. Além disso, são sete tabelas numa transação: anonimizar pela metade é pior que não anonimizar, e um caminho na aplicação sempre pode fazer seis.
+- **Alternativas consideradas:**
+  - **`consent` mutável, com `revoked_at`** — menos linhas e consulta mais simples ("onde `revoked_at IS NULL`"). Perde o histórico de quem mudou de ideia duas vezes e permite reescrever a prova. **Descartada.**
+  - **`purpose` como texto livre**, como o ER previa — aceitaria as finalidades que o jurídico definir sem migration. Custo: `imagem_menor` e `imagem-menor` viram finalidades distintas, e a pergunta "há autorização para esta criança?" responde não sobre um registro que existe. **Descartada:** acrescentar finalidade passa a ser migration, e isso é a intenção.
+  - **Anonimização no repositório**, com vários `UPDATE` sob RLS — manteria tudo em um lugar só e legível em TypeScript. Não alcança `person_change_log` sem desfazer a proteção da Fase 6a, que é justamente o que impede alguém de forjar o próprio histórico. **Descartada.**
+  - **Exclusão física da pessoa** — o mais simples de explicar. Quebraria as chaves de `elo_participant` e `elo_report`, e com elas os agregados históricos que o aceite manda preservar. **Descartada.**
+- **Consequências:**
+  - A anonimização **não apaga** `consent` nem `audit_log`: a prova de que houve autorização e o registro de responsabilização sobrevivem, apontando para uma pessoa que deixou de ser identificável. É decisão consciente, e está escrita na função.
+  - Texto livre de relatório pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita. A revisão fica humana, no campo `resolution` do Fluxo 10 — e está registrado como limitação conhecida.
+  - `app.anonymize_person` ignora RLS por ser `SECURITY DEFINER`, então repete a verificação de permissão internamente. Há teste provando que coordenação e líder são recusados, e que administrador de outro tenant não alcança a pessoa.
+- **Status:** aprovada.
+
+---
+
 ## 2026-07-25 — ADR-005: TypeScript 6, e não a versão `latest`
 
 - **Contexto:** na Fase 1, o `latest` do TypeScript no npm era a versão **7.0.2** (a reescrita nativa do compilador). A §6 do `MASTER_SPEC.md` pede que se verifiquem as versões estáveis atuais antes de iniciar.

@@ -119,13 +119,15 @@ Excedentes retornam `429` sem revelar se o alvo existe.
 
 **Regra inegociável:** dados pessoais **nunca** aparecem em log de aplicação, mensagem de erro, URL, ferramenta de analytics, notificação aberta ou dado de demonstração.
 
-- Logger estruturado com scrubbing por lista de campos proibidos (`full_name`, `email`, `phone`, `whatsapp`, endereço, conteúdo pastoral).
-- Sentry configurado com `beforeSend` removendo dados pessoais.
+- Logger estruturado com scrubbing por lista de campos proibidos (`full_name`, `email`, `phone`, `whatsapp`, endereço, conteúdo pastoral) — **implementado na Fase 11** em `src/core/log/logger.ts`.
+- **`console` é erro de lint em todo o `src/`, inclusive `warn` e `error`.** A exceção única é o próprio logger. Sem ponto de saída único, o teste de scrubbing guardaria uma função que ninguém é obrigado a chamar.
+- Além da lista de chaves, o filtro oculta **valores que se denunciam sozinhos** — e-mail, telefone e CPF —, porque `{ dado: 'maria@exemplo.test' }` passa por qualquer lista de nomes de campo.
+- Sentry configurado com `beforeSend` removendo dados pessoais — **pendente**, junto com o restante da observabilidade (Fase 12).
 - Erro exibido ao usuário é genérico e acionável; o detalhe fica no log correlacionado por `requestId`.
 - **Nunca** confirme a existência de um recurso ao qual o usuário não tem acesso: "não existe" e "não autorizado" produzem a mesma resposta.
 - Identificadores em URL são UUID, nunca sequenciais.
 
-Um teste automatizado falha o build se um campo da lista proibida aparecer na saída do logger.
+Um teste automatizado falha o build se um campo da lista proibida aparecer na saída do logger — `tests/unit/core/log/logger.test.ts`, desde a Fase 11.
 
 ---
 

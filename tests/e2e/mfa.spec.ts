@@ -87,7 +87,7 @@ test('cadastrar o autenticador libera o acesso', async ({ page }) => {
   await informarCodigo(page, segredo);
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-  await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Painel' })).toBeVisible();
 });
 
 test('código errado não libera o acesso', async ({ page }) => {
@@ -132,7 +132,7 @@ test('papel não administrativo não passa pela verificação', async ({ page })
   await entrar(page, LIDER_1.email);
 
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Painel' })).toBeVisible();
 });
 
 test('quem não precisa de 2FA é mandado de volta se tentar a tela', async ({

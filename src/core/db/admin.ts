@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import { getServerEnv } from '@/core/config/env';
+import { log } from '@/core/log/logger';
 import * as schema from './schema';
 
 /**
@@ -39,11 +40,11 @@ export function getAdminDb() {
   if (env.NODE_ENV === 'production') {
     // Não é uma proibição absoluta — migrations rodam em produção. É um aviso
     // deliberado para que o uso em produção seja sempre uma decisão consciente.
-    console.warn(
-      '[db/admin] Conexão administrativa aberta em produção. ' +
-        'Ela ignora a Row Level Security — confirme que este caminho não ' +
-        'atende a uma requisição de usuário.',
-    );
+    log.warn('db.admin.conexao_em_producao', {
+      aviso:
+        'Conexão administrativa aberta em produção. Ela ignora a Row Level ' +
+        'Security — confirme que este caminho não atende a uma requisição de usuário.',
+    });
   }
 
   cachedAdminClient ??= postgres(env.DATABASE_MIGRATION_URL, {

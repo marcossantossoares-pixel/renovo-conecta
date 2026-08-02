@@ -838,3 +838,44 @@ export async function listTransferTargets(
     `),
   );
 }
+
+export interface OpcaoDeFiltro extends Record<string, unknown> {
+  readonly id: string;
+  readonly nome: string;
+}
+
+/**
+ * O que oferecer nos seletores de supervisor e de Elo.
+ *
+ * Sai da mesma consulta sujeita à RLS que tudo o mais: um líder não recebe a
+ * lista de supervisores da igreja, porque não alcança os Elos deles. Oferecer um
+ * filtro que devolve vazio ensina a pessoa a desconfiar da tela.
+ *
+ * ⚠️ **Recebe a transação em vez de abrir a sua**, e isso não é estilo: as duas
+ * telas que a chamam — o painel (Fase 10a) e a lista de relatórios (10b) —
+ * carregam tudo dentro de **uma** transação. Cada `withUserContext` toma uma
+ * conexão do pool, que tem dez; a nota em `modules/dashboard/service.ts` conta o
+ * que aconteceu quando o painel abria cinco por render.
+ */
+export async function carregarOpcoesDeFiltro(tx: Transaction): Promise<{
+  supervisores: readonly OpcaoDeFiltro[];
+  elos: readonly OpcaoDeFiltro[];
+}> {
+  const supervisores = await tx.execute<OpcaoDeFiltro>(sql`
+    SELECT DISTINCT p.id, COALESCE(p.social_name, p.full_name) AS nome
+      FROM supervision_assignment sa
+      JOIN person p ON p.id = sa.supervisor_person_id
+     WHERE sa.deleted_at IS NULL
+       AND (sa.ends_at IS NULL OR sa.ends_at > CURRENT_DATE)
+     ORDER BY nome
+  `);
+
+  const elos = await tx.execute<OpcaoDeFiltro>(sql`
+    SELECT e.id, e.name AS nome
+      FROM elo e
+     WHERE e.deleted_at IS NULL
+     ORDER BY e.name
+  `);
+
+  return { supervisores, elos };
+}

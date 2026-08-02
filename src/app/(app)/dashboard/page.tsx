@@ -2,12 +2,24 @@ import type { Metadata } from 'next';
 
 import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
-import { Alert } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { requireAuthenticatedContext } from '@/core/auth/session';
 import { OtherSessionsButton } from '@/components/layout/session-actions';
+import { BarChart } from '@/components/ui/bar-chart';
+import { ButtonLink } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardDescription } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ReportIcon } from '@/components/ui/icons';
+import { requireAuthenticatedContext } from '@/core/auth/session';
+import { can } from '@/core/authz/can';
+import { isoDateToBr } from '@/lib/format';
+import { descreverJanela } from '@/lib/periodo';
+import type { EloPendente } from '@/modules/dashboard/metrics';
+import { dashboardQuerySchema } from '@/modules/dashboard/schemas';
+import { carregarPainel } from '@/modules/dashboard/service';
+import Link from 'next/link';
+import { DashboardFilters } from './dashboard-filters';
+import { IndicatorCard } from './indicator-card';
 
 export const metadata: Metadata = {
   title: 'Início · Renovo Conecta',
@@ -15,58 +27,264 @@ export const metadata: Metadata = {
 };
 
 /**
- * Página inicial da área autenticada.
+ * O painel — `MASTER_SPEC` §4.2.
  *
- * ⚠️ Nesta fase ela existe para **provar que a autenticação funciona**: mostra
- * o escopo que a sessão realmente obteve. Os indicadores do dashboard são da
- * Fase 10; pessoas e Elos, das Fases 6 e 7.
+ * ⚠️ **Esta página não recorta nada por papel.** O supervisor recebe apenas os
+ * números dos Elos que acompanha porque a RLS os recorta antes da agregação; o
+ * líder, os do próprio Elo. É o quarto aceite da fase, e vale sem que uma linha
+ * daqui mencione supervisão — um `if` de escopo na tela seria a terceira
+ * implementação da mesma regra.
+ *
+ * **Três indicadores da §4.2 não estão aqui, e a ausência é deliberada:**
+ * próximos eventos e pedidos de oração pertencem a módulos da Prioridade 2, e
+ * "indicadores da jornada do membro" depende da jornada configurável, que também
+ * é da Prioridade 2. Mostrá-los como cartões vazios ensinaria que o sistema
+ * está quebrado; omiti-los e registrar por quê é honesto.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { claims, email } = await requireAuthenticatedContext();
+  const congregationId = claims.congregation_ids[0];
+
+  const query = dashboardQuerySchema.parse(await searchParams);
+  const painel = await carregarPainel(claims, query);
+  const { indicadores: n } = painel;
+
+  const podeVerPessoas = can(claims, 'person.read', {
+    congregationId,
+    eloId: claims.elo_ids[0],
+    personId: claims.person_id ?? undefined,
+  });
+
+  const colunasPendentes: readonly DataTableColumn<EloPendente>[] = [
+    {
+      id: 'elo',
+      header: 'Elo',
+      primary: true,
+      cell: (elo) => (
+        <Link
+          href={`/elos/${elo.id}`}
+          className="font-medium text-primary-strong underline underline-offset-2"
+        >
+          {elo.name}
+        </Link>
+      ),
+    },
+    {
+      id: 'codigo',
+      header: 'Código',
+      hideOnMobile: true,
+      cell: (elo) => elo.internal_code,
+    },
+    {
+      id: 'ultimo',
+      header: 'Último relatório',
+      // Um Elo que nunca enviou é problema de outra natureza — vale dizê-lo com
+      // palavra, e não com um traço que se confunde com "não sei".
+      cell: (elo) =>
+        elo.ultimo_relatorio ? isoDateToBr(elo.ultimo_relatorio) : 'nunca enviou',
+    },
+    {
+      id: 'acao',
+      header: 'Ação',
+      cell: (elo) => (
+        <Link
+          href={`/elos/${elo.id}/relatorio`}
+          className="text-sm font-medium text-primary-strong underline underline-offset-2"
+        >
+          Abrir relatório
+        </Link>
+      ),
+    },
+  ];
 
   return (
-    <AppShell
-      userName={email}
-      allowedHrefs={allowedNavHrefs(claims, claims.congregation_ids[0])}
-    >
-      <PageHeader title="Bem-vindo" description="Você entrou no Renovo Conecta." />
+    <AppShell userName={email} allowedHrefs={allowedNavHrefs(claims, congregationId)}>
+      <PageHeader
+        title="Painel"
+        description={`Números do período de ${descreverJanela(painel.janela)}. Você vê o que está no seu alcance.`}
+      />
 
-      <Alert tone="info" title="Fase 4 — autenticação">
-        As telas de produto ainda não existem. Esta página mostra o escopo que a sua
-        sessão obteve, que é o mesmo aplicado pela segurança do banco.
-      </Alert>
+      <div className="mt-6">
+        <DashboardFilters
+          supervisores={painel.opcoes.supervisores}
+          elos={painel.opcoes.elos}
+        />
+      </div>
+
+      {/* O que exige ação vem primeiro, e não os totais: quem abre o painel de
+          manhã precisa saber o que fazer hoje, não quantas pessoas existem. */}
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <IndicatorCard
+          titulo="Elos sem relatório"
+          valor={n.elos_sem_relatorio}
+          significado="Elos ativos que não enviaram o relatório desta semana. Encontro cancelado com motivo conta como enviado."
+          tone="alerta"
+        />
+        <IndicatorCard
+          titulo="Aguardando acompanhamento"
+          valor={n.aguardando_acompanhamento}
+          significado="Visitantes que ainda não participam de nenhum Elo."
+          tone="alerta"
+          href={podeVerPessoas ? '/pessoas?status=visitante' : undefined}
+          acaoLabel="Ver visitantes"
+        />
+        <IndicatorCard
+          titulo="Sem participação recente"
+          valor={n.sem_participacao_recente}
+          significado="Pessoas que saíram de um Elo e não entraram em outro."
+        />
+        <IndicatorCard
+          titulo="Aniversariantes do mês"
+          valor={n.aniversariantes_do_mes}
+          significado="Pessoas que fazem aniversário neste mês."
+        />
+      </section>
+
+      <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <IndicatorCard
+          titulo="Membros"
+          valor={n.membros}
+          significado="Pessoas com situação de membro."
+        />
+        <IndicatorCard
+          titulo="Visitantes"
+          valor={n.visitantes}
+          significado="Pessoas com situação de visitante."
+        />
+        <IndicatorCard
+          titulo="Novos visitantes"
+          valor={n.novos_visitantes}
+          significado="Visitantes cadastrados dentro do período filtrado."
+        />
+        <IndicatorCard
+          titulo="Elos ativos"
+          valor={n.elos_ativos}
+          significado="Elos que não estão pausados nem encerrados."
+        />
+      </section>
+
+      <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <IndicatorCard
+          titulo="Líderes"
+          valor={n.lideres}
+          significado="Pessoas com liderança vigente. Quem lidera dois Elos conta uma vez."
+        />
+        <IndicatorCard
+          titulo="Supervisores"
+          valor={n.supervisores}
+          significado="Pessoas com supervisão vigente."
+        />
+        <IndicatorCard
+          titulo="Frequência média"
+          valor={n.frequencia_media}
+          significado="Média de presentes nos encontros que aconteceram no período."
+        />
+        <IndicatorCard
+          titulo="Visitantes recebidos"
+          valor={n.visitantes_recebidos}
+          significado="Soma dos visitantes relatados pelos Elos no período."
+        />
+      </section>
+
+      {/*
+       * Os dois gráficos vêm com a tabela equivalente embutida — é o `BarChart`
+       * do design system que garante isso, e é o terceiro aceite da fase.
+       */}
+      <section className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardContent>
+            {painel.frequencia.length > 0 ? (
+              <BarChart
+                title={`Frequência média por ${painel.granularidade}`}
+                data={painel.frequencia.map((ponto) => ({
+                  label: ponto.rotulo,
+                  value: ponto.valor,
+                }))}
+                valueLabel="Presentes"
+              />
+            ) : (
+              <EmptyState
+                title="Sem relatórios no período"
+                description="Quando os Elos enviarem relatórios, a evolução da frequência aparece aqui."
+                icon={<ReportIcon className="size-10" />}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            {painel.crescimento.length > 0 ? (
+              <BarChart
+                title="Novos cadastros por mês"
+                data={painel.crescimento.map((ponto) => ({
+                  label: ponto.rotulo,
+                  value: ponto.valor,
+                }))}
+                valueLabel="Pessoas"
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum cadastro no período"
+                description="Amplie o período para ver o crescimento."
+                icon={<ReportIcon className="size-10" />}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       <Card className="mt-6">
+        <CardHeader>
+          <div>
+            <CardTitle as="h2">Elos sem o relatório desta semana</CardTitle>
+            <CardDescription>
+              O número sozinho informa; a lista permite agir.
+            </CardDescription>
+          </div>
+        </CardHeader>
         <CardContent>
-          <dl className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <dt className="text-sm text-text-muted">Papéis</dt>
-              <dd className="flex flex-wrap gap-2">
-                {claims.roles.length === 0 ? (
-                  <span className="text-sm text-text-muted">Nenhum</span>
-                ) : (
-                  claims.roles.map((papel) => (
-                    <Badge key={papel} tone="brand">
-                      {papel}
-                    </Badge>
-                  ))
-                )}
-              </dd>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <dt className="text-sm text-text-muted">Elos acessíveis</dt>
-              <dd className="text-base text-text">{claims.elo_ids.length}</dd>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <dt className="text-sm text-text-muted">Congregações</dt>
-              <dd className="text-base text-text">{claims.congregation_ids.length}</dd>
-            </div>
-          </dl>
+          <DataTable
+            caption={`${painel.pendentes.length} ${painel.pendentes.length === 1 ? 'Elo pendente' : 'Elos pendentes'}`}
+            columns={colunasPendentes}
+            rows={painel.pendentes}
+            rowKey={(elo) => elo.id}
+            empty={
+              <EmptyState
+                title="Todos os Elos em dia"
+                description="Nenhum Elo ativo está sem o relatório desta semana."
+                icon={<ReportIcon className="size-10" />}
+              />
+            }
+          />
         </CardContent>
       </Card>
 
+      <section className="mt-6 flex flex-wrap gap-3">
+        <ButtonLink href="/elos" variant="secondary">
+          Elos
+        </ButtonLink>
+        {podeVerPessoas && (
+          <ButtonLink href="/pessoas" variant="secondary">
+            Pessoas
+          </ButtonLink>
+        )}
+        <ButtonLink href="/estudos" variant="secondary">
+          Estudos
+        </ButtonLink>
+      </section>
+
+      {/*
+       * ⚠️ Encerrar as outras sessões continua aqui, e a permanência é
+       * deliberada: esta era a **única** entrada para a ação, entregue na Fase
+       * 4. O primeiro rascunho do painel substituiu a página inteira e a levou
+       * junto — quem tivesse deixado a sessão aberta num aparelho emprestado
+       * ficaria sem caminho para fechá-la, e nada na tela diria isso.
+       */}
       <Card className="mt-6">
         <CardHeader>
           <div>
