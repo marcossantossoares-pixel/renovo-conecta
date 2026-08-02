@@ -24,6 +24,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "node supabase/seeds/seed.ts",
+    "icons": "node scripts/gerar-icones.ts",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky"
   },

@@ -8,6 +8,27 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 12a — PWA instalável e auditoria de acessibilidade (2026-08-02)
+
+- **O sistema é instalável**: manifesto (`/manifest.webmanifest`), ícones 192,
+  512 e `maskable`, service worker registrado depois da hidratação, e as
+  declarações que o **iOS** exige — ele ignora o manifesto, e sem elas o
+  aplicativo é instalável no Android e vira uma captura de tela borrada no
+  iPhone. `start_url` é `/dashboard`, porque a raiz só redireciona.
+- **O service worker não guarda página alguma da aplicação.** No cache ficam os
+  quatro ícones e a tela de falta de conexão — arquivos públicos, sem dado de
+  ninguém. Cache de tela autenticada seria dado pessoal parado num aparelho que a
+  igreja não controla, sobrevivendo ao logout. Há caso de e2e que falha se
+  alguém acrescentar o cache de navegação.
+- **Tela de falta de conexão** que diz o que importa para quem está no meio do
+  relatório: o rascunho não se perde (ADR-004).
+- **Ícones gerados por script sem dependência nova** (`pnpm icons`), montando os
+  PNGs com o `zlib` do Node a partir da mesma geometria do `Logo`. Determinístico,
+  verificado por regeração. Continua sendo o símbolo **provisório**.
+- **Auditoria de acessibilidade em 19 telas reais**, com sessão real, em 1280 px
+  e em 360 px — onde a tabela vira lista de cards e o menu vira barra inferior.
+  Zero violações. A Fase 2 cobria os componentes; esta cobre as telas.
+
 #### Fase 11b — LGPD: telas do titular, política versionada e checklist (2026-08-02)
 
 - **O Fluxo 10 fecha**: `/privacidade` registra a solicitação, mostra a fila

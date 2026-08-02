@@ -302,14 +302,28 @@ Dividida em duas, como as Fases 7 a 10: **11a** (banco, RLS, motor de privacidad
 
 **Entrega:** PWA instalável · e2e dos 12 fluxos obrigatórios da §13 do `MASTER_SPEC` · auditoria de acessibilidade · hardening · homologação · plano de deploy.
 
+Dividida em duas, como as Fases 7 a 11: **12a** (PWA instalável e auditoria de acessibilidade) e **12b** (os 12 fluxos da §13, checklist de segurança, cabeçalhos e plano de deploy).
+
 **Aceite:**
 
-- [ ] Os 12 fluxos e2e passando
-- [ ] PWA instalável em Android e iOS
+**12a — PWA e acessibilidade (concluída):**
+
+- [x] PWA instalável em Android e iOS — manifesto, ícones (inclusive `maskable`), service worker e as declarações que o iOS exige, que ignora o manifesto
+- [x] **O service worker não guarda página alguma da aplicação** — cache de tela autenticada seria dado pessoal parado num aparelho que a igreja não controla, sobrevivendo ao logout. Há caso de e2e que falha se alguém acrescentar o cache de navegação
+- [x] Sem rede, a navegação cai numa tela que diz o que importa: **o rascunho do relatório não se perde** (ADR-004)
+- [x] Auditoria de acessibilidade sem falha bloqueante — axe em 19 telas reais, com sessão real, em 1280 px e em 360 px. A Fase 2 cobria os componentes; esta cobre as telas
+- [x] Ícones gerados por script sem dependência nova, a partir do símbolo provisório — e determinísticos, verificado por regeração
+
+**12b — fluxos, hardening e implantação:**
+
+- [ ] Os 12 fluxos e2e passando, mapeados um a um contra a §13
 - [ ] Checklist de `SECURITY.md` §13 completo
-- [ ] Cabeçalhos de segurança verificados na resposta real
-- [ ] Auditoria de acessibilidade sem falha bloqueante
-- [ ] Homologação validada por usuários reais da igreja
+- [ ] Cabeçalhos de segurança verificados na resposta real, com CSP fechada
+- [ ] Plano de deploy revisado em `DEPLOYMENT.md`
+
+**Não dependem de código, e não fecham sozinhos:**
+
+- [ ] Homologação validada por usuários reais da igreja — inclui as duas medições de campo pendentes das Fases 8 e 9b
 - [ ] **Validação jurídica de LGPD concluída** — bloqueia a entrada em produção
 
 ---

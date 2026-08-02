@@ -2,6 +2,77 @@
 
 ## Fase atual
 
+**Fase 12a — PWA instalável e auditoria de acessibilidade. Concluída.**
+
+A Fase 12 foi dividida em duas, como as Fases 7 a 11: a **12a** entrega o PWA e a
+acessibilidade; a **12b**, os 12 fluxos da §13 mapeados um a um, o checklist de
+`SECURITY.md` §13, os cabeçalhos com CSP fechada e o plano de deploy.
+
+### O service worker que não guarda nada
+
+**O caso mais importante desta metade não é a instalação — é o que o cache
+recusa.** A receita comum de PWA guarda as páginas visitadas, e aqui isso seria
+grave: a página do Elo é a lista de pessoas de alguém, o relatório traz pedidos
+de oração. Cache dessas telas é dado pessoal parado num aparelho que a igreja não
+controla, **sobrevivendo ao logout** (`LGPD.md` §6 e §7).
+
+É a mesma fronteira da ADR-004: o rascunho do relatório fica no dispositivo
+porque a pessoa acabou de digitá-lo; **dado vindo do servidor, não**. Cache de
+navegação transformaria "PWA online" em offline-first pela porta dos fundos, sem
+nenhuma das proteções que aquela decisão exigiria.
+
+No cache ficam cinco arquivos, todos públicos e iguais para todo mundo: os quatro
+ícones e a tela de falta de conexão. Há caso de e2e que **falha se alguém
+acrescentar o cache de navegação** — e ele entra em `/pessoas`, `/elos` e
+`/dashboard` autenticado para conferir.
+
+**A tela de falta de conexão diz a frase que evita o abandono do Fluxo 6:** o
+rascunho não se perde. Sem ela, o líder com sinal ruim fecha a aba achando que
+perdeu o preenchimento e recomeça do zero — que é exatamente o que a Fase 8
+existe para impedir.
+
+### Ícones sem dependência nova
+
+O projeto não tem `sharp` nem equivalente, e trazer uma biblioteca de imagem com
+binário nativo para desenhar dois círculos seria caro pelo que se ganha (mesmo
+raciocínio da ADR-006). `scripts/gerar-icones.ts` monta os PNGs com o `zlib` do
+próprio Node — cabeçalho, dados comprimidos e CRC — a partir da mesma geometria
+do `Logo`. São **os mesmos bytes a cada execução**, verificado por regeração.
+
+Três decisões dentro do script, cada uma por um motivo visível no aparelho:
+
+| Decisão                                            | Por quê                                                                                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| O ícone `maskable` é **outro arquivo**             | O Android recorta o ícone em formas variadas e só garante os 80% centrais; reaproveitar o de fundo branco entregaria um símbolo cortado |
+| `apple-touch-icon.png` existe e não é transparente | O iOS **ignora o manifesto**: sem ele, o sistema é instalável no Android e vira uma captura de tela borrada no iPhone                   |
+| Amostragem 4×4 por pixel                           | Traço curvo em 192 px sem suavização fica serrilhado, e ícone serrilhado é a primeira coisa que denuncia um improviso                   |
+
+⚠️ **Os ícones continuam sendo o placeholder**, não a marca da igreja
+(`DESIGN_SYSTEM.md` §11). Quando a logomarca oficial chegar, troca-se o desenho e
+roda-se o script.
+
+### A auditoria de acessibilidade, e o que ela não prova
+
+A Fase 2 já rodava o axe — **só na página de referência do design system**, onde
+todos os componentes existem ao mesmo tempo. Aquilo pega erro de _componente_; o
+que faltava era erro de _tela_: título fora de ordem, dois campos com o mesmo
+rótulo, tabela sem cabeçalho.
+
+Agora são **19 telas reais, com dado real, na sessão de quem as usa**, em 1280 px
+e em 360 px — e rodar em 360 px não é redundância: ali o `DataTable` deixa de ser
+`<table>` e vira lista de cards, o menu vira barra inferior e os filtros viram
+diálogo. É outra árvore de acessibilidade. **Zero violações.**
+
+**O que isso não significa:** ferramenta automática cobre uma parte do WCAG, não
+o todo. Ordem de leitura, texto alternativo que descreve de verdade e navegação
+com leitor de tela continuam sendo verificação humana — e o aceite pede
+"auditoria sem falha bloqueante", que é o que foi verificado. A navegação por
+teclado e o foco visível seguem cobertos pelos casos da Fase 2.
+
+---
+
+## Fase anterior
+
 **Fase 11b — LGPD: telas do titular, política versionada e o checklist §10. Concluída.**
 
 A 11b fecha o **Fluxo 10**: registrar a solicitação, responder dentro do prazo,
@@ -64,7 +135,7 @@ legal, e vive num lugar só para que a mudança seja de uma linha.
 
 ---
 
-## Fase anterior
+### Antes dela
 
 **Fase 11a — LGPD: banco, motor de privacidade, anonimização e scrubbing de logs. Concluída.**
 
@@ -1314,6 +1385,34 @@ item a item, `ROADMAP.md`).
 | O link do pacote de dados é `NoPrefetchLink`        | O destino monta o cadastro inteiro de uma pessoa e grava o acesso. Com `next/link`, abrir a tela registraria sozinha um acesso que ninguém pediu |
 | A finalidade de consentimento é filtrada pela idade | Oferecer `imagem` para uma criança seria oferecer o que o banco recusa — e a recusa chegaria depois do formulário preenchido                     |
 
+### Fase 12a — PWA instalável e acessibilidade (2026-08-02)
+
+**Sem migration.** Nada desta metade toca o banco.
+
+**Arquivos criados:**
+
+| Área   | Arquivos                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| PWA    | `src/app/manifest.ts`, `public/sw.js`, `src/app/offline/page.tsx`, `src/components/layout/service-worker.tsx` |
+| Ícones | `scripts/gerar-icones.ts`, `public/{icon-192,icon-512,icon-maskable-512,apple-touch-icon}.png`                |
+| Testes | `tests/e2e/pwa.spec.ts` (7 casos), `tests/e2e/acessibilidade.spec.ts` (19 casos)                              |
+
+**Alterados:** `src/app/layout.tsx` (ícones, `appleWebApp`, `themeColor` e o
+registro do service worker), `src/proxy.ts` (as três rotas do PWA respondem sem
+sessão), `eslint.config.mjs` (o service worker roda em outro escopo global e fica
+fora do `tsconfig` da aplicação), `package.json` (`pnpm icons`).
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ 464               |
+| `pnpm test:rls`                                 | ✅ 253               |
+| `pnpm test:e2e`                                 | ✅ **247** (era 195) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+**Verificação manual, além da suíte:** service worker registrado e ativo no
+navegador real, com o cache contendo os cinco arquivos públicos — e continuando
+com os mesmos cinco depois de uma sessão de líder navegar pelo painel.
+
 ---
 
 ## Problemas conhecidos
@@ -1375,23 +1474,25 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**Fase 12 — Qualidade e implantação.**
+**Fase 12b — os 12 fluxos da §13, hardening e plano de deploy.**
 
-PWA instalável, os 12 fluxos obrigatórios da §13 do `MASTER_SPEC` em e2e,
-auditoria de acessibilidade, hardening, homologação com usuários reais e plano de
-deploy. É a última fase do MVP, e a única que **não pode terminar sozinha**: a
-validação jurídica de LGPD bloqueia a entrada em produção.
+O mapa dos doze fluxos obrigatórios contra os casos que já existem, o checklist
+de `SECURITY.md` §13 revisado item a item, os cabeçalhos verificados na resposta
+real — inclusive a **CSP**, que o `next.config.ts` deixou explicitamente para
+esta fase — e o plano de deploy em `DEPLOYMENT.md`.
 
 Cinco coisas já sabidas antes de abrir:
 
-- **onze dos doze fluxos já têm e2e.** Falta mapear quais casos da suíte atual
-  cobrem cada fluxo da §13 antes de escrever qualquer teste novo — parte do
-  trabalho pode ser de organização, não de cobertura;
-- **a suíte e2e tem instabilidade conhecida e não isolada** (Fase 8, e um episódio
-  na 10b). Antes de confiar no verde do CI, vale reproduzir algumas vezes;
-- **`reuseExistingServer` reutiliza um `pnpm dev` aberto na porta 3000** e faz a
-  suíte rodar contra o servidor de desenvolvimento, produzindo falhas espalhadas
-  que não são defeito de código. Foi o que aconteceu na 11b;
+- **quase todos os doze fluxos já têm e2e.** Antes de escrever teste novo, o
+  trabalho é mapear qual caso cobre qual fluxo: parte disso é organização, não
+  cobertura, e um mapa mal feito produz teste duplicado;
+- **a CSP é a peça de risco.** Fechá-la sem verificar o que a aplicação carrega
+  quebra a tela em produção; o `next.config.ts` diz isso desde a Fase 1, e a
+  verificação precisa ser na resposta real, não no arquivo de configuração;
+- **a suíte e2e tem instabilidade conhecida e não isolada** (Fase 8, e episódios
+  na 10b e na 11b). Antes de confiar no verde do CI, vale reproduzir algumas
+  vezes — e **não deixar um `pnpm dev` aberto na porta 3000**, que o Playwright
+  reutiliza no lugar do build de produção;
 - **duas medições continuam pendentes de campo**, das Fases 8 e 9b: o relatório
   preenchido em ≤ 2 minutos em celular real e a leitura confortável do estudo em
   360 px. Navegador automatizado não mede nenhuma das duas;

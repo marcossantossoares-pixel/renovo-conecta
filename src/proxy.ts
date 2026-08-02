@@ -31,6 +31,22 @@ const ROTAS_PUBLICAS = [
   // Referência visual dos componentes. Não expõe dado algum e a própria
   // página se recusa a existir em produção — ver src/app/design-system/page.tsx.
   '/design-system',
+  /*
+   * O PWA (Fase 12a). As três precisam responder **sem sessão**:
+   *
+   *   - `/manifest.webmanifest` é lido pelo navegador antes de qualquer login,
+   *     e é ele que torna o sistema instalável;
+   *   - `/sw.js` é buscado pelo próprio service worker ao atualizar, sem
+   *     cookies de navegação;
+   *   - `/offline` é a tela de falta de conexão, e mandá-la para o login seria
+   *     redirecionar justamente quem não tem rede para alcançá-lo.
+   *
+   * Nenhuma das três expõe dado de ninguém — é a mesma razão pela qual o
+   * service worker não guarda página de aplicação.
+   */
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/offline',
 ];
 
 function ehRotaPublica(pathname: string): boolean {

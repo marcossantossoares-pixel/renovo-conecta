@@ -20,6 +20,14 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'next-env.d.ts',
+      /*
+       * O service worker (Fase 12a) roda em outro escopo global — `self`,
+       * `caches`, `clients` —, fora do `tsconfig` da aplicação e fora do
+       * empacotamento do Next: ele é servido como está, de `public/`. Lintá-lo
+       * com as regras de tipo do projeto exigiria um segundo `tsconfig` para
+       * um arquivo de setenta linhas.
+       */
+      'public/sw.js',
     ],
   },
 
