@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { recordAudit } from '@/core/audit/record';
+import { assertExportQuota } from '@/core/security/export-quota';
 import {
   ForbiddenError,
   assertCan,
@@ -130,6 +131,8 @@ export async function prepareGeneralReportExport(
   query: ReportsQuery,
   formato: 'xlsx' | 'impressao',
 ): Promise<{ linhas: readonly ReportListRow[]; janela: Janela }> {
+  await assertExportQuota(claims);
+
   assertCan(claims, 'report.export', {
     congregationId,
     // O escopo de Elo se resolve pelo primeiro Elo acessível: a pergunta é
@@ -189,6 +192,7 @@ export async function prepareReportExport(
   eloId: string,
   formato: 'xlsx' | 'impressao',
 ): Promise<readonly ReportRow[]> {
+  await assertExportQuota(claims);
   assertCan(claims, 'report.export', { congregationId, eloId });
 
   const linhas = await listReports(claims, eloId);

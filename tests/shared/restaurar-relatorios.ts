@@ -44,7 +44,7 @@ export async function restaurarRelatoriosDoSeed(sql: postgres.Sql): Promise<void
         status, submitted_at
       )
       SELECT e.tenant_id, e.congregation_id, e.id,
-             (CURRENT_DATE - ${relatorio.semanasAtras * 7}::integer),
+             (app.hoje() - ${relatorio.semanasAtras * 7}::integer),
              ${relatorio.happened}, ${relatorio.cancellationReason ?? null},
              ${relatorio.studyTitle ?? null},
              ${relatorio.membersPresent ?? null}, ${relatorio.visitorsPresent ?? null},

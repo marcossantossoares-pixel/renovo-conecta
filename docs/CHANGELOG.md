@@ -8,6 +8,44 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 12b — Fluxos da §13, hardening e plano de deploy (2026-08-02)
+
+- **Content-Security-Policy fechada**, montada por requisição com **nonce**,
+  `strict-dynamic` e sem `'unsafe-inline'` nem `'unsafe-eval'` em `script-src`.
+  Duas concessões, ambas justificadas no código: `style-src 'unsafe-inline'` (o
+  gráfico calcula altura em pixels, e estilo não executa código) e `img-src data:`
+  (o QR Code do segundo fator vem embutido, para o segredo não ganhar endereço
+  próprio).
+- **Renderização dinâmica no layout raiz**, que é o preço do nonce: página
+  pré-renderizada nasce no build, e o esqueleto saía sem nonce — o navegador
+  bloqueava os scripts. Nenhuma rota do sistema era de fato estática, porque
+  toda requisição já valida a sessão no `proxy.ts`.
+- **Os 12 fluxos da §13 mapeados um a um** em `TESTING.md` §4, com quatro casos
+  novos: o supervisor na lista de Elos, o supervisor lendo relatório, o pedido de
+  correção terminando no cadastro e o administrador lendo o log de alteração.
+- **Rate limiting na exportação** (migration 0017), que o checklist §13 pedia e
+  não existia. A contagem sai do `audit_log` por uma função que devolve um número
+  e não aceita parâmetro — contar terceiros seria um oráculo sobre a atividade
+  alheia.
+- **Checklist de `SECURITY.md` §13 revisado item a item**, com o que prova cada
+  linha e a separação do que não depende de código.
+
+### Corrigido
+
+- **O banco respondia em UTC e a aplicação, no fuso da igreja** (migration 0018).
+  `todayIso()` usa `America/Bahia` desde a Fase 6b; `CURRENT_DATE` responde em
+  UTC, e entre 21h e meia-noite em Camaçari já é o dia seguinte lá. Três horas
+  por dia, o relatório "desta semana" sumia da lista geral, o gráfico perdia o
+  ponto mais recente e — quando a virada caía numa segunda — o Elo que entregou
+  no domingo à noite aparecia como pendente. Agora existe `app.hoje()`, e as
+  consultas que perguntam pelo dia **de quem usa o sistema** usam ela. As
+  comparações de vigência nas políticas de RLS ficaram em `CURRENT_DATE`, de
+  propósito: três horas ali não expõem dado nenhum.
+- **Plano de deploy revisado** em `DEPLOYMENT.md` §7, com os dois bloqueios
+  anteriores a qualquer passo e os pontos que só apareceram depois de o sistema
+  existir — publicar a política antes de entregar o acesso, cadastrar o 2FA das
+  contas administrativas, conferir a CSP contra a URL do Supabase do ambiente.
+
 #### Fase 12a — PWA instalável e auditoria de acessibilidade (2026-08-02)
 
 - **O sistema é instalável**: manifesto (`/manifest.webmanifest`), ícones 192,

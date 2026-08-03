@@ -110,7 +110,18 @@ Ordem obrigatória:
 
 ## 7. Procedimento de deploy em produção
 
-Executado apenas mediante solicitação e autorização.
+Executado apenas mediante solicitação e autorização. Revisado na **Fase 12b**,
+com os pontos que só apareceram depois de o sistema existir.
+
+**⚠️ Dois bloqueios anteriores a qualquer passo abaixo**, e nenhum deles é
+técnico:
+
+1. **base legal de LGPD validada juridicamente** (`LGPD.md` §2) — sem isso, o
+   sistema opera apenas com dados fictícios, e implantá-lo com dados reais é o
+   que a regra permanente do projeto proíbe;
+2. **homologação com usuários reais da igreja**, incluindo as duas medições de
+   campo pendentes: o relatório preenchido em ≤ 2 minutos no celular (Fase 8) e a
+   leitura confortável do estudo em 360 px (Fase 9b).
 
 **Antes:**
 
@@ -118,21 +129,35 @@ Executado apenas mediante solicitação e autorização.
 - [ ] Checklist de `SECURITY.md` §13 revisado
 - [ ] Checklist de `LGPD.md` §10 revisado
 - [ ] Migrations aplicadas e validadas em homologação
-- [ ] Backup de produção confirmado
+- [ ] Backup de produção confirmado **e restaurado uma vez em teste** — backup nunca verificado é esperança, não backup
 - [ ] `CHANGELOG.md` atualizado
+- [ ] **Região do Supabase e da Vercel definidas e registradas** (`LGPD.md` §9): a transferência internacional muda a análise jurídica
+- [ ] **Logomarca oficial**, ou a decisão consciente de entrar com o placeholder — ele está identificado como provisório em três lugares, inclusive nos ícones do PWA
 
 **Durante:**
 
 1. Aplicar as migrations.
 2. Publicar a aplicação.
 3. Verificar healthcheck e login.
-4. Verificar cabeçalhos de segurança na resposta real.
+4. Verificar cabeçalhos de segurança **na resposta real** — inclusive a CSP, que
+   é montada por requisição e depende de `NEXT_PUBLIC_SUPABASE_URL` estar
+   correta no ambiente: com a variável errada, a política bloqueia as chamadas
+   de autenticação e a tela fica em branco sem erro de servidor.
 5. Executar a suíte de isolamento contra produção.
+6. **Publicar a política de privacidade e os termos** em `/privacidade/politica`.
+   Sem versão vigente, o sistema **recusa** registrar consentimento — é
+   deliberado (`modules/privacy/policy.ts`), e é a primeira coisa que a
+   secretaria encontraria quebrada.
+7. **Cadastrar o segundo fator do pastor e do superadmin** antes de entregar o
+   acesso: as duas contas não alcançam tela alguma sem ele.
 
 **Depois:**
 
 - [ ] Monitorar erros por 24 h
 - [ ] Confirmar que nenhum dado pessoal apareceu em log
+- [ ] Conferir `audit_log`: as exportações registradas correspondem ao que a
+      liderança de fato fez — foi assim que a Fase 10b descobriu que o
+      pré-carregamento de links inflava o registro
 - [ ] Atualizar `PROGRESS.md`
 
 ---

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { recordAudit } from '@/core/audit/record';
+import { assertExportQuota } from '@/core/security/export-quota';
 import {
   ForbiddenError,
   assertCan,
@@ -233,6 +234,7 @@ export async function exportSubjectData(
   congregationId: string | undefined,
   personId: string,
 ): Promise<SubjectData> {
+  await assertExportQuota(claims);
   assertCan(claims, 'privacy.export_subject_data', { congregationId, personId });
 
   return withUserContext(claims, async (tx) => {

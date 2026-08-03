@@ -120,6 +120,20 @@
       "when": 1785695554179,
       "tag": "0016_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785714781493,
+      "tag": "0017_export_quota",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785716968700,
+      "tag": "0018_dia_da_igreja",
+      "breakpoints": true
     }
   ]
 }

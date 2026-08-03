@@ -54,24 +54,36 @@ Executa uma vez por papel, com sessão real e claims reais. Nenhuma tabela entra
 
 ## 4. Fluxos end-to-end obrigatórios
 
-Os 12 da §13 do `MASTER_SPEC.md`:
+Os 12 da §13 do `MASTER_SPEC.md`. Mapa fechado na **Fase 12b**, caso a caso. Cada linha aponta para o teste que a
+cobre — sem isso, "os doze fluxos passam" é uma afirmação que ninguém consegue
+conferir.
 
-| #   | Fluxo                                                         | Fase |
-| --- | ------------------------------------------------------------- | ---- |
-| 1   | Administrador cadastra uma pessoa                             | 6    |
-| 2   | Coordenador cria um Elo                                       | 7    |
-| 3   | Supervisor visualiza apenas seus Elos                         | 7    |
-| 4   | Líder envia relatório                                         | 8    |
-| 5   | Supervisor consulta relatório                                 | 8    |
-| 6   | Usuário sem permissão tenta acessar outro Elo                 | 7    |
-| 7   | Visitante solicita participação (registrada por líder no MVP) | 7    |
-| 8   | Líder aprova solicitação                                      | 7    |
-| 9   | Administrador publica estudo                                  | 9    |
-| 10  | Líder acessa estudo pelo celular                              | 9    |
-| 11  | Pessoa solicita correção dos próprios dados                   | 11   |
-| 12  | Administrador consulta log de alteração                       | 5    |
+| #   | Fluxo                                                         | Onde está provado                                                                            |
+| --- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | Administrador cadastra uma pessoa                             | `people.spec` — "a coordenação cadastra uma pessoa e cai no perfil dela"                     |
+| 2   | Coordenador cria um Elo                                       | `elos.spec` — "a coordenação cria um Elo com líder e supervisor de uma vez"                  |
+| 3   | Supervisor visualiza apenas seus Elos                         | `fluxos-obrigatorios.spec` — "o supervisor vê na lista de Elos exatamente os que acompanha"  |
+| 4   | Líder envia relatório                                         | `report.spec` — "o Fluxo 6 inteiro: enviar grava o relatório e apaga o rascunho"             |
+| 5   | Supervisor consulta relatório                                 | `fluxos-obrigatorios.spec` — "o supervisor abre e lê o relatório de um Elo que acompanha"    |
+| 6   | Usuário sem permissão tenta acessar outro Elo                 | `elos.spec` — "Elo fora do escopo responde 'não encontrado', não 'sem permissão'"            |
+| 7   | Visitante solicita participação (registrada por líder no MVP) | `participants.spec` — "a coordenação registra um interessado e a solicitação fica pendente"  |
+| 8   | Líder aprova solicitação                                      | `participants.spec` — "o líder aprova, e a participação é criada na mesma ação"              |
+| 9   | Administrador publica estudo                                  | `studies.spec` — "com conteúdo, a coordenação publica e o estudo vai ao ar"                  |
+| 10  | Líder acessa estudo pelo celular                              | `studies.spec` — "o estudo se lê em 360 px sem rolagem horizontal"                           |
+| 11  | Pessoa solicita correção dos próprios dados                   | `fluxos-obrigatorios.spec` — "o pedido de correção termina no cadastro, e o histórico prova" |
+| 12  | Administrador consulta log de alteração                       | `fluxos-obrigatorios.spec` — "o pastor abre a auditoria e encontra o registro da alteração"  |
 
-O fluxo 4 (relatório) roda também em viewport de celular, com medição do tempo de preenchimento.
+**Quatro fluxos não tinham caso próprio, e a razão é a mesma nos quatro:** cada
+fase testou o **ator que constrói** o recurso, e a §13 pergunta pelo **ator que
+consome**. "O supervisor vê só os seus Elos" parecia coberto — e estava, no
+painel e na hierarquia; na **lista de Elos**, não. O caso 12 tinha só a metade
+negativa (quem não pode, não lê): faltava provar que quem pode, lê — um log que
+ninguém consegue abrir não responsabiliza ninguém.
+
+O fluxo 4 (relatório) roda também em viewport de celular. **A medição do tempo de
+preenchimento continua pendente de campo** (Fase 8): navegador automatizado
+preenche em milissegundos e não diz nada sobre o polegar de alguém numa sala mal
+iluminada.
 
 ---
 

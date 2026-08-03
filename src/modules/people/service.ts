@@ -3,6 +3,7 @@ import 'server-only';
 import { sql } from 'drizzle-orm';
 
 import { recordAudit } from '@/core/audit/record';
+import { assertExportQuota } from '@/core/security/export-quota';
 import { assertCan } from '@/core/authz/can';
 import type { UserClaims } from '@/core/db/with-user-context';
 import { withUserContext } from '@/core/db/with-user-context';
@@ -163,6 +164,10 @@ export async function prepareExport(
   query: PeopleQuery,
   format: string,
 ): Promise<ExportResult> {
+  // A cota vem antes da leitura: recusar depois de montar a planilha gastaria
+  // exatamente o trabalho que o limite existe para evitar (Fase 12b).
+  await assertExportQuota(claims);
+
   assertCan(claims, 'person.export', {
     congregationId,
     eloId: claims.elo_ids[0],

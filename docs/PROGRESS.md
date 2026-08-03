@@ -2,6 +2,114 @@
 
 ## Fase atual
 
+**Fase 12b — Os 12 fluxos da §13, hardening e plano de deploy. Concluída.**
+
+**O MVP está fechado no que depende de código.** O que resta para produção não é
+técnico: validação jurídica de LGPD e homologação com usuários reais da igreja —
+os dois itens que o roadmap sempre marcou como não fecháveis sozinhos.
+
+### A CSP, e o que ela custou descobrir
+
+O `next.config.ts` deixou a política explicitamente para esta fase **desde a Fase
+1**, com o motivo escrito: uma CSP sem conteúdo para validar sai permissiva
+demais (e não protege) ou quebrada (e derruba a tela). Ela agora é montada por
+requisição, com **nonce**, `strict-dynamic`, e sem `'unsafe-inline'` nem
+`'unsafe-eval'` em `script-src`.
+
+**Duas concessões, ambas explicadas no código:**
+
+| Concessão                   | Por quê                                                                                                                                                                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `style-src 'unsafe-inline'` | O gráfico calcula altura em pixels e a árvore calcula recuo por nível, no atributo `style`. Estilo **não executa código**, e a alternativa seria uma classe por valor possível, que o Tailwind não extrai |
+| `img-src data:`             | O QR Code do segundo fator vem embutido na página: um arquivo com o segredo do autenticador teria endereço próprio, cache e histórico                                                                     |
+
+**O achado que só o teste pegou.** A inspeção no navegador mostrou 24 scripts com
+nonce e nenhum erro — e a suíte, na mesma build, acusou scripts bloqueados. A
+diferença é que a inspeção caiu numa página vinda do **cache de rota**: página
+pré-renderizada é gerada no build, e nonce muda a cada resposta. O esqueleto saía
+sem nonce e o navegador o bloqueava.
+
+A correção é `dynamic = 'force-dynamic'` no layout raiz, e o custo é honesto:
+**nenhuma rota deste sistema era de fato estática** — toda requisição já passa
+pelo `proxy.ts`, que valida a sessão no servidor de autenticação. Perde-se o
+cache de rota; ganha-se recusar script inline.
+
+**E um teste meu estava errado, não o produto:** `getAttribute('nonce')` devolve
+vazio de propósito — o navegador esconde o atributo do DOM para que um XSS não o
+leia e injete script válido. O valor só existe na propriedade `script.nonce`.
+
+### Os quatro fluxos que faltavam, e por que faltavam
+
+O mapa dos doze fluxos está em `TESTING.md` §4, caso a caso — sem ele, "os doze
+passam" é afirmação que ninguém confere. Oito já estavam cobertos; **quatro não
+tinham caso próprio, e a razão é a mesma nos quatro: cada fase testou o ator que
+constrói o recurso, e a §13 pergunta pelo ator que consome.**
+
+"O supervisor vê só os seus Elos" parecia coberto — e estava, no painel e na
+hierarquia; **na lista de Elos, não**. O caso 12 tinha só a metade negativa (quem
+não pode, não lê): faltava provar que quem pode, lê — um log que ninguém
+consegue abrir não responsabiliza ninguém. E "correção dos próprios dados" é o
+único direito do Art. 18 que **não termina na área de privacidade**: termina no
+cadastro, e a prova é o histórico de alterações.
+
+### A cota de exportação, e o banco recusando pelo motivo certo
+
+O checklist §13 pedia rate limiting em "login, recuperação e **exportação**". Os
+dois primeiros existiam desde a Fase 4; o terceiro, não — e reaproveitar
+`checkRateLimit` não serviria, porque ele conta **falhas**, e exportação não
+falha: é o sucesso repetido que caracteriza extração em massa.
+
+A contagem sai do `audit_log`, única fonte da verdade sobre exportações desde a
+Fase 6b. **O primeiro rascunho tentou ler a tabela com a conexão de serviço e
+levou "permission denied"** — o banco funcionando como projetado: `audit_log` é
+de `audit.read`, e nem `service_role` tem SELECT nela. A saída foi a mesma de
+`app.elo_full_address()`: uma função que devolve **um número**, nunca linhas — e
+que **não aceita parâmetro**, porque contar terceiros a transformaria num oráculo
+sobre a atividade alheia.
+
+### O defeito que só aparecia depois das 21h
+
+**O banco respondia em UTC e a aplicação, no fuso da igreja.** `todayIso()` usa
+`America/Bahia` desde a Fase 6b — decisão tomada porque exibir aniversário um dia
+antes faz alguém concluir que "o cadastro está errado". O `CURRENT_DATE` do
+Postgres, porém, responde em UTC, e **entre 21h e meia-noite em Camaçari já é o
+dia seguinte lá**.
+
+Três horas por dia, portanto:
+
+- o relatório "desta semana" nascia com a data de amanhã e **sumia da lista
+  geral**, cujo período termina em "hoje";
+- o gráfico de frequência perdia o ponto mais recente;
+- e o indicador "Elos sem relatório na semana" mudava de semana três horas antes
+  de a igreja mudar de semana. Quando a virada cai numa **segunda-feira**, o Elo
+  que entregou no domingo à noite aparecia como pendente — e domingo à noite é
+  exatamente quando a coordenação abre o painel.
+
+Foi a suíte de ponta a ponta que encontrou, e nenhum teste unitário encontraria:
+o defeito é a divergência entre dois relógios que nunca se comparam. A migration
+0018 dá nome ao conceito — `app.hoje()` —, e as consultas que perguntam pelo dia
+**de quem usa o sistema** passaram a usá-lo.
+
+**O que ficou em `CURRENT_DATE`, de propósito:** as comparações de vigência
+(`ends_at > CURRENT_DATE`) nas políticas de RLS. Um papel que vence "hoje" valer
+três horas a mais não expõe dado nenhum — o alcance é o mesmo do dia anterior —,
+e reescrever política de segurança por uma diferença sem efeito seria mexer no
+que mais importa pelo motivo mais fraco.
+
+### Armadilha de ambiente encontrada no caminho
+
+**`pnpm db:migrate` estava quebrado desde a Fase 11a, e ninguém tinha notado.** O
+`supabase db reset` daquela fase recriou o banco pela CLI, que usa a própria
+tabela de controle — e deixou `drizzle.__drizzle_migrations` **vazia**. Na
+próxima vez que alguém rodasse `db:migrate`, o Drizzle tentaria aplicar tudo
+desde a `0000` e falharia em cima de tabelas existentes. Fica registrado nos
+problemas conhecidos: **depois de um `supabase db reset`, o caminho para aplicar
+migrations é a própria CLI.**
+
+---
+
+## Fase anterior
+
 **Fase 12a — PWA instalável e auditoria de acessibilidade. Concluída.**
 
 A Fase 12 foi dividida em duas, como as Fases 7 a 11: a **12a** entrega o PWA e a
@@ -71,7 +179,7 @@ teclado e o foco visível seguem cobertos pelos casos da Fase 2.
 
 ---
 
-## Fase anterior
+### Antes dela
 
 **Fase 11b — LGPD: telas do titular, política versionada e o checklist §10. Concluída.**
 
@@ -1413,9 +1521,57 @@ fora do `tsconfig` da aplicação), `package.json` (`pnpm icons`).
 navegador real, com o cache contendo os cinco arquivos públicos — e continuando
 com os mesmos cinco depois de uma sessão de líder navegar pelo painel.
 
+### Fase 12b — Fluxos da §13, hardening e deploy (2026-08-02)
+
+**Migrations `0017_export_quota.sql` e `0018_dia_da_igreja.sql`.**
+
+| Objeto                            | Por quê                                                                                                                                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app.my_export_count_last_hour()` | O `audit_log` é de `audit.read`, e nem `service_role` lê. A função devolve **um número**, nunca linhas, e conta sempre o próprio chamador — com parâmetro, viraria oráculo sobre a atividade alheia |
+| `audit_log_actor_action_idx`      | Sem ele, cada exportação varreria um log que cresce para sempre, por ser append-only                                                                                                                |
+| `app.hoje()`                      | O dia **no fuso da igreja**, espelhando `todayIso()`. `CURRENT_DATE` responde em UTC, e os dois discordam três horas por dia                                                                        |
+
+**Arquivos criados:**
+
+| Área       | Arquivos                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| Segurança  | `src/core/security/{csp,export-quota,export-quota-rules}.ts`                                         |
+| Migrations | `supabase/migrations/{0017_export_quota,0018_dia_da_igreja}.sql`                                     |
+| Testes     | `tests/e2e/{seguranca,fluxos-obrigatorios}.spec.ts`, `tests/unit/core/security/export-quota.test.ts` |
+
+**Alterados:** `src/proxy.ts` (CSP e nonce por resposta), `src/app/layout.tsx`
+(`force-dynamic`), `src/modules/{people,reports,privacy}/service.ts` (cota nas
+quatro exportações), `playwright.config.ts`, e a documentação (`SECURITY.md` §13
+revisado item a item, `TESTING.md` §4 com o mapa dos doze fluxos,
+`DEPLOYMENT.md` §7).
+
+| Comando                                         | Resultado            |
+| ----------------------------------------------- | -------------------- |
+| `pnpm test`                                     | ✅ **467** (era 464) |
+| `pnpm test:rls`                                 | ✅ 253               |
+| `pnpm test:e2e`                                 | ✅ **265** (era 247) |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros         |
+
+As migrations foram aplicadas **do zero** (`supabase db reset`), com seed e suíte
+de isolamento reexecutados verdes.
+
 ---
 
 ## Problemas conhecidos
+
+### `pnpm db:migrate` depois de um `supabase db reset`
+
+Encontrado na Fase 12b. O `supabase db reset` recria o banco pela CLI, que usa a
+**própria** tabela de controle (`supabase_migrations.schema_migrations`) — e
+deixa `drizzle.__drizzle_migrations` vazia. Na próxima vez que alguém rodar
+`pnpm db:migrate`, o Drizzle tenta aplicar tudo desde a `0000` e falha em cima
+de tabelas que já existem.
+
+**Não é defeito de migration**, e sim duas ferramentas rastreando o mesmo
+histórico em lugares diferentes. Enquanto o ambiente local for recriado pela
+CLI, o caminho para aplicar migrations é a CLI (`supabase db reset` ou
+`supabase migration up`). Reconciliar as duas tabelas de controle é decisão de
+ferramenta, e não de fase.
 
 ### Limitação conhecida: `person.is_minor` envelhece
 
@@ -1474,32 +1630,55 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**Fase 12b — os 12 fluxos da §13, hardening e plano de deploy.**
+**O MVP está fechado no que depende de código.** As doze fases do roadmap estão
+concluídas; o que falta para produção **não é técnico**, e nenhum item abaixo
+fecha porque o sistema ficou pronto.
 
-O mapa dos doze fluxos obrigatórios contra os casos que já existem, o checklist
-de `SECURITY.md` §13 revisado item a item, os cabeçalhos verificados na resposta
-real — inclusive a **CSP**, que o `next.config.ts` deixou explicitamente para
-esta fase — e o plano de deploy em `DEPLOYMENT.md`.
+### Bloqueios para a entrada em produção
 
-Cinco coisas já sabidas antes de abrir:
+| Bloqueio                                                                           | De quem depende          |
+| ---------------------------------------------------------------------------------- | ------------------------ |
+| **Validação jurídica da base legal de LGPD** (`LGPD.md` §2)                        | Igreja / jurídico ou DPO |
+| **Designação do encarregado (DPO)** e contato publicado                            | Igreja                   |
+| Texto da política de privacidade e dos termos                                      | Igreja / jurídico        |
+| Prazos de retenção por categoria de dado                                           | Igreja / jurídico        |
+| **Homologação com usuários reais**, com as duas medições de campo das Fases 8 e 9b | Igreja                   |
+| Logomarca oficial, ou a decisão consciente de entrar com o placeholder             | Igreja                   |
+| Projeto Supabase de produção provisionado, com região definida                     | Desenvolvimento          |
+| Backup restaurado uma vez em teste                                                 | Desenvolvimento          |
 
-- **quase todos os doze fluxos já têm e2e.** Antes de escrever teste novo, o
-  trabalho é mapear qual caso cobre qual fluxo: parte disso é organização, não
-  cobertura, e um mapa mal feito produz teste duplicado;
-- **a CSP é a peça de risco.** Fechá-la sem verificar o que a aplicação carrega
-  quebra a tela em produção; o `next.config.ts` diz isso desde a Fase 1, e a
-  verificação precisa ser na resposta real, não no arquivo de configuração;
-- **a suíte e2e tem instabilidade conhecida e não isolada** (Fase 8, e episódios
-  na 10b e na 11b). Antes de confiar no verde do CI, vale reproduzir algumas
-  vezes — e **não deixar um `pnpm dev` aberto na porta 3000**, que o Playwright
-  reutiliza no lugar do build de produção;
-- **duas medições continuam pendentes de campo**, das Fases 8 e 9b: o relatório
-  preenchido em ≤ 2 minutos em celular real e a leitura confortável do estudo em
-  360 px. Navegador automatizado não mede nenhuma das duas;
-- **a limitação de `person.is_minor`** (a marcação envelhece) e o
-  `FORCE ROW LEVEL SECURITY` que a documentação promete e a migration 0001 não
-  aplica são os dois itens da lista de problemas conhecidos que pertencem ao
-  hardening desta fase.
+### O que fazer quando esses itens forem destravados
+
+O procedimento está em `DEPLOYMENT.md` §7, revisado na 12b. Três pontos que só
+aparecem no dia:
+
+- **publicar a política antes de entregar o acesso** — sem versão vigente, o
+  sistema recusa registrar consentimento, de propósito;
+- **cadastrar o segundo fator do pastor e do superadmin**: as duas contas não
+  alcançam tela alguma sem ele;
+- **conferir a CSP contra a URL do Supabase do ambiente** — com a variável
+  errada, a política bloqueia as chamadas de autenticação e a tela fica em branco
+  sem erro de servidor.
+
+### Trabalho técnico que continua aberto, e nenhum bloqueia produção
+
+- `FORCE ROW LEVEL SECURITY` prometido em `PERMISSIONS.md` §5 e não aplicado na
+  migration 0001 — quem escapa é o dono da tabela (migrations e seeds), não o
+  caminho da aplicação;
+- `person.is_minor` envelhece: `app.refresh_minor_flags()` existe e falta o
+  agendador;
+- as duas tabelas de controle de migration (Drizzle e CLI do Supabase) rastreiam
+  o mesmo histórico em lugares diferentes;
+- Sentry com `beforeSend` e o scan automatizado de segredos no CI, ambos
+  previstos em `SECURITY.md` e ainda não configurados;
+- a instabilidade conhecida da suíte e2e, sem causa isolada desde a Fase 8.
+
+### Depois do MVP
+
+A Prioridade 2 do roadmap: jornada configurável, portal do membro, eventos,
+ministérios, comunicados e **pedidos de oração** — este último com RLS reforçada
+e log de todo acesso desde o desenho, porque é o dado mais sensível que o sistema
+vai guardar.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. Se quiser um banco limpo: `pnpm db:migrate` e `pnpm db:seed`.

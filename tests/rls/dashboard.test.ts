@@ -66,7 +66,16 @@ async function mediaDeFrequencia(
   });
 }
 
-/** Os Elos ativos sem relatório da semana — o indicador principal do painel. */
+/**
+ * Os Elos ativos sem relatório da semana — o indicador principal do painel.
+ *
+ * ⚠️ **A semana é a de `app.hoje()`, e não a de `CURRENT_DATE`** — corrigido na
+ * Fase 12b. `CURRENT_DATE` responde em **UTC**, e a aplicação define "hoje" no
+ * fuso da igreja (`todayIso()`, decisão da Fase 6b). Entre 21h e meia-noite em
+ * Camaçari os dois discordam; quando essa virada cai numa segunda-feira, a
+ * semana do banco muda três horas antes de a semana da igreja mudar — e o Elo
+ * que entregou no domingo à noite aparecia como pendente.
+ */
 async function elosSemRelatorio(
   claims: Parameters<typeof asUser>[0],
 ): Promise<readonly string[]> {
@@ -80,7 +89,8 @@ async function elosSemRelatorio(
            SELECT 1 FROM elo_report r
             WHERE r.elo_id = e.id
               AND r.deleted_at IS NULL
-              AND date_trunc('week', r.meeting_date) = date_trunc('week', CURRENT_DATE)
+              -- app.hoje(), e não CURRENT_DATE: ver a nota acima da função.
+              AND date_trunc('week', r.meeting_date) = date_trunc('week', app.hoje())
          )
        ORDER BY e.name
     `;

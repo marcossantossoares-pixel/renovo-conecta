@@ -314,12 +314,13 @@ Dividida em duas, como as Fases 7 a 11: **12a** (PWA instalável e auditoria de 
 - [x] Auditoria de acessibilidade sem falha bloqueante — axe em 19 telas reais, com sessão real, em 1280 px e em 360 px. A Fase 2 cobria os componentes; esta cobre as telas
 - [x] Ícones gerados por script sem dependência nova, a partir do símbolo provisório — e determinísticos, verificado por regeração
 
-**12b — fluxos, hardening e implantação:**
+**12b — fluxos, hardening e implantação (concluída):**
 
-- [ ] Os 12 fluxos e2e passando, mapeados um a um contra a §13
-- [ ] Checklist de `SECURITY.md` §13 completo
-- [ ] Cabeçalhos de segurança verificados na resposta real, com CSP fechada
-- [ ] Plano de deploy revisado em `DEPLOYMENT.md`
+- [x] Os 12 fluxos e2e passando, **mapeados um a um** contra a §13 em `TESTING.md` §4 — quatro não tinham caso próprio, sempre pelo mesmo motivo: cada fase testou quem **constrói** o recurso, e a §13 pergunta por quem **consome**
+- [x] Cabeçalhos de segurança verificados na resposta real, com **CSP fechada**: nonce por resposta, `strict-dynamic`, sem `'unsafe-inline'` nem `'unsafe-eval'` em `script-src`
+- [x] Checklist de `SECURITY.md` §13 revisado item a item — nove itens provados por teste, um por inspeção, e **dois que não dependem de código**
+- [x] Rate limiting na **exportação**, que o checklist pedia e não existia (migration 0017)
+- [x] Plano de deploy revisado em `DEPLOYMENT.md` §7, com os dois bloqueios anteriores a qualquer passo e os pontos que só apareceram depois de o sistema existir
 
 **Não dependem de código, e não fecham sozinhos:**
 

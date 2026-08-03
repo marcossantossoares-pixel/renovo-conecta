@@ -75,6 +75,7 @@ export default defineConfig({
         '**/dashboard.spec.ts',
         '**/relatorios.spec.ts',
         '**/privacidade.spec.ts',
+        '**/fluxos-obrigatorios.spec.ts',
       ],
     },
     {
@@ -113,6 +114,7 @@ export default defineConfig({
         '**/dashboard.spec.ts',
         '**/relatorios.spec.ts',
         '**/privacidade.spec.ts',
+        '**/fluxos-obrigatorios.spec.ts',
       ],
     },
 
@@ -148,6 +150,9 @@ export default defineConfig({
          * último e sozinha, não atropela ninguém.
          */
         '**/privacidade.spec.ts',
+        // Os quatro fluxos da §13 que faltavam (Fase 12b): dois deles usam a
+        // conta do pastor, cuja MFA `mfa.spec.ts` apaga a cada teste.
+        '**/fluxos-obrigatorios.spec.ts',
       ],
       dependencies: ['desktop', 'mobile'],
       workers: 1,

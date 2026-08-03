@@ -220,7 +220,7 @@ export async function carregarIndicadores(
         -- "quem fez aniversário nos últimos 90 dias".
         (SELECT count(*)::int FROM pessoas_filtradas
           WHERE birth_date IS NOT NULL
-            AND EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE))
+            AND EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM app.hoje()))
           AS aniversariantes_do_mes
   `);
 
@@ -257,7 +257,7 @@ function elosSemRelatorioNaSemana(): SQL {
           WHERE r.elo_id = ef.id
             AND r.deleted_at IS NULL
             AND date_trunc('week', r.meeting_date)
-                = date_trunc('week', CURRENT_DATE)
+                = date_trunc('week', app.hoje())
        )
   `;
 }
@@ -358,7 +358,7 @@ export async function carregarElosPendentes(
             WHERE r.elo_id = e.id
               AND r.deleted_at IS NULL
               AND date_trunc('week', r.meeting_date)
-                  = date_trunc('week', CURRENT_DATE)
+                  = date_trunc('week', app.hoje())
          )
        ORDER BY e.name
   `);
