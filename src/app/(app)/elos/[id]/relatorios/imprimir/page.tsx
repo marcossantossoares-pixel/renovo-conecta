@@ -7,6 +7,7 @@ import { rotulo } from '@/lib/labels';
 import { getEloForViewer } from '@/modules/elos/service';
 import { REPORT_STATUS_LABELS } from '@/modules/reports/schemas';
 import { prepareReportExport } from '@/modules/reports/service';
+import { idDaRota } from '@/lib/route-id';
 
 export const metadata: Metadata = {
   title: 'Relatórios para impressão · Renovo Conecta',
@@ -39,7 +40,7 @@ export default async function ImprimirRelatoriosPage({
 }) {
   const { claims } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   const elo = await getEloForViewer(claims, congregationId, id, {
     leadership: false,

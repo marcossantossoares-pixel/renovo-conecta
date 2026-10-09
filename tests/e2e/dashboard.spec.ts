@@ -144,6 +144,38 @@ test('o outro supervisor vê a pendência que é dele', async ({ page }) => {
   );
 });
 
+/*
+ * Rodada de QA de 2026-10-09: o supervisor recebia "Abrir relatório", que leva
+ * ao formulário — e o formulário respondia "esta página não é sua", porque
+ * supervisor acompanha e não preenche. Agora a ação é a que ele pode cumprir.
+ */
+test('o supervisor recebe a ação que pode cumprir, e não a do líder', async ({
+  page,
+}) => {
+  await entrar(page, SUPERVISOR_B.email);
+  await page.goto('/dashboard');
+
+  const pendentes = page.getByRole('table', { name: /Elo pendente/i });
+  await expect(pendentes.getByRole('link', { name: 'Abrir relatório' })).toHaveCount(0);
+
+  await pendentes.getByRole('link', { name: 'Ver relatórios' }).click();
+  await expect(page).toHaveURL(new RegExp(`/elos/${ELO_ALICERCE.id}/relatorios`));
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(
+    ELO_ALICERCE.name,
+  );
+});
+
+test('a coordenação, que também preenche, continua abrindo o relatório', async ({
+  page,
+}) => {
+  await entrar(page, COORDENADORA.email);
+  await page.goto('/dashboard');
+
+  const pendentes = page.getByRole('table', { name: /Elo pendente/i });
+  await pendentes.getByRole('link', { name: 'Abrir relatório' }).click();
+  await expect(page).toHaveURL(new RegExp(`/elos/${ELO_ALICERCE.id}/relatorio$`));
+});
+
 test('o líder vê o próprio Elo, e não a igreja', async ({ page }) => {
   await entrar(page, LIDER_1.email);
   await page.goto('/dashboard');

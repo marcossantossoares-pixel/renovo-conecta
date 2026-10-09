@@ -127,12 +127,12 @@ const structuralSchema = z.object({
       /^[A-Za-z0-9-]+$/,
       'Use apenas letras, números e hífen — o código aparece em relatórios.',
     ),
-  status: z.enum(ELO_STATUSES).default('ativo'),
+  status: z.enum(ELO_STATUSES, 'Escolha a situação do Elo.').default('ativo'),
   audienceProfile: optionalText,
-  weekday: z.enum(WEEKDAYS),
+  weekday: z.enum(WEEKDAYS, 'Escolha o dia da semana.'),
   startTime: timeSchema,
-  frequency: z.enum(FREQUENCIES).default('semanal'),
-  modality: z.enum(MODALITIES).default('presencial'),
+  frequency: z.enum(FREQUENCIES, 'Escolha a frequência.').default('semanal'),
+  modality: z.enum(MODALITIES, 'Escolha a modalidade.').default('presencial'),
   district: optionalText,
   city: optionalText,
   state: ufSchema,
@@ -253,7 +253,7 @@ export type UpdateEloOperationalInput = z.infer<typeof updateEloOperationalSchem
 export const leadershipSchema = z.object({
   eloId: z.uuid(),
   personId: z.uuid('Escolha a pessoa.'),
-  role: z.enum(LEADERSHIP_ROLES),
+  role: z.enum(LEADERSHIP_ROLES, 'Escolha a função.'),
   startsAt: requiredDate('Informe desde quando.'),
 });
 
@@ -346,7 +346,7 @@ export const multiplyEloSchema = z.object({
       /^[A-Za-z0-9-]+$/,
       'Use apenas letras, números e hífen — o código aparece em relatórios.',
     ),
-  weekday: z.enum(WEEKDAYS),
+  weekday: z.enum(WEEKDAYS, 'Escolha o dia da semana.'),
   startTime: timeSchema,
   leaderPersonId: z.uuid('Escolha quem vai liderar o novo Elo.'),
   multipliedAt: requiredDate('Informe a data da multiplicação.'),
@@ -411,7 +411,7 @@ export const endParticipationSchema = z.object({
   participantId: z.uuid(),
   eloId: z.uuid(),
   leftAt: requiredDate(),
-  reason: z.enum(LEAVE_REASONS),
+  reason: z.enum(LEAVE_REASONS, 'Escolha o motivo da saída.'),
   reasonDetail: optionalText,
 });
 
@@ -479,7 +479,7 @@ export const decideJoinRequestSchema = z
   .object({
     requestId: z.uuid(),
     eloId: z.uuid(),
-    decision: z.enum(['aprovada', 'recusada']),
+    decision: z.enum(['aprovada', 'recusada'], 'Escolha aprovar ou recusar.'),
     reason: optionalText,
     joinedAt: optionalDate,
   })

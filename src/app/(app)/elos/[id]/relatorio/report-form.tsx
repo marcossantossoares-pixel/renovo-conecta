@@ -80,6 +80,24 @@ export function ReportForm({
   const [rascunhoDe, setRascunhoDe] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  /**
+   * A data sob a qual **esta visita** gravou o rascunho pela última vez.
+   *
+   * ⚠️ Defeito encontrado na rodada de QA de 2026-10-09. A recuperação roda num
+   * efeito, depois que o React assume a página — e no celular lento a pessoa
+   * começa a digitar antes disso. A primeira tecla gravava um rascunho, e a
+   * recuperação, logo em seguida, encontrava **esse mesmo rascunho**: dizia
+   * "Recuperamos o que você tinha preenchido" sobre o que acabara de ser
+   * digitado e, num relatório já enviado, marcava o total como "tocado". O total
+   * parava de acompanhar as parcelas, e o envio voltava recusado por uma soma
+   * que a pessoa nunca escreveu. Reproduzido em 6 de 8 tentativas.
+   *
+   * A regra: se a última gravação desta visita foi para a data que está na
+   * tela, a tela já é o rascunho — não há o que recuperar. Trocar a data
+   * continua recuperando o rascunho da outra data, como antes.
+   */
+  const gravadoNestaVisita = useRef<string | null>(null);
+
   const erro = (campo: string) => estado.fieldErrors?.[campo];
 
   /*
@@ -100,6 +118,8 @@ export function ReportForm({
 
   /* Recupera o rascunho ao abrir, e ao trocar a data do encontro. */
   useEffect(() => {
+    if (gravadoNestaVisita.current === meetingDate) return;
+
     const rascunho = loadDraft(eloId, meetingDate);
 
     if (!rascunho) {
@@ -148,6 +168,7 @@ export function ReportForm({
     }
 
     saveDraft(eloId, meetingDate, rascunho);
+    gravadoNestaVisita.current = meetingDate;
   }
 
   /*

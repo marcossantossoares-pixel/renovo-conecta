@@ -17,6 +17,7 @@ import { descreverJanela } from '@/lib/periodo';
 import type { EloPendente } from '@/modules/dashboard/metrics';
 import { dashboardQuerySchema } from '@/modules/dashboard/schemas';
 import { carregarPainel } from '@/modules/dashboard/service';
+import { canSubmitReport } from '@/modules/reports/service';
 import Link from 'next/link';
 import { DashboardFilters } from './dashboard-filters';
 import { IndicatorCard } from './indicator-card';
@@ -90,14 +91,28 @@ export default async function DashboardPage({
     {
       id: 'acao',
       header: 'Ação',
-      cell: (elo) => (
-        <Link
-          href={`/elos/${elo.id}/relatorio`}
-          className="text-sm font-medium text-primary-strong underline underline-offset-2"
-        >
-          Abrir relatório
-        </Link>
-      ),
+      /*
+       * A ação depende de quem olha. Até a rodada de QA de 2026-10-09 todo mundo
+       * recebia "Abrir relatório" — e o supervisor, que acompanha e não preenche,
+       * clicava e caía em "esta página não é sua". A varredura de telas pegou
+       * quando um Elo dele ficou sem relatório na semana.
+       */
+      cell: (elo) =>
+        canSubmitReport(claims, congregationId, elo.id) ? (
+          <Link
+            href={`/elos/${elo.id}/relatorio`}
+            className="text-sm font-medium text-primary-strong underline underline-offset-2"
+          >
+            Abrir relatório
+          </Link>
+        ) : (
+          <Link
+            href={`/elos/${elo.id}/relatorios`}
+            className="text-sm font-medium text-primary-strong underline underline-offset-2"
+          >
+            Ver relatórios
+          </Link>
+        ),
     },
   ];
 

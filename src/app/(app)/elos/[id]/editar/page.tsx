@@ -8,6 +8,7 @@ import { isoDateToBrInput } from '@/lib/format';
 import { updateEloAction } from '@/modules/elos/actions';
 import { hasPermissionAnywhere } from '@/core/authz/can';
 import { getEloForViewer } from '@/modules/elos/service';
+import { idDaRota } from '@/lib/route-id';
 import { EloForm } from '../../elo-form';
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function EditarEloPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   // Mesma razão do perfil: Elo fora do alcance responde 404, não 403. A
   // verificação por linha acontece na action, com o alvo real em mãos.

@@ -184,7 +184,7 @@ export function ParticipantList({
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/pessoas/${participante.personId}`}
-                    className="text-base font-medium text-primary-strong underline underline-offset-2"
+                    className="inline-flex min-h-11 items-center text-base font-medium text-primary-strong underline underline-offset-2 md:min-h-0"
                   >
                     {participante.personName}
                   </Link>
@@ -274,7 +274,7 @@ export function ParticipantList({
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/pessoas/${participante.personId}`}
-                    className="text-base text-text-muted underline underline-offset-2"
+                    className="inline-flex min-h-11 items-center text-base text-text-muted underline underline-offset-2 md:min-h-0"
                   >
                     {participante.personName}
                   </Link>

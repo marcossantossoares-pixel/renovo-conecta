@@ -23,6 +23,7 @@ import {
 import { CHURCH_STATUS_LABELS, MARITAL_STATUS_LABELS } from '@/modules/people/schemas';
 import { getPersonForViewer } from '@/modules/people/service';
 import { currentConsentsForViewer } from '@/modules/privacy/service';
+import { idDaRota } from '@/lib/route-id';
 import { ConsentPanel } from './consent-panel';
 import { DeletePerson } from './delete-person';
 import { TagManager } from './tag-manager';
@@ -49,7 +50,7 @@ export default async function PessoaPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (
     !can(claims, 'person.read', {

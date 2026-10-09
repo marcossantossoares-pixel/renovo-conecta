@@ -121,7 +121,7 @@ export const submitReportSchema = z
     eloId: z.uuid(),
     meetingDate: requiredDate('Informe a data do encontro.'),
     happened: z
-      .union([z.literal('sim'), z.literal('nao')])
+      .union([z.literal('sim'), z.literal('nao')], 'Diga se o encontro aconteceu.')
       .transform((valor) => valor === 'sim'),
     cancellationReason: optionalText,
     ...camposDoEncontro,
@@ -202,7 +202,7 @@ export type ReportDraft = z.infer<typeof reportDraftSchema>;
  */
 export const decideReportSchema = z.object({
   reportId: z.uuid(),
-  para: z.enum(['aprovado', 'correcao_solicitada', 'reaberto']),
+  para: z.enum(['aprovado', 'correcao_solicitada', 'reaberto'], 'Escolha uma decisão.'),
   comment: optionalText,
 });
 

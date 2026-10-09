@@ -1,6 +1,7 @@
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { ForbiddenError } from '@/core/authz/can';
 import { todayIso } from '@/lib/format';
+import { ehIdDeRota } from '@/lib/route-id';
 import { getEloForViewer } from '@/modules/elos/service';
 import { reportsFileName, reportsToXlsx } from '@/modules/reports/export';
 import { prepareReportExport } from '@/modules/reports/service';
@@ -22,6 +23,12 @@ export async function GET(
   const { claims } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
   const { id } = await params;
+
+  // Fora do formato, o banco recusaria a conversão para uuid com erro 500;
+  // a resposta é a mesma de um Elo que não existe (`lib/route-id.ts`).
+  if (!ehIdDeRota(id)) {
+    return new Response('Elo não encontrado.', { status: 404 });
+  }
 
   try {
     // O Elo entra para nomear o arquivo, e serve de segunda porta: fora do

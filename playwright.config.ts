@@ -76,6 +76,7 @@ export default defineConfig({
         '**/relatorios.spec.ts',
         '**/privacidade.spec.ts',
         '**/fluxos-obrigatorios.spec.ts',
+        '**/varredura-pastor.spec.ts',
       ],
     },
     {
@@ -115,6 +116,11 @@ export default defineConfig({
         '**/relatorios.spec.ts',
         '**/privacidade.spec.ts',
         '**/fluxos-obrigatorios.spec.ts',
+        // A varredura de telas escolhe as próprias larguras (390, 768 e
+        // 1440 px), então rodá-la de novo emulando o Pixel 7 só repetiria a de
+        // 390 px. A do pastor tem projeto próprio, como os fluxos acima.
+        '**/varredura.spec.ts',
+        '**/varredura-pastor.spec.ts',
       ],
     },
 
@@ -153,6 +159,9 @@ export default defineConfig({
         // Os quatro fluxos da §13 que faltavam (Fase 12b): dois deles usam a
         // conta do pastor, cuja MFA `mfa.spec.ts` apaga a cada teste.
         '**/fluxos-obrigatorios.spec.ts',
+        // A varredura das telas do pastor (rodada de QA de 2026-10-09): mesma
+        // razão — a conta exige o segundo fator que `mfa.spec.ts` apaga.
+        '**/varredura-pastor.spec.ts',
       ],
       dependencies: ['desktop', 'mobile'],
       workers: 1,

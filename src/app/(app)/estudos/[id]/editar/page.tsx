@@ -20,6 +20,7 @@ import {
   secoesParaTexto,
 } from '@/modules/studies/schemas';
 import { canAuthorStudies, getStudyForViewer } from '@/modules/studies/service';
+import { idDaRota } from '@/lib/route-id';
 import { StudyForm } from '../../study-form';
 import { AttachmentManager } from '../attachment-manager';
 import { DeleteStudy } from '../delete-study';
@@ -53,7 +54,7 @@ export default async function EditarEstudoPage({
     forbidden();
   }
 
-  const { id } = await params;
+  const id = await idDaRota(params);
   const dados = await getStudyForViewer(claims, id);
 
   if (!dados) notFound();

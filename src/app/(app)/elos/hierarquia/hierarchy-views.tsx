@@ -28,7 +28,9 @@ function Rotulo({ elo }: { elo: EloTreeNode['elo'] }) {
     <>
       <Link
         href={`/elos/${elo.id}`}
-        className="font-medium text-primary-strong underline underline-offset-2"
+        // Alvo de 44 px no celular (DESIGN_SYSTEM.md §6): na árvore o nome é o
+        // único caminho até o Elo, e a linha vizinha fica colada logo abaixo.
+        className="inline-flex min-h-11 items-center font-medium text-primary-strong underline underline-offset-2 md:min-h-0"
       >
         {elo.name}
       </Link>

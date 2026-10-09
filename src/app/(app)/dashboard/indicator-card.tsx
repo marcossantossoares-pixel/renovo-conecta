@@ -72,7 +72,8 @@ export function IndicatorCard({
         {href && (
           <Link
             href={href}
-            className="mt-1 text-sm font-medium text-primary-strong underline underline-offset-2"
+            // 44 px no celular (DESIGN_SYSTEM.md §6); compacto só com mouse.
+            className="mt-1 inline-flex min-h-11 items-center self-start text-sm font-medium text-primary-strong underline underline-offset-2 md:min-h-0"
           >
             {acaoLabel ?? 'Ver'}
           </Link>

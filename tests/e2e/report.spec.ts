@@ -159,6 +159,81 @@ test('o Fluxo 6 inteiro: enviar grava o relatório e apaga o rascunho', async ({
   await expect(page.getByText(/Já existe um relatório para esta data/)).toBeVisible();
 });
 
+/**
+ * Roda no navegador antes da página: espera o React assumir o campo e digita
+ * naquele instante — antes de o efeito que recupera o rascunho rodar. É o
+ * polegar rápido num celular lento.
+ */
+function digitarAntesDeCarregar() {
+  const tentar = () => {
+    const campo = document.querySelector<HTMLInputElement>('input[name="studyTitle"]');
+    const assumido =
+      campo && Object.keys(campo).some((k) => k.startsWith('__reactProps$'));
+
+    if (!campo || !assumido) {
+      setTimeout(tentar, 0);
+      return;
+    }
+
+    // O setter do protótipo, e não `campo.value = …`: o React intercepta o
+    // setter da instância para saber o valor anterior, e uma atribuição direta
+    // não dispararia o `onChange`. Ele é chamado logo abaixo, com `.call(campo)`.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )?.set;
+    setter?.call(campo, 'digitado antes de carregar');
+    campo.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  setTimeout(tentar, 0);
+}
+
+/*
+ * Regressão da rodada de QA de 2026-10-09 (`report-form.tsx`,
+ * `gravadoNestaVisita`). A primeira tecla gravava o rascunho e a recuperação,
+ * logo depois, o encontrava: aviso falso de "Recuperamos" e o total travado no
+ * valor do relatório já enviado — o envio voltava recusado por uma soma que a
+ * pessoa nunca digitou. Foi a falha intermitente deste arquivo na execução
+ * paralela, e reproduziu em 6 de 8 tentativas antes da correção.
+ *
+ * ⚠️ **Cinco tentativas, cada uma num aparelho limpo**, porque a corrida é de
+ * tempo: sem a correção, cada tentativa falha em cerca de três de quatro vezes.
+ * Uma só deixaria a regressão passar uma vez em quatro; cinco a pegam em mais de
+ * 99,9% das execuções. Com a correção, todas passam sempre — o teste não fica
+ * instável, só sensível.
+ *
+ * Depende do relatório de hoje deixado pelo caso anterior (8 + 2 + 1).
+ */
+test('digitar antes de a página terminar de carregar não trava o total', async ({
+  browser,
+}) => {
+  const login = await browser.newContext();
+  await entrar(await login.newPage(), LIDER_1.email);
+  const sessao = await login.storageState();
+  await login.close();
+
+  for (let tentativa = 1; tentativa <= 5; tentativa += 1) {
+    const aparelho = await browser.newContext({ storageState: sessao });
+    const page = await aparelho.newPage();
+    await page.addInitScript(digitarAntesDeCarregar);
+    await page.goto(`/elos/${ELO_SEMEAR.id}/relatorio`);
+
+    await expect(page.getByLabel('Estudo utilizado')).toHaveValue(
+      'digitado antes de carregar',
+    );
+    await page.getByLabel('Membros').fill('5');
+
+    await expect(page.getByLabel('Total'), `tentativa ${tentativa}`).toHaveValue('8');
+    await expect(
+      page.getByText(/Recuperamos o que você tinha preenchido/),
+      `tentativa ${tentativa}`,
+    ).toHaveCount(0);
+    await aparelho.close();
+  }
+});
+
 test('sair do sistema apaga os rascunhos do aparelho', async ({ page }) => {
   await entrar(page, LIDER_1.email);
 

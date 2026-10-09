@@ -76,6 +76,32 @@ test('ir direto ao painel sem cumprir o 2FA não funciona', async ({ page }) => 
   await expect(page).toHaveURL(/\/verificacao/);
 });
 
+/**
+ * O QR Code aparece de fato, e a tela não quebra ao desenhá-lo.
+ *
+ * Regressão da homologação: o SVG do Supabase termina em quebra de linha, e o
+ * `next/image` **em desenvolvimento** recusa `src` com caractere de controle na
+ * ponta, derrubando a tela inteira (`src/core/auth/mfa.ts`). Contra o build de
+ * produção este caso passa mesmo sem a correção — ele só é conclusivo rodando a
+ * suíte contra `pnpm dev` (`PLAYWRIGHT_BASE_URL`), como faz a rodada de QA
+ * descrita em `docs/qa/relatorio-testes-renovo-conecta.md`.
+ */
+test('o QR Code do cadastro é desenhado, sem exceção na página', async ({ page }) => {
+  const excecoes: string[] = [];
+  page.on('pageerror', (erro) => excecoes.push(erro.message));
+
+  await entrar(page, PASTOR.email);
+  await expect(page).toHaveURL(/\/verificacao/);
+
+  const qr = page.getByRole('img', { name: /Código QR/ });
+  await expect(qr).toBeVisible();
+  // `naturalWidth` zero é imagem quebrada com moldura no lugar: visível, e inútil.
+  expect(
+    await qr.evaluate((img) => (img as HTMLImageElement).naturalWidth),
+  ).toBeGreaterThan(0);
+  expect(excecoes).toEqual([]);
+});
+
 test('cadastrar o autenticador libera o acesso', async ({ page }) => {
   await entrar(page, PASTOR.email);
   await expect(page).toHaveURL(/\/verificacao/);

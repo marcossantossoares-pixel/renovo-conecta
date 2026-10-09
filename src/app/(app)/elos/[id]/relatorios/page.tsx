@@ -26,6 +26,7 @@ import {
   diasAteOPrazo,
   relatorioAtrasado,
 } from '@/modules/reports/status';
+import { idDaRota } from '@/lib/route-id';
 import { DecisionPanel, type DecisaoDisponivel } from './decision-panel';
 
 export const metadata: Metadata = {
@@ -65,7 +66,7 @@ export default async function RelatoriosPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   const [resultado, relatorios] = await Promise.all([
     getEloForViewer(claims, congregationId, id, { leadership: false, address: false }),
@@ -218,10 +219,16 @@ export default async function RelatoriosPage({
                       <DescriptionItem rotulo="Estudo" valor={relatorio.study_title} />
                     </dl>
                   ) : (
-                    <DescriptionItem
-                      rotulo="Motivo"
-                      valor={relatorio.cancellation_reason}
-                    />
+                    // `dl` também para um item só: `dt` e `dd` soltos não são
+                    // lista de descrição para o leitor de tela (axe: `dlitem`).
+                    // Só aparece em encontro cancelado — por isso a auditoria
+                    // da Fase 12a, que olhava um Elo sem cancelamento, não viu.
+                    <dl>
+                      <DescriptionItem
+                        rotulo="Motivo"
+                        valor={relatorio.cancellation_reason}
+                      />
+                    </dl>
                   )}
 
                   {ultimaDecisao && (

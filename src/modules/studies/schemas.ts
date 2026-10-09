@@ -178,7 +178,10 @@ export function faltaParaPublicar(estudo: {
 export const publishStudySchema = z
   .object({
     studyId: z.uuid(),
-    para: z.enum(['publicado', 'agendado', 'arquivado', 'rascunho']),
+    para: z.enum(
+      ['publicado', 'agendado', 'arquivado', 'rascunho'],
+      'Escolha uma ação.',
+    ),
     /** `datetime-local` não envia fuso; o servidor interpreta no fuso da app. */
     publishAt: optionalText,
   })

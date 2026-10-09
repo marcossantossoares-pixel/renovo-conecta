@@ -12,6 +12,7 @@ import { listParticipants } from '@/modules/elos/participants';
 import type { EloOption } from '@/modules/elos/repository';
 import { getEloForViewer, listTransferTargetsForViewer } from '@/modules/elos/service';
 import { listPersonOptions } from '@/modules/people/service';
+import { idDaRota } from '@/lib/route-id';
 import { ParticipantList } from './participant-list';
 
 export const metadata: Metadata = {
@@ -36,7 +37,7 @@ export default async function ParticipantesPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   // Tudo abaixo depende do `id` da rota e das claims, nada do Elo carregado, e
   // `can()` responde em memória. Esperar o Elo para só então disparar o resto

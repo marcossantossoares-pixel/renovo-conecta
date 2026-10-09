@@ -1,6 +1,7 @@
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { ForbiddenError } from '@/core/authz/can';
 import { todayIso } from '@/lib/format';
+import { ehIdDeRota } from '@/lib/route-id';
 import { subjectDataFileName } from '@/modules/privacy/export';
 import { exportSubjectData } from '@/modules/privacy/service';
 
@@ -27,6 +28,12 @@ export async function GET(
   const { claims } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
   const { id } = await params;
+
+  // Fora do formato, o banco recusaria a conversão para uuid com erro 500;
+  // a resposta é a mesma de uma pessoa que não existe (`lib/route-id.ts`).
+  if (!ehIdDeRota(id)) {
+    return new Response('Pessoa não encontrada.', { status: 404 });
+  }
 
   try {
     const dados = await exportSubjectData(claims, congregationId, id);

@@ -86,7 +86,8 @@ export default async function HierarquiaPage({
             href={`/elos/hierarquia?vista=${opcao}`}
             aria-current={opcao === vista ? 'page' : undefined}
             className={cn(
-              'rounded-md border px-3 py-1.5 text-sm',
+              // Mesma regra do botão `sm`: 44 px no celular, compacto só com mouse.
+              'inline-flex min-h-11 items-center rounded-md border px-3 py-1.5 text-sm md:min-h-8',
               opcao === vista
                 ? 'border-primary bg-primary-soft font-medium text-primary-strong'
                 : 'border-border text-text-muted hover:text-text',

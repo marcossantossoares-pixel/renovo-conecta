@@ -405,6 +405,14 @@ async function main(): Promise<void> {
      * em 2026 vira passado sozinho com o tempo, e o dia em que isso
      * acontecesse o estudo agendado passaria a ser público — a suíte quebraria
      * meses depois, sem que ninguém tivesse tocado no código.
+     *
+     * ⚠️ **Por isso as datas são renovadas também quando o estudo já existe.**
+     * Com `DO NOTHING`, "relativas a hoje" queria dizer "relativas ao dia do
+     * primeiro seed": o banco semeado em agosto tinha, em outubro, um agendado
+     * para uma data que já passou — público para o líder, e três testes de
+     * isolamento vermelhos sem nenhuma mudança de código. Rodar o seed de novo
+     * não consertava, que é justamente o que se espera que conserte.
+     * Só as datas são renovadas: texto, status e seções continuam intocados.
      */
     for (const estudo of ESTUDOS) {
       const agendado = estudo.status === 'agendado';
@@ -428,7 +436,11 @@ async function main(): Promise<void> {
           ${agendado ? sql`NULL` : sql`now() + ${`${estudo.emDias} days`}::interval`},
           ${COORDENADORA.personId}::uuid
         )
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (id) DO UPDATE SET
+          usable_from = EXCLUDED.usable_from,
+          usable_until = EXCLUDED.usable_until,
+          publish_at = EXCLUDED.publish_at,
+          published_at = EXCLUDED.published_at
       `);
 
       const secoes: readonly (readonly [string, readonly string[]])[] = [

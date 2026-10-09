@@ -12,6 +12,7 @@ import { hasNarrowScope } from '@/core/authz/can';
 import { listJoinRequests } from '@/modules/elos/participants';
 import { listPersonOptions } from '@/modules/people/service';
 import { getEloForViewer } from '@/modules/elos/service';
+import { idDaRota } from '@/lib/route-id';
 import { RequestList } from './request-list';
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default async function SolicitacoesPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   // `can()` responde em memória e tudo abaixo depende do `id` da rota, não do
   // Elo carregado: as consultas partem juntas em vez de esperar umas às outras.

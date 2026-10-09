@@ -9,6 +9,7 @@ import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
 import { listParticipants } from '@/modules/elos/participants';
 import { getEloForViewer } from '@/modules/elos/service';
+import { idDaRota } from '@/lib/route-id';
 import { MultiplyForm } from './multiply-form';
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function MultiplicarPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (!can(claims, 'elo.multiply', { congregationId })) {
     forbidden();

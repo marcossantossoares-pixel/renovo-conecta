@@ -107,7 +107,9 @@ const personalFieldsSchema = z.object({
     .max(200, 'O nome pode ter no máximo 200 caracteres.'),
   socialName: optionalText,
   birthDate: birthDateSchema,
-  maritalStatus: z.enum(MARITAL_STATUSES).default('nao_informado'),
+  maritalStatus: z
+    .enum(MARITAL_STATUSES, 'Escolha o estado civil.')
+    .default('nao_informado'),
   phone: phoneSchema,
   whatsapp: phoneSchema,
   email: emailOptionalSchema,
@@ -123,7 +125,7 @@ const personalFieldsSchema = z.object({
  * viver em dois lugares, e um dia divergir.
  */
 const ecclesiasticalFieldsSchema = z.object({
-  churchStatus: z.enum(CHURCH_STATUSES),
+  churchStatus: z.enum(CHURCH_STATUSES, 'Escolha a situação na igreja.'),
   firstVisitAt: optionalDate,
   howFoundChurch: optionalText,
   decisionAt: optionalDate,

@@ -107,8 +107,14 @@ export default async function AuditoriaPage({
                       {linha.actor_name ?? linha.actor_email ?? 'Sistema'}
                     </p>
 
+                    {/*
+                      Quebra a linha em vez de rolar de lado. O JSON sai numa
+                      linha só, e com `overflow-x-auto` o celular escondia quase
+                      tudo atrás de uma rolagem horizontal que o teclado nem
+                      alcança (axe: `scrollable-region-focusable`).
+                    */}
                     {linha.changes !== null && linha.changes !== undefined && (
-                      <pre className="overflow-x-auto rounded-md bg-surface-muted p-2 text-xs text-text-muted">
+                      <pre className="rounded-md bg-surface-muted p-2 text-xs whitespace-pre-wrap wrap-anywhere text-text-muted">
                         {JSON.stringify(linha.changes)}
                       </pre>
                     )}

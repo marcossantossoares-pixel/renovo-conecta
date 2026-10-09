@@ -64,7 +64,10 @@ export function StudyForm({ action, values = {}, submitLabel }: StudyFormProps) 
   const erro = (campo: string) => state.fieldErrors?.[campo];
 
   return (
-    <form action={formAction} className="mt-6 flex flex-col gap-6">
+    // `noValidate`, como os demais formulários: o balão nativo do navegador some
+    // em segundos e não diz o que o servidor exige (três caracteres no título).
+    // A mensagem do servidor fica no campo, ligada a ele para o leitor de tela.
+    <form action={formAction} className="mt-6 flex flex-col gap-6" noValidate>
       {values.id && <input type="hidden" name="studyId" value={values.id} />}
 
       {state.error && <Alert tone="danger">{state.error}</Alert>}

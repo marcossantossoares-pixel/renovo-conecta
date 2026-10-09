@@ -20,6 +20,7 @@ import {
   type SectionKind,
 } from '@/modules/studies/schemas';
 import { canAuthorStudies, getStudyForViewer } from '@/modules/studies/service';
+import { idDaRota } from '@/lib/route-id';
 import { AttachmentList } from './attachment-list';
 
 export const metadata: Metadata = {
@@ -50,7 +51,7 @@ export default async function EstudoPage({
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
 
-  const { id } = await params;
+  const id = await idDaRota(params);
   const dados = await getStudyForViewer(claims, id);
 
   if (!dados) notFound();

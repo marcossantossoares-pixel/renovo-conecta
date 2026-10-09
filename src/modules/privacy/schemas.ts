@@ -97,8 +97,8 @@ export function prazoDaSolicitacao(criadaEm: Date): Date {
  * solicitação seria da secretaria.
  */
 export const createRequestSchema = z.object({
-  personId: z.uuid(),
-  kind: z.enum(REQUEST_KINDS),
+  personId: z.uuid('Escolha quem pediu.'),
+  kind: z.enum(REQUEST_KINDS, 'Escolha o direito exercido.'),
   description: optionalText,
 });
 
@@ -115,7 +115,7 @@ export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 export const handleRequestSchema = z
   .object({
     requestId: z.uuid(),
-    status: z.enum(REQUEST_STATUSES),
+    status: z.enum(REQUEST_STATUSES, 'Escolha a nova situação.'),
     resolution: optionalText,
   })
   .superRefine((dados, ctx) => {
@@ -206,11 +206,11 @@ export const COLLECTION_CHANNEL_LABELS: Readonly<
 export const recordConsentSchema = z
   .object({
     personId: z.uuid(),
-    purpose: z.enum(CONSENT_PURPOSES),
+    purpose: z.enum(CONSENT_PURPOSES, 'Escolha a finalidade.'),
     granted: z
-      .union([z.literal('sim'), z.literal('nao')])
+      .union([z.literal('sim'), z.literal('nao')], 'Diga se a pessoa autorizou ou não.')
       .transform((v) => v === 'sim'),
-    collectedVia: z.enum(COLLECTION_CHANNELS),
+    collectedVia: z.enum(COLLECTION_CHANNELS, 'Escolha onde a decisão foi colhida.'),
     responsibleName: optionalText,
     responsibleRelationship: optionalText,
     notes: optionalText,

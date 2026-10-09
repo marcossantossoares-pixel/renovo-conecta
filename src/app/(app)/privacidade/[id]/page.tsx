@@ -26,6 +26,7 @@ import {
   podeDecidir,
 } from '@/modules/privacy/schemas';
 import { getRequestForViewer } from '@/modules/privacy/service';
+import { idDaRota } from '@/lib/route-id';
 import { AnonymizePerson } from './anonymize-person';
 import { DecisionPanel } from './decision-panel';
 
@@ -53,7 +54,7 @@ export default async function SolicitacaoPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (!hasPermissionAnywhere(claims, 'privacy.read_requests')) {
     forbidden();
@@ -116,10 +117,14 @@ export default async function SolicitacaoPage({
             />
           </dl>
 
-          <DescriptionItem
-            rotulo="O que a pessoa pediu"
-            valor={solicitacao.description}
-          />
+          {/* `dl` também para um item só: `dt` e `dd` soltos não são lista de
+              descrição para o leitor de tela, e o axe recusa (`dlitem`). */}
+          <dl>
+            <DescriptionItem
+              rotulo="O que a pessoa pediu"
+              valor={solicitacao.description}
+            />
+          </dl>
 
           {solicitacao.resolution && (
             <div className="rounded-md border border-border bg-surface-muted p-3">

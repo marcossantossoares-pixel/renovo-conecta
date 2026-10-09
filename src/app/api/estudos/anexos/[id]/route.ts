@@ -1,5 +1,6 @@
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { ForbiddenError, hasPermissionAnywhere } from '@/core/authz/can';
+import { ehIdDeRota } from '@/lib/route-id';
 import { enderecoDoAnexo } from '@/modules/studies/attachments';
 
 /**
@@ -33,7 +34,9 @@ export async function GET(
   }
 
   const { id } = await params;
-  const destino = await enderecoDoAnexo(claims, id);
+  // Fora do formato, o banco recusaria a conversão para uuid com erro 500;
+  // a resposta é a mesma de um anexo que não existe (`lib/route-id.ts`).
+  const destino = ehIdDeRota(id) ? await enderecoDoAnexo(claims, id) : null;
 
   if (!destino) {
     return new Response('Anexo não encontrado.', { status: 404 });

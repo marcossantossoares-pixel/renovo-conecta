@@ -1,5 +1,42 @@
 # Progresso
 
+## Rodada de QA 1 — 2026-10-09
+
+**Auditoria funcional automatizada, depois do MVP fechado.** Relatório completo,
+com cada defeito, medição e evidência, em `docs/qa/relatorio-testes-renovo-conecta.md`.
+
+Nenhuma fase nova: a rodada testou o que existe, corrigiu o que encontrou e
+deixou os testes no repositório. **Treze defeitos, doze corrigidos e um validado**
+— todos fora do caminho feliz, que é onde a suíte de cada fase não olhava:
+endereço errado, formulário vazio, sessão longa em `pnpm dev`, encontro
+cancelado, digitar antes de a página terminar de carregar.
+
+| Defeito | O que era                                                                                                                                                  |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEF-01  | O seed "envelhecia": rodá-lo de novo não renovava as datas dos estudos, e 3 testes de RLS caíam                                                            |
+| DEF-02  | Em `pnpm dev`, um pool de conexões por avaliação do módulo: 74/100 conexões, e o login dizendo "senha incorreta"                                           |
+| DEF-03  | `[id]` malformado na URL ia direto ao `::uuid` do Postgres: erro 500 em 13 telas e 3 rotas de arquivo                                                      |
+| DEF-04  | "Não encontrado" e "falha" eram as telas do framework, em inglês                                                                                           |
+| DEF-05  | Seletor vazio devolvia a mensagem padrão do Zod, em inglês, listando os códigos internos dos papéis                                                        |
+| DEF-06  | `dt`/`dd` fora de `dl` no histórico com encontro cancelado e na solicitação LGPD                                                                           |
+| DEF-07  | Bloco rolável inacessível por teclado na auditoria                                                                                                         |
+| DEF-08  | Seis alvos de toque abaixo de 44 px em telas reais                                                                                                         |
+| DEF-09  | Estudo e solicitação LGPD dependiam do balão nativo do navegador                                                                                           |
+| DEF-10  | "Conceder papel" sem papel respondia "Dados inválidos."                                                                                                    |
+| DEF-11  | QR Code do MFA em `pnpm dev` — a correção já estava no diretório; validada, com teste e mutação                                                            |
+| DEF-12  | Relatório semanal: digitar antes de a página carregar fazia a recuperação achar o próprio rascunho, travar o total e o envio ser recusado (6/8 tentativas) |
+| DEF-13  | O painel oferecia ao supervisor "Abrir relatório", que respondia "esta página não é sua"                                                                   |
+
+**Duas decisões ficaram com o usuário**, e nenhuma é técnica: o menu inferior
+com mais de cinco destinos (PEND-01 — a proposta "Mais" muda a navegação
+aprovada) e a separação entre o banco da homologação manual e o da suíte
+(PEND-02).
+
+**A suíte agora roda também contra `pnpm dev`** (`TESTING.md` §5). DEF-02 e
+DEF-11 só existiam ali, e é ali que a homologação acontece.
+
+---
+
 ## Fase atual
 
 **Fase 12b — Os 12 fluxos da §13, hardening e plano de deploy. Concluída.**
@@ -1660,6 +1697,15 @@ aparecem no dia:
   errada, a política bloqueia as chamadas de autenticação e a tela fica em branco
   sem erro de servidor.
 
+### Decisões abertas pela rodada de QA 1 (2026-10-09)
+
+- **PEND-01** — menu inferior do celular com mais de cinco destinos corta os
+  rótulos (coordenação a partir de 360 px; pastor e superadmin em 390 px).
+  Proposta: quatro itens e "Mais". Muda a navegação aprovada.
+- **PEND-02** — o banco local é usado ao mesmo tempo pela homologação manual e
+  pela suíte, que conta o conjunto exato da igreja. Um Elo criado à mão em 11/08
+  derruba testes de contagem.
+
 ### Trabalho técnico que continua aberto, e nenhum bloqueia produção
 
 - `FORCE ROW LEVEL SECURITY` prometido em `PERMISSIONS.md` §5 e não aplicado na
@@ -1671,7 +1717,7 @@ aparecem no dia:
   o mesmo histórico em lugares diferentes;
 - Sentry com `beforeSend` e o scan automatizado de segredos no CI, ambos
   previstos em `SECURITY.md` e ainda não configurados;
-- a instabilidade conhecida da suíte e2e, sem causa isolada desde a Fase 8.
+- a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP
 

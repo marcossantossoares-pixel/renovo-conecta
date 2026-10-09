@@ -30,6 +30,7 @@ import { getEloForViewer } from '@/modules/elos/service';
 import { canSubmitReport } from '@/modules/reports/service';
 import type { PersonOption } from '@/modules/people/schemas';
 import { listPersonOptions } from '@/modules/people/service';
+import { idDaRota } from '@/lib/route-id';
 import { DeleteElo } from './delete-elo';
 import { LeadershipManager } from './leadership-manager';
 
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
 export default async function EloPage({ params }: { params: Promise<{ id: string }> }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   // A lista de pessoas só é buscada quando há painel de liderança para
   // preencher — e `canWriteStructural` sai das claims, sem tocar no banco, então

@@ -37,7 +37,9 @@ export function RequestForm({ pessoas }: RequestFormProps) {
   );
 
   return (
-    <form action={registrar} className="flex flex-col gap-4">
+    // `noValidate`, como os demais formulários: a mensagem que vale é a do
+    // servidor, no campo — o balão nativo some em segundos.
+    <form action={registrar} className="flex flex-col gap-4" noValidate>
       {estado.error && <Alert tone="danger">{estado.error}</Alert>}
       {estado.success && <Alert tone="success">{estado.success}</Alert>}
 

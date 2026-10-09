@@ -137,6 +137,32 @@ iluminada.
 
 ---
 
+### Varredura de telas e caminhos fora do feliz (rodada de QA de 2026-10-09)
+
+As suítes das fases provam **regras**. A varredura pergunta, tela a tela, o que
+só se percebe olhando — e é a única que não precisa ser atualizada quando nasce
+uma tela nova.
+
+| Suíte                      | O que cobre                                                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `varredura.spec.ts`        | Cada perfil segue os links que a interface oferece, em 390, 768 e 1440 px: console, rede, transbordo, toque ≥ 44 px, axe, h1 |
+| `varredura-pastor.spec.ts` | O mesmo para o pastor (segundo fator), no projeto `painel`                                                                   |
+| `estados-de-erro.spec.ts`  | Rota e identificador inexistentes ou malformados respondem "não encontrado", em português, e nunca 500                       |
+| `formularios.spec.ts`      | Formulário enviado vazio explica cada campo, em português, sem mensagem padrão do Zod                                        |
+| `acesso-indevido.spec.ts`  | URL direta para Elo de outro supervisor, de outro líder, de outra igreja e para áreas restritas                              |
+
+**Rode também contra `pnpm dev`.** A suíte sobe o build de produção, e dois
+defeitos da rodada de QA só existiam em desenvolvimento — que é onde a
+homologação manual acontece:
+
+```bash
+PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm exec playwright test varredura estados-de-erro formularios acesso-indevido --project=desktop
+```
+
+O relatório de cada rodada fica em `docs/qa/relatorio-testes-renovo-conecta.md`.
+
+---
+
 ## 6. Dados de teste
 
 - **Exclusivamente fictícios.** Nunca dados reais da Igreja Renovo — nem em teste, nem em captura de tela, nem em relato de bug.
@@ -193,5 +219,5 @@ Nem tudo se automatiza. Antes da entrada em produção:
 - [ ] Uso em conexão lenta (throttling 3G)
 - [ ] Leitura do estudo em tela de 360 px, em ambiente com pouca luz
 - [ ] Navegação por leitor de tela nas telas principais
-- [ ] Tentativa deliberada de acessar Elo de outro supervisor por URL direta
+- [x] Tentativa deliberada de acessar Elo de outro supervisor por URL direta — automatizada em `acesso-indevido.spec.ts` (rodada de QA de 2026-10-09)
 - [ ] Verificação de que nenhum e-mail ou notificação expõe dado pessoal na pré-visualização

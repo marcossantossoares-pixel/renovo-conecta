@@ -9,6 +9,7 @@ import { requireAuthenticatedContext } from '@/core/auth/session';
 import { todayIso } from '@/lib/format';
 import { getEloForViewer } from '@/modules/elos/service';
 import { getReportByDateForViewer, canSubmitReport } from '@/modules/reports/service';
+import { idDaRota } from '@/lib/route-id';
 import { ReportForm, type ReportValues } from './report-form';
 
 export const metadata: Metadata = {
@@ -59,7 +60,7 @@ export default async function RelatorioPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (!canSubmitReport(claims, congregationId, id)) {
     forbidden();

@@ -9,6 +9,7 @@ import { isoDateToBrInput } from '@/lib/format';
 import { updatePersonAction } from '@/modules/people/actions';
 import { canWriteEcclesiasticalFields } from '@/modules/people/fields';
 import { getPersonForViewer } from '@/modules/people/service';
+import { idDaRota } from '@/lib/route-id';
 import { PersonForm } from '../../person-form';
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default async function EditarPessoaPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (
     !can(claims, 'person.update', {

@@ -24,8 +24,10 @@ import { assignRole, revokeRole } from './repository';
  */
 
 const alterarPapelSchema = z.object({
-  appUserId: z.uuid(),
-  roleCode: z.string().min(1),
+  appUserId: z.uuid('Dados inválidos.'),
+  // O seletor abre na opção vazia "Conceder papel…": quem clica em "Conceder"
+  // sem escolher precisa saber o que faltou, e não ler "dados inválidos".
+  roleCode: z.string().min(1, 'Escolha o papel antes de conceder.'),
 });
 
 /** Mensagem única para qualquer recusa — não revela qual regra barrou. */
@@ -47,7 +49,7 @@ async function alterarPapel(
   });
 
   if (!analise.success) {
-    return { error: 'Dados inválidos.' };
+    return { error: analise.error.issues[0]?.message ?? 'Dados inválidos.' };
   }
 
   const congregationId = claims.congregation_ids[0];
