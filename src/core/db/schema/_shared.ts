@@ -214,6 +214,40 @@ export const dataSubjectRequestStatusEnum = pgEnum('data_subject_request_status'
   'recusada',
 ]);
 
+/**
+ * Quem registra uma etapa da jornada (Fase 13).
+ *
+ * `lideranca` abre a etapa a supervisor, líder e vice, nos próprios Elos;
+ * `secretaria`, só a quem responde pela congregação. Etapa que alimenta o
+ * cadastro é sempre `secretaria` — `CHECK` no banco (migration 0019).
+ */
+export const journeyRegistrarEnum = pgEnum('journey_registrar', [
+  'lideranca',
+  'secretaria',
+]);
+
+/** "Não iniciada" não é status: é a ausência de linha. */
+export const journeyStepStatusEnum = pgEnum('journey_step_status', [
+  'pendente',
+  'em_andamento',
+  'concluida',
+  'nao_se_aplica',
+]);
+
+/**
+ * As cinco datas de `person` que passam a vir da jornada (ADR-010).
+ *
+ * `enum`, e não texto: o gatilho de sincronia monta o nome da coluna a partir
+ * deste valor.
+ */
+export const journeyPersonFieldEnum = pgEnum('journey_person_field', [
+  'first_visit_at',
+  'decision_at',
+  'integration_course_at',
+  'baptism_at',
+  'membership_at',
+]);
+
 /** Escopo de uma atribuição de papel. Ver docs/PERMISSIONS.md §2. */
 export const scopeTypeEnum = pgEnum('scope_type', [
   'global',

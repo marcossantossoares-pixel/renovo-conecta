@@ -45,6 +45,8 @@ blob-report/
 .branches
 .temp
 supabase/.temp/
+# Pilha de teste, gerada por scripts/banco-de-teste.ts a cada execução.
+supabase/.teste/
 
 # Sistema operacional
 .DS_Store

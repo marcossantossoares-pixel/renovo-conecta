@@ -247,8 +247,13 @@ test('a coordenação recebe os campos eclesiásticos', async ({ page }) => {
   await entrar(page, COORDENADORA.email);
   await page.goto('/pessoas/nova');
 
-  await expect(page.getByLabel('Batismo nas águas')).toBeVisible();
   await expect(page.getByLabel('Situação')).toBeVisible();
+  await expect(page.getByLabel('Como conheceu a igreja')).toBeVisible();
+
+  // Desde a Fase 13 o batismo e as outras quatro datas vêm da jornada (ADR-010):
+  // nem a coordenação as digita no cadastro.
+  await expect(page.getByLabel('Batismo nas águas')).toHaveCount(0);
+  await expect(page.getByText(/registrados na\s+jornada da pessoa/)).toBeVisible();
 });
 
 /* ---------------------------------------------------------------------- */

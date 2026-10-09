@@ -268,3 +268,33 @@ Todo fluxo acima precisa cobrir, na implementação:
 | **Offline**       | Aviso claro; rascunho preservado no formulário de relatório                           |
 | **Confirmação**   | Diálogo explícito antes de qualquer ação destrutiva                                   |
 | **Sucesso**       | Confirmação visível, especialmente no envio do relatório                              |
+
+---
+
+## 13. Registro de etapa da jornada (Fase 13)
+
+```mermaid
+flowchart TD
+    A[Abre o perfil da pessoa] --> B{journey.read e a pessoa no alcance?}
+    B -->|Nao| C[Nao encontrado]
+    B -->|Sim| D[Ve as etapas na ordem da igreja, com situacao e prazo]
+    D --> E{A etapa e aberta a esta sessao?}
+    E -->|Nao: etapa da secretaria| F[Sem botao, com o motivo escrito]
+    E -->|Sim| G[Registra situacao, data, proxima acao, prazo, responsavel]
+    G --> H{Servidor: etapa e pessoa no alcance? RLS confirma?}
+    H -->|Nao| I[Recusa pelo nome da etapa, ou nao encontrado]
+    H -->|Sim| J[Grava a etapa + historico + audit_log]
+    J --> K{Etapa grava data no cadastro?}
+    K -->|Sim| L[Gatilho grava a data em person e no historico do cadastro]
+    K -->|Nao| M[Fim]
+    L --> M
+```
+
+**Ponto crítico:** as cinco datas eclesiásticas do cadastro — primeira visita,
+decisão, curso de integração, batismo e membresia — **só mudam por aqui**
+(ADR-010). O formulário da pessoa as mostra para leitura, com link para a
+jornada, e o banco recusa qualquer outro caminho.
+
+**Configuração:** o pastor altera nome, ordem, quem registra e o prazo padrão das
+etapas em `/pessoas/jornada`; a coordenação vê as regras e não as muda. Etapa com
+registro se arquiva, não se exclui.

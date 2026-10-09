@@ -5,12 +5,15 @@ import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
-import { isoDateToBrInput } from '@/lib/format';
+import { isoDateToBr, isoDateToBrInput } from '@/lib/format';
 import { updatePersonAction } from '@/modules/people/actions';
 import { canWriteEcclesiasticalFields } from '@/modules/people/fields';
 import { getPersonForViewer } from '@/modules/people/service';
 import { idDaRota } from '@/lib/route-id';
 import { PersonForm } from '../../person-form';
+
+/** Data do cadastro para leitura: vazia continua vazia, e a tela mostra o travessão. */
+const exibir = (valor: string | null) => (valor ? isoDateToBr(valor) : null);
 
 export const metadata: Metadata = {
   title: 'Editar pessoa · Renovo Conecta',
@@ -68,12 +71,14 @@ export default async function EditarPessoaPage({
           email: person.email,
           notes: person.notes,
           churchStatus: person.church_status,
-          firstVisitAt: isoDateToBrInput(person.first_visit_at),
           howFoundChurch: person.how_found_church,
-          decisionAt: isoDateToBrInput(person.decision_at),
-          baptismAt: isoDateToBrInput(person.baptism_at),
-          integrationCourseAt: isoDateToBrInput(person.integration_course_at),
-          membershipAt: isoDateToBrInput(person.membership_at),
+          journeyDates: {
+            firstVisitAt: exibir(person.first_visit_at),
+            decisionAt: exibir(person.decision_at),
+            integrationCourseAt: exibir(person.integration_course_at),
+            baptismAt: exibir(person.baptism_at),
+            membershipAt: exibir(person.membership_at),
+          },
           street: person.street,
           number: person.number,
           complement: person.complement,

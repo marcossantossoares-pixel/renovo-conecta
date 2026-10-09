@@ -6,6 +6,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
+import { DescriptionItem } from '@/components/ui/description-item';
 import { Input } from '@/components/ui/input';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { Select } from '@/components/ui/select';
@@ -41,12 +42,19 @@ export interface PersonFormValues {
   readonly email?: string | null;
   readonly notes?: string | null;
   readonly churchStatus?: string | null;
-  readonly firstVisitAt?: string | null;
   readonly howFoundChurch?: string | null;
-  readonly decisionAt?: string | null;
-  readonly baptismAt?: string | null;
-  readonly integrationCourseAt?: string | null;
-  readonly membershipAt?: string | null;
+  /**
+   * As cinco datas que vêm da jornada (ADR-010), já em `dd/mm/aaaa`. Só leitura:
+   * o formulário as mostra para quem edita saber o que está no cadastro, e
+   * aponta para a jornada, que é onde elas mudam.
+   */
+  readonly journeyDates?: {
+    readonly firstVisitAt: string | null;
+    readonly decisionAt: string | null;
+    readonly integrationCourseAt: string | null;
+    readonly baptismAt: string | null;
+    readonly membershipAt: string | null;
+  };
   readonly street?: string | null;
   readonly number?: string | null;
   readonly complement?: string | null;
@@ -91,7 +99,9 @@ export function PersonForm({
   const [estado, enviar, enviando] = useActionState(action, ESTADO_INICIAL);
 
   const erro = (campo: string) => estado.fieldErrors?.[campo];
-  const valor = (campo: keyof PersonFormValues) => values[campo] ?? '';
+  // `journeyDates` fica de fora: é leitura, e não valor de campo.
+  const valor = (campo: Exclude<keyof PersonFormValues, 'journeyDates'>) =>
+    values[campo] ?? '';
 
   return (
     <form action={enviar} className="flex flex-col gap-6" noValidate>
@@ -290,8 +300,9 @@ export function PersonForm({
             <div>
               <CardTitle as="h2">Dados eclesiásticos</CardTitle>
               <CardDescription>
-                Registram a caminhada da pessoa na igreja. Só a secretaria, a
-                coordenação e o pastor alteram estes campos.
+                Só a secretaria, a coordenação e o pastor alteram estes campos. As datas
+                da caminhada — primeira visita, decisão, curso, batismo e membresia —
+                vêm da jornada da pessoa.
               </CardDescription>
             </div>
           </CardHeader>
@@ -308,53 +319,59 @@ export function PersonForm({
               error={erro('churchStatus')}
             />
 
-            <MaskedInput
-              label="Primeira visita"
-              name="firstVisitAt"
-              mask="date"
-              defaultValue={valor('firstVisitAt')}
-              error={erro('firstVisitAt')}
-            />
-
             <Input
               label="Como conheceu a igreja"
               name="howFoundChurch"
               defaultValue={valor('howFoundChurch')}
               error={erro('howFoundChurch')}
-              fieldClassName="sm:col-span-2"
             />
 
-            <MaskedInput
-              label="Decisão por Cristo"
-              name="decisionAt"
-              mask="date"
-              defaultValue={valor('decisionAt')}
-              error={erro('decisionAt')}
-            />
-
-            <MaskedInput
-              label="Batismo nas águas"
-              name="baptismAt"
-              mask="date"
-              defaultValue={valor('baptismAt')}
-              error={erro('baptismAt')}
-            />
-
-            <MaskedInput
-              label="Curso de integração"
-              name="integrationCourseAt"
-              mask="date"
-              defaultValue={valor('integrationCourseAt')}
-              error={erro('integrationCourseAt')}
-            />
-
-            <MaskedInput
-              label="Recebimento como membro"
-              name="membershipAt"
-              mask="date"
-              defaultValue={valor('membershipAt')}
-              error={erro('membershipAt')}
-            />
+            {/*
+             * Sem campo de data, de propósito, e não campo desabilitado: o
+             * cadastro recusa essas datas (migration 0019), e um campo que parece
+             * editável promete o que não se cumpre.
+             */}
+            {values?.id && values.journeyDates ? (
+              <div className="flex flex-col gap-3 sm:col-span-2">
+                <dl className="grid gap-4 sm:grid-cols-3">
+                  <DescriptionItem
+                    rotulo="Primeira visita"
+                    valor={values.journeyDates.firstVisitAt}
+                  />
+                  <DescriptionItem
+                    rotulo="Decisão por Cristo"
+                    valor={values.journeyDates.decisionAt}
+                  />
+                  <DescriptionItem
+                    rotulo="Curso de integração"
+                    valor={values.journeyDates.integrationCourseAt}
+                  />
+                  <DescriptionItem
+                    rotulo="Batismo nas águas"
+                    valor={values.journeyDates.baptismAt}
+                  />
+                  <DescriptionItem
+                    rotulo="Recebimento como membro"
+                    valor={values.journeyDates.membershipAt}
+                  />
+                </dl>
+                <p className="text-sm text-text-muted">
+                  Para alterar essas datas,{' '}
+                  <a
+                    href={`/pessoas/${values.id}#jornada`}
+                    className="font-medium text-primary underline underline-offset-2"
+                  >
+                    registre a etapa na jornada
+                  </a>
+                  .
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-text-muted sm:col-span-2">
+                Primeira visita, decisão, curso, batismo e membresia são registrados na
+                jornada da pessoa, depois do cadastro.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

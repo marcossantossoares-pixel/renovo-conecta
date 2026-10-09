@@ -146,6 +146,10 @@ export const TABELAS_COM_TENANT = [
   'supervision_assignment',
   'elo_multiplication',
   'file_attachment',
+  // Fase 13: a jornada entra na varredura desde o primeiro dia.
+  'journey_stage',
+  'person_journey_step',
+  'journey_step_change_log',
 ] as const;
 
 /* ---------------------------------------------------------------------- */

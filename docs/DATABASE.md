@@ -21,7 +21,9 @@ Migrations: `supabase/migrations/0000_core_schema.sql` (gerada e revisada) e
 
 **Implementadas depois do núcleo:** relatórios semanais (Fase 8, migration 0013),
 estudos e anexos (Fase 9, migrations 0014 e 0015), consentimentos e solicitações
-do titular (Fase 11, migration 0016).
+do titular (Fase 11, migration 0016), e a jornada da pessoa (Fase 13, migration
+0019: `journey_stage`, `person_journey_step`, `journey_step_change_log`, em
+`src/core/db/schema/journey.ts`).
 
 ---
 
@@ -506,6 +508,9 @@ Os índices usados pelas políticas de RLS são críticos: sem eles, cada consul
 - `audit_log` — sem `UPDATE` nem `DELETE`, garantido por permissão de banco e por trigger.
 - `person.birth_date` — não pode ser futura.
 - `elo_report` — soma das parcelas de presença precisa bater com `total_present` (validado no serviço e por `CHECK`).
+- `person.first_visit_at`, `decision_at`, `integration_course_at`, `baptism_at`, `membership_at` — **derivadas da jornada** desde a Fase 13 (ADR-010). Quem as escreve é o gatilho `app.sync_journey_to_person()`, a partir da etapa concluída vinculada; o gatilho `app.person_journey_fields_guard()` recusa qualquer outro valor, inclusive para `postgres`. A regra é sobre o valor, e não sobre quem escreve: não há sinalizador de sessão que um caminho possa esquecer.
+- `person_journey_step` — uma linha por `(person_id, stage_id)`; etapa concluída exige `occurred_on`; pessoa, etapa e linha na mesma congregação; etapa arquivada não recebe linha nova; a linha não troca de pessoa nem de etapa. Histórico campo a campo em `journey_step_change_log`, escrito só por gatilho, como `person_change_log`.
+- `journey_stage` — no máximo uma etapa por coluna de `person` em cada congregação; etapa vinculada ao cadastro é da secretaria (`CHECK`, nota 4 de `PERMISSIONS.md` §4); o vínculo não muda depois de criado. Toda congregação nasce com as doze etapas padrão da §4.4, por gatilho.
 
 ---
 
@@ -527,12 +532,17 @@ Presentes no planejamento para evitar migração destrutiva no futuro. **Não re
 | --------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------- |
 | `pastoral_note`                                                       | Prioridade 2 | **Dado altamente restrito** — RLS mais rígida e log de todo acesso desde o desenho |
 | `prayer_request`                                                      | Prioridade 2 | Idem; inclui níveis de visibilidade e anonimato                                    |
-| `journey_stage`, `person_journey`                                     | Prioridade 2 | Jornada configurável                                                               |
 | `follow_up_task`                                                      | Prioridade 2 | Tarefas de acompanhamento                                                          |
 | `ministry`, `ministry_member`, `volunteer_role`, `volunteer_schedule` | Prioridade 2 | Ministérios e escalas                                                              |
 | `event`, `event_ticket_type`, `event_registration`, `event_check_in`  | Prioridade 2 | Eventos e check-in                                                                 |
 | `announcement`, `notification`                                        | Prioridade 2 | Comunicação                                                                        |
 | `donation`, `transaction`                                             | Prioridade 3 | **Acesso financeiro segregado**; nunca visível a líder, vice ou supervisor         |
+
+`journey_stage` e `person_journey` saíram desta lista na **Fase 13** — a segunda
+com o nome `person_journey_step`, porque cada linha é uma etapa, e não a jornada
+inteira. `follow_up_task` continua reservada: a próxima ação e o prazo de cada
+etapa cobrem o acompanhamento **da jornada**; tarefas soltas, sem etapa, são outra
+coisa e não foram pedidas.
 
 ---
 

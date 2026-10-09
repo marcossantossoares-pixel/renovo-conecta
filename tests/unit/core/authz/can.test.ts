@@ -284,10 +284,29 @@ describe('integridade do catálogo', () => {
    * 29 na Fase 5; 36 desde a Fase 8, que acrescentou as sete de `report`; 41
    * desde a Fase 9, com as cinco de `study`; 44 desde a Fase 11, com as três de
    * `privacy` — que constavam na §3 desde a Fase 0 e **nunca tinham existido no
-   * catálogo**. Foi este caso que apontou a lacuna.
+   * catálogo**. Foi este caso que apontou a lacuna. 47 desde a Fase 13, com as
+   * três de `journey`.
    */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(44);
+    expect(ALL_PERMISSIONS).toHaveLength(47);
+  });
+
+  /**
+   * A jornada é parte do cadastro: ler e registrar repetem `person.read` e
+   * `person.update`, papel por papel. Configurar é pastoral, como
+   * `setting.update` — a coordenação lê as etapas e não as muda.
+   */
+  it('a jornada segue o alcance do cadastro, e configurar é pastoral', () => {
+    expect(PERMISSION_GRANTS['journey.read']).toEqual(PERMISSION_GRANTS['person.read']);
+
+    const { membro: _membroAtualiza, ...updateSemMembro } =
+      PERMISSION_GRANTS['person.update'];
+    expect(PERMISSION_GRANTS['journey.update']).toEqual(updateSemMembro);
+
+    expect(PERMISSION_GRANTS['journey.configure']).toEqual({
+      superadmin: 'global',
+      pastor_admin: 'congregation',
+    });
   });
 
   /**

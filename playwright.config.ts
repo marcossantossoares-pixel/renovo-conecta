@@ -23,6 +23,7 @@ try {
  * (docs/PRD.md §8) — não faz sentido descobrir problemas de mobile só no fim.
  */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000';
+const portaDoServidor = new URL(baseURL).port || '3000';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -77,6 +78,7 @@ export default defineConfig({
         '**/privacidade.spec.ts',
         '**/fluxos-obrigatorios.spec.ts',
         '**/varredura-pastor.spec.ts',
+        '**/jornada-configuracao.spec.ts',
       ],
     },
     {
@@ -110,6 +112,10 @@ export default defineConfig({
         // `studies`: cria e publica um estudo em série; duas execuções
         // disputariam a mesma linha e a veriam pela metade.
         '**/studies.spec.ts',
+        // `jornada`: registra etapas de pessoas do seed — uma por pessoa e
+        // etapa, e as duas execuções disputariam a mesma linha.
+        '**/jornada.spec.ts',
+        '**/jornada-configuracao.spec.ts',
         // `dashboard`, `relatorios` e `privacidade`: têm projeto próprio, logo
         // abaixo.
         '**/dashboard.spec.ts',
@@ -162,14 +168,27 @@ export default defineConfig({
         // A varredura das telas do pastor (rodada de QA de 2026-10-09): mesma
         // razão — a conta exige o segundo fator que `mfa.spec.ts` apaga.
         '**/varredura-pastor.spec.ts',
+        // Fase 13: configurar as etapas é do pastor — mesma razão.
+        '**/jornada-configuracao.spec.ts',
       ],
       dependencies: ['desktop', 'mobile'],
       workers: 1,
     },
   ],
 
+  /*
+   * Porta tirada da `baseURL`: `pnpm test:e2e` aponta para a 3100, com a pilha
+   * de teste (`scripts/banco-de-teste.ts`), e nunca reaproveita o `pnpm dev`
+   * da homologação na 3000 — que falaria com o outro banco.
+   *
+   * `E2E_SERVIDOR=dev` troca o build de produção pelo modo de desenvolvimento,
+   * onde a homologação acontece e onde dois defeitos da rodada de QA 1 viviam.
+   */
   webServer: {
-    command: 'pnpm build && pnpm start',
+    command:
+      process.env.E2E_SERVIDOR === 'dev'
+        ? `pnpm dev --port ${portaDoServidor}`
+        : `pnpm build && pnpm start --port ${portaDoServidor}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

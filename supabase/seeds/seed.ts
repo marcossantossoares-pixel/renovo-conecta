@@ -28,8 +28,10 @@ import {
   ELOS,
   ELO_OUTRO_TENANT,
   ESTUDOS,
+  JORNADA_DEMO,
   LIDERANCA,
   MOTIVO_CORRECAO,
+  RECEBIMENTO_LIDERANCA,
   RELATORIOS,
   PARTICIPANTES,
   PASTOR,
@@ -44,6 +46,7 @@ import {
   VERSAO_POLITICA_DEMO,
   VISITANTES,
   participantesDoElo,
+  type JourneyStepSeed,
 } from './fixtures.ts';
 
 try {
@@ -91,6 +94,42 @@ const client = postgres(databaseUrl, { max: 1 });
 const db = drizzle(client);
 
 const hoje = new Date().toISOString().slice(0, 10);
+
+type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Registra uma etapa da jornada da demonstração (Fase 13).
+ *
+ * A etapa é achada pelo campo do cadastro que alimenta, ou pelo nome — e, se a
+ * igreja da homologação tiver renomeado uma etapa sem vínculo, o cenário
+ * simplesmente não se cria, em vez de criar uma etapa com o nome antigo.
+ *
+ * Reexecutar o seed **renova o prazo** do que está por fazer: um "atrasado há
+ * três dias" cravado na data do primeiro seed viraria "atrasado há três
+ * meses", a mesma armadilha que o DEF-01 da rodada de QA encontrou nos estudos.
+ */
+async function registrarEtapa(tx: Transacao, etapa: JourneyStepSeed): Promise<void> {
+  const prazo = etapa.prazoEmDias ?? null;
+
+  await tx.execute(sql`
+    INSERT INTO person_journey_step (
+      tenant_id, congregation_id, person_id, stage_id, status, occurred_on,
+      due_on, next_action, responsible_person_id
+    )
+    SELECT ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+           ${etapa.personId}::uuid, st.id, ${etapa.status}::journey_step_status,
+           ${etapa.occurredOn ?? null}::date,
+           app.hoje() + ${prazo}::integer,
+           ${etapa.nextAction ?? null}, ${etapa.responsiblePersonId ?? null}::uuid
+      FROM journey_stage st
+     WHERE st.congregation_id = ${CONGREGACAO_CENTRAL}::uuid
+       AND (st.person_field::text = ${etapa.etapa}
+            OR (st.person_field IS NULL AND st.name = ${etapa.etapa}))
+    ON CONFLICT (person_id, stage_id) DO UPDATE
+       SET due_on = EXCLUDED.due_on
+     WHERE person_journey_step.status IN ('pendente', 'em_andamento')
+  `);
+}
 
 async function main(): Promise<void> {
   console.log('Semeando dados fictícios…');
@@ -178,17 +217,26 @@ async function main(): Promise<void> {
       await tx.execute(sql`
         INSERT INTO person (
           id, tenant_id, congregation_id, full_name, email, phone,
-          church_status, birth_date, membership_at
+          church_status, birth_date
         )
         VALUES (
           ${pessoa.personId}::uuid, ${TENANT_DEMO}::uuid,
           ${CONGREGACAO_CENTRAL}::uuid, ${pessoa.fullName}, ${pessoa.email},
           ${TELEFONE_FICTICIO(index + 1)},
           ${pessoa.roleCode === 'pastor_admin' ? 'pastor' : 'lider'}::church_status,
-          ${`${1970 + index}-06-21`}::date, '2020-01-15'::date
+          ${`${1970 + index}-06-21`}::date
         )
         ON CONFLICT (id) DO NOTHING
       `);
+
+      // A data de membresia vem da jornada desde a Fase 13 (ADR-010): o
+      // gatilho da etapa preenche `person.membership_at`.
+      await registrarEtapa(tx, {
+        personId: pessoa.personId,
+        etapa: 'membership_at',
+        status: 'concluida',
+        occurredOn: RECEBIMENTO_LIDERANCA,
+      });
 
       await tx.execute(sql`
         INSERT INTO app_user (
@@ -238,18 +286,32 @@ async function main(): Promise<void> {
       await tx.execute(sql`
         INSERT INTO person (
           id, tenant_id, congregation_id, full_name, phone, church_status,
-          birth_date, first_visit_at, created_at
+          birth_date, created_at
         )
         VALUES (
           ${pessoa.id}::uuid, ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
           ${pessoa.fullName}, ${TELEFONE_FICTICIO(index + 100)},
           ${pessoa.churchStatus}::church_status,
           ${pessoa.birthDate}::date,
-          ${pessoa.churchStatus === 'visitante' ? hoje : null}::date,
           now() - ${`${mesesAtras} months`}::interval
         )
         ON CONFLICT (id) DO NOTHING
       `);
+
+      // A primeira visita do visitante, pela jornada (ADR-010).
+      if (pessoa.churchStatus === 'visitante') {
+        await registrarEtapa(tx, {
+          personId: pessoa.id,
+          etapa: 'first_visit_at',
+          status: 'concluida',
+          occurredOn: hoje,
+        });
+      }
+    }
+
+    // --- Jornada: os cenários de acompanhamento ---------------------------
+    for (const etapa of JORNADA_DEMO) {
+      await registrarEtapa(tx, etapa);
     }
 
     // --- Elos -------------------------------------------------------------

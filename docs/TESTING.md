@@ -47,6 +47,8 @@ Executa uma vez por papel, com sessão real e claims reais. Nenhuma tabela entra
 | 8   | Sessão sem claims válidas consulta qualquer tabela             | Zero linhas — **nunca** a tabela inteira |
 | 9   | Membro (papel ativado) consulta cadastro de terceiro           | Zero linhas                              |
 | 10  | Líder ou supervisor consulta estudo em rascunho ou agendado    | Zero linhas                              |
+| 11  | Líder registra etapa da jornada da secretaria, ou fora do Elo  | Negado pela RLS                          |
+| 12  | Qualquer papel grava data eclesiástica direto em `person`      | Erro no banco, inclusive para `postgres` |
 
 **Regra de cobertura:** para cada tabela nova, um teste que prova que um usuário fora do escopo recebe zero linhas. Sem esse teste, a tabela não é considerada pronta.
 
@@ -119,6 +121,15 @@ iluminada.
 - Histórico de alterações registra campo, valor anterior e autor.
 - Regras de menores aplicadas em listagem e exportação.
 
+### Jornada da pessoa (Fase 13)
+
+- Etapa da secretaria (batismo, membresia, decisão…) não é registrada pela liderança, e não é **oferecida** a ela na tela.
+- Concluir a etapa vinculada grava a data no cadastro; reabrir apaga; o histórico do cadastro registra quem.
+- Nenhum caminho grava as cinco datas em `person` sem a jornada — nem o seed, nem o dono do banco.
+- Etapa arquivada não recebe registro novo; etapa planejada recebe o prazo padrão.
+- Anonimizar limpa observações, próxima ação e responsável, apaga o histórico das etapas e preserva as etapas.
+- O painel conta os acompanhamentos atrasados no alcance de quem olha: a coordenação vê os da congregação, o líder os do próprio Elo.
+
 ### Privacidade e LGPD
 
 - Exportação dos dados do titular completa e estruturada.
@@ -153,10 +164,12 @@ uma tela nova.
 
 **Rode também contra `pnpm dev`.** A suíte sobe o build de produção, e dois
 defeitos da rodada de QA só existiam em desenvolvimento — que é onde a
-homologação manual acontece:
+homologação manual acontece. Desde a Fase 13 isso também roda na pilha de teste
+(ADR-011), com `E2E_SERVIDOR=dev`. Pare antes o `pnpm dev` da homologação: o Next
+não sobe dois servidores de desenvolvimento no mesmo diretório.
 
 ```bash
-PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm exec playwright test varredura estados-de-erro formularios acesso-indevido --project=desktop
+E2E_SERVIDOR=dev pnpm test:e2e varredura estados-de-erro formularios acesso-indevido --project=desktop
 ```
 
 O relatório de cada rodada fica em `docs/qa/relatorio-testes-renovo-conecta.md`.
@@ -179,16 +192,35 @@ pnpm test
 ```
 
 ```bash
-pnpm test:e2e
-```
-
-A suíte de isolamento exige banco de pé (`pnpm exec supabase start`, depois `pnpm db:migrate` e `pnpm db:seed`):
-
-```bash
 pnpm test:rls
 ```
 
-Ela roda com configuração própria (`vitest.rls.config.ts`) para que `pnpm test` continue funcionando em qualquer máquina, com ou sem Docker.
+```bash
+pnpm test:e2e
+```
+
+A suíte unitária roda em qualquer máquina, com ou sem Docker. As outras duas
+exigem Docker e **rodam numa pilha do Supabase só delas** (ADR-011, PEND-02 da
+rodada de QA 1): `scripts/banco-de-teste.ts` sobe a pilha `renovo-conecta-teste`
+nas portas 544xx, **recria o banco do zero**, aplica as migrations pelo Drizzle,
+semeia, e só então roda o comando. O app sob teste sobe na porta 3100. O banco
+da homologação manual (pilha principal, portas 543xx, `pnpm dev` na 3000) nunca é
+tocado — um Elo criado à mão ali não derruba mais teste nenhum.
+
+- `pnpm db:teste` só prepara o banco de teste, sem rodar nada.
+- `BANCO_DE_TESTE_REUSAR=1` pula a recriação, para iterar num teste sem pagar
+  os ~35 s de cada vez. A primeira subida da pilha recria sempre.
+- Para desligar a pilha de teste: `pnpm exec supabase stop --workdir supabase/.teste`.
+- O build deixado em `.next` por `pnpm test:e2e` aponta para a pilha de teste.
+  Para usar `pnpm start` contra a homologação, refaça o `pnpm build`.
+
+A suíte de isolamento tem configuração própria (`vitest.rls.config.ts`) para que
+`pnpm test` continue funcionando sem Docker.
+
+No CI o script passa direto (`CI` definido): não há homologação manual para
+separar, e o workflow sobe a pilha de sempre. Por isso o gerador da configuração
+da pilha de teste tem teste unitário próprio — é ele que avisa, no CI, quando uma
+mudança no `supabase/config.toml` quebraria a geração.
 
 Pipeline de CI: `lint` → `format:check` → `typecheck` → `test` → `build`, depois, em paralelo, o job de **isolamento** (que sobe o stack real do Supabase, aplica migrations do zero, semeia e roda `test:rls`) e o job de **e2e**. Em separado, scan de segredos e auditoria de dependências.
 

@@ -126,12 +126,9 @@ const personalFieldsSchema = z.object({
  */
 const ecclesiasticalFieldsSchema = z.object({
   churchStatus: z.enum(CHURCH_STATUSES, 'Escolha a situação na igreja.'),
-  firstVisitAt: optionalDate,
   howFoundChurch: optionalText,
-  decisionAt: optionalDate,
-  baptismAt: optionalDate,
-  integrationCourseAt: optionalDate,
-  membershipAt: optionalDate,
+  // Primeira visita, decisão, curso de integração, batismo e membresia não
+  // estão aqui desde a Fase 13: vêm da jornada (ADR-010, `fields.ts`).
 });
 
 /** Endereço. Uma pessoa tem no máximo um endereço principal no MVP. */

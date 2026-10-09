@@ -14,18 +14,24 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
 import { formatDateTime, isoDateToBr } from '@/lib/format';
+import { getPersonJourneyForViewer } from '@/modules/journey/service';
 import { fieldLabel } from '@/modules/people/fields';
 import {
   listPersonHistory,
   listPersonTags,
   listTags,
 } from '@/modules/people/repository';
-import { CHURCH_STATUS_LABELS, MARITAL_STATUS_LABELS } from '@/modules/people/schemas';
-import { getPersonForViewer } from '@/modules/people/service';
+import {
+  CHURCH_STATUS_LABELS,
+  MARITAL_STATUS_LABELS,
+  toOptions,
+} from '@/modules/people/schemas';
+import { getPersonForViewer, listPersonOptions } from '@/modules/people/service';
 import { currentConsentsForViewer } from '@/modules/privacy/service';
 import { idDaRota } from '@/lib/route-id';
 import { ConsentPanel } from './consent-panel';
 import { DeletePerson } from './delete-person';
+import { JourneyPanel } from './journey-panel';
 import { TagManager } from './tag-manager';
 
 export const metadata: Metadata = {
@@ -88,12 +94,22 @@ export default async function PessoaPage({
     congregationId,
   });
 
-  const [etiquetas, disponiveis, historico, consentimentos] = await Promise.all([
-    listPersonTags(claims, person.id),
-    podeEditar ? listTags(claims) : Promise.resolve([]),
-    podeVerHistorico ? listPersonHistory(claims, person.id) : Promise.resolve([]),
-    currentConsentsForViewer(claims, congregationId, person.id),
-  ]);
+  const [etiquetas, disponiveis, historico, consentimentos, jornada] =
+    await Promise.all([
+      listPersonTags(claims, person.id),
+      podeEditar ? listTags(claims) : Promise.resolve([]),
+      podeVerHistorico ? listPersonHistory(claims, person.id) : Promise.resolve([]),
+      currentConsentsForViewer(claims, congregationId, person.id),
+      // A congregação da LINHA, e não das claims: é a das etapas desta pessoa.
+      getPersonJourneyForViewer(claims, {
+        id: person.id,
+        congregationId: person.congregation_id,
+      }),
+    ]);
+
+  // Quem pode ser responsável é quem a sessão enxerga — a RLS recorta a lista:
+  // o líder escolhe entre as pessoas do próprio Elo.
+  const responsaveis = jornada?.canRegisterAny ? await listPersonOptions(claims) : [];
 
   const contatoOculto = person.is_minor && !showsMinorContact;
   const nomeExibido = person.social_name ?? person.full_name;
@@ -187,7 +203,8 @@ export default async function PessoaPage({
             <div>
               <CardTitle as="h2">Dados eclesiásticos</CardTitle>
               <CardDescription>
-                Registrados pela secretaria, pela coordenação ou pelo pastor.
+                As datas vêm da jornada, logo abaixo: concluir a etapa grava a data
+                aqui.
               </CardDescription>
             </div>
           </CardHeader>
@@ -266,6 +283,56 @@ export default async function PessoaPage({
           </CardContent>
         </Card>
       </div>
+
+      {jornada && (
+        <Card className="mt-6" id="jornada">
+          <CardHeader>
+            <div>
+              <CardTitle as="h2">Jornada</CardTitle>
+              <CardDescription>
+                A caminhada da pessoa na igreja, etapa por etapa, na ordem que a igreja
+                definiu.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <JourneyPanel
+              personId={person.id}
+              steps={jornada.steps.map((etapa) => ({
+                stageId: etapa.stage_id,
+                stageName: etapa.stage_name,
+                stageDescription: etapa.stage_description,
+                feedsRecord: etapa.person_field !== null,
+                stageArchived: etapa.stage_archived_at !== null,
+                status: etapa.status,
+                occurredOn: etapa.occurred_on,
+                dueOn: etapa.due_on,
+                notes: etapa.notes,
+                nextAction: etapa.next_action,
+                responsiblePersonId: etapa.responsible_person_id,
+                responsibleName: etapa.responsible_name,
+                updatedAt: etapa.updated_at,
+                updatedByName: etapa.updated_by_name,
+                canRegister: etapa.canRegister,
+                overdue: etapa.overdue,
+              }))}
+              responsibleOptions={toOptions(
+                responsaveis.filter((opcao) => opcao.id !== person.id),
+              )}
+              history={jornada.history.map((linha) => ({
+                id: linha.id,
+                stageName: linha.stage_name,
+                fieldName: linha.field_name,
+                oldValue: linha.old_value,
+                newValue: linha.new_value,
+                changedAt: linha.changed_at,
+                changedByName: linha.changed_by_name,
+              }))}
+              showsHistory={podeVerHistorico}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {podeVerHistorico && (
         <Card className="mt-6">

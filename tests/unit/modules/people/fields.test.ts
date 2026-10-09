@@ -8,6 +8,7 @@ import {
   fieldLabel,
   hasNarrowPersonScope,
   rejectedEcclesiasticalFields,
+  sentJourneyDerivedFields,
   stripEcclesiasticalFields,
 } from '@/modules/people/fields';
 
@@ -88,13 +89,13 @@ describe('rejectedEcclesiasticalFields', () => {
   });
 
   it('trata campo enviado vazio como tentativa de alterar', () => {
-    // Enviar `baptismAt=''` é pedir para apagar a data do batismo. Ausência é
+    // Enviar `howFoundChurch=''` é pedir para apagar a resposta. Ausência é
     // que significa "não mexi nisso".
     const recusados = rejectedEcclesiasticalFields(lider, 'person.update', {
-      baptismAt: null,
+      howFoundChurch: null,
     });
 
-    expect(recusados).toEqual(['baptismAt']);
+    expect(recusados).toEqual(['howFoundChurch']);
   });
 
   it('deixa passar tudo para quem tem escopo de congregação', () => {
@@ -111,7 +112,7 @@ describe('stripEcclesiasticalFields', () => {
     const limpo = stripEcclesiasticalFields({
       fullName: 'Fulana',
       phone: '(71) 90000-0001',
-      baptismAt: '2020-01-01',
+      howFoundChurch: 'Convite de uma amiga',
       churchStatus: 'membro',
     });
 
@@ -169,5 +170,45 @@ describe('fieldLabel', () => {
 
   it('devolve a própria chave quando não há rótulo', () => {
     expect(fieldLabel('coluna_futura')).toBe('coluna_futura');
+  });
+});
+
+/**
+ * As cinco datas que vêm da jornada desde a Fase 13 (ADR-010).
+ *
+ * A diferença para a regra de campo eclesiástico é que esta não depende de
+ * papel: **ninguém** grava batismo pelo cadastro, nem o pastor. A recusa é pelo
+ * nome, para a tela dizer onde se faz.
+ */
+describe('sentJourneyDerivedFields', () => {
+  function formulario(campos: Record<string, string>): FormData {
+    const dados = new FormData();
+    for (const [chave, valor] of Object.entries(campos)) dados.set(chave, valor);
+    return dados;
+  }
+
+  it('aponta as datas da jornada presentes no envio, mesmo vazias', () => {
+    expect(
+      sentJourneyDerivedFields(
+        formulario({ fullName: 'Fulana', baptismAt: '', membershipAt: '01/01/2020' }),
+      ),
+    ).toEqual(['baptismAt', 'membershipAt']);
+  });
+
+  it('não acusa nada no formulário de hoje, que não tem essas datas', () => {
+    expect(
+      sentJourneyDerivedFields(
+        formulario({ fullName: 'Fulana', churchStatus: 'membro', howFoundChurch: '' }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('as datas da jornada saíram dos campos eclesiásticos do formulário', () => {
+    expect(ECCLESIASTICAL_FIELDS).toEqual(['churchStatus', 'howFoundChurch']);
+  });
+
+  it('a recusa fala com os nomes que a pessoa conhece', () => {
+    expect(fieldLabel('baptismAt')).toBe('Batismo nas águas');
+    expect(fieldLabel('firstVisitAt')).toBe('Primeira visita');
   });
 });

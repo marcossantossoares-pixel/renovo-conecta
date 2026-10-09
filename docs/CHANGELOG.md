@@ -8,6 +8,34 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 13 — Jornada da pessoa (2026-10-09)
+
+- **Jornada configurável** (`MASTER_SPEC` §4.4, migration 0019): as doze etapas
+  da especificação em toda congregação, com nome, ordem, quem registra e prazo
+  padrão alteráveis pelo pastor em `/pessoas/jornada`, e arquivamento no lugar
+  de exclusão.
+- **Registro da etapa no perfil da pessoa** — situação, data, responsável,
+  observações, próxima ação e prazo —, oferecendo só as etapas que a sessão
+  registra. Histórico por etapa, escrito só por gatilho.
+- **A jornada é a fonte das cinco datas eclesiásticas do cadastro** (ADR-010).
+  Concluir a etapa grava a data em `person`; o banco recusa qualquer outro
+  caminho, inclusive o do dono do banco. O formulário da pessoa passou a mostrar
+  essas datas só para leitura.
+- **Acompanhamentos atrasados no painel**, o indicador da "jornada do membro"
+  que a Fase 10a deixou de fora.
+- Três permissões novas: `journey.read`, `journey.update` e `journey.configure`.
+- **Pilha de teste separada** (ADR-011, PEND-02 da rodada de QA 1): RLS e e2e
+  rodam numa segunda pilha local do Supabase, recriada a cada execução.
+
+- **Corrigido — a suíte contava os dados da homologação manual** (PEND-02). Um
+  Elo criado à mão em 11/08 fazia o teste de agregação do painel contar cinco
+  Elos em vez de quatro.
+- **Alterado — o formulário de pessoa não tem mais os campos de primeira visita,
+  decisão, curso de integração, batismo e membresia**, nem para a coordenação.
+  Eles são registrados como etapas da jornada.
+- **Alterado — `pnpm test:rls` e `pnpm test:e2e` passam por
+  `scripts/banco-de-teste.ts`**, e o app sob teste sobe na porta 3100.
+
 #### Fase 12b — Fluxos da §13, hardening e plano de deploy (2026-08-02)
 
 - **Content-Security-Policy fechada**, montada por requisição com **nonce**,

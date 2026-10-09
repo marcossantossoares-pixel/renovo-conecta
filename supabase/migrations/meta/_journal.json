@@ -134,6 +134,13 @@
       "when": 1785716968700,
       "tag": "0018_dia_da_igreja",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791569423542,
+      "tag": "0019_jornada",
+      "breakpoints": true
     }
   ]
 }

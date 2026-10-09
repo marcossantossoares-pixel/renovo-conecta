@@ -8,6 +8,8 @@ import type { Janela } from '@/lib/periodo';
 import { resolverJanela } from '@/lib/periodo';
 import type { OpcaoDeFiltro } from '@/modules/elos/repository';
 import { carregarOpcoesDeFiltro } from '@/modules/elos/repository';
+import type { FollowUpRow } from '@/modules/journey/repository';
+import { listOverdueFollowUps } from '@/modules/journey/repository';
 import type { EloPendente, Indicadores, PontoDaSerie } from './metrics';
 import {
   carregarCrescimento,
@@ -27,6 +29,9 @@ import { granularidade } from './schemas';
  * Elos que acompanha sem que este arquivo mencione supervisão.
  */
 
+/** O painel mostra os mais atrasados; o total diz se há mais. */
+const ACOMPANHAMENTOS_NO_PAINEL = 10;
+
 export interface Painel {
   readonly janela: Janela;
   readonly granularidade: 'semana' | 'mes';
@@ -34,6 +39,15 @@ export interface Painel {
   readonly frequencia: readonly PontoDaSerie[];
   readonly crescimento: readonly PontoDaSerie[];
   readonly pendentes: readonly EloPendente[];
+  /**
+   * Acompanhamentos da jornada com prazo vencido (Fase 13) — o indicador da
+   * "jornada do membro" que a Fase 10a deixou de fora por não existir jornada.
+   * `null` para quem não lê a jornada.
+   */
+  readonly acompanhamentos: {
+    readonly total: number;
+    readonly rows: readonly FollowUpRow[];
+  } | null;
   readonly opcoes: {
     readonly supervisores: readonly OpcaoDeFiltro[];
     readonly elos: readonly OpcaoDeFiltro[];
@@ -75,6 +89,10 @@ export async function carregarPainel(
     const frequencia = await carregarFrequencia(tx, query, janela, escala);
     const crescimento = await carregarCrescimento(tx, query, janela);
     const pendentes = await carregarElosPendentes(tx, query);
+    // Na mesma transação, e não numa conexão nova: a lição desta função.
+    const acompanhamentos = hasPermissionAnywhere(claims, 'journey.read')
+      ? await listOverdueFollowUps(tx, ACOMPANHAMENTOS_NO_PAINEL)
+      : null;
     const opcoes = await carregarOpcoesDeFiltro(tx);
 
     return {
@@ -84,6 +102,7 @@ export async function carregarPainel(
       frequencia,
       crescimento,
       pendentes,
+      acompanhamentos,
       opcoes,
     };
   });

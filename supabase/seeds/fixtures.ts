@@ -641,3 +641,82 @@ export const SOLICITACAO_DEMO = {
   kind: 'acesso' as const,
   description: 'Pediu por telefone uma cópia dos próprios dados cadastrados na igreja.',
 } as const;
+
+/* ---------------------------------------------------------------------- */
+/* Jornada da pessoa — Fase 13                                             */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Data em que a liderança fictícia foi recebida como membro.
+ *
+ * Era gravada direto em `person.membership_at` até a Fase 12. Desde a migration
+ * 0019 a jornada é a fonte da data (ADR-010): o seed registra a etapa, e o
+ * gatilho preenche o cadastro — o banco recusaria o caminho antigo.
+ */
+export const RECEBIMENTO_LIDERANCA = '2020-01-15';
+
+export interface JourneyStepSeed {
+  readonly personId: string;
+  /**
+   * A etapa: o campo do cadastro que ela alimenta, quando alimenta, ou o nome
+   * da etapa padrão. Pelo campo primeiro, porque o nome a igreja pode trocar.
+   */
+  readonly etapa: string;
+  readonly status: 'pendente' | 'em_andamento' | 'concluida';
+  /** Data fixa da etapa concluída. */
+  readonly occurredOn?: string;
+  /** Prazo relativo a hoje — negativo é atrasado. Renovado a cada seed (DEF-01). */
+  readonly prazoEmDias?: number;
+  readonly nextAction?: string;
+  readonly responsiblePersonId?: string;
+}
+
+/**
+ * Os cenários de acompanhamento que a Fase 13 precisa para ter o que mostrar.
+ *
+ * Dois **atrasados** de propósito — um de visitante, que só a coordenação vê, e
+ * um de participante do Elo Semear, que o líder 1 e o supervisor A também veem:
+ * é a diferença de escopo que o painel precisa exibir. Sem atraso no seed, o
+ * indicador mostra zero, e zero é o que um indicador quebrado também mostra.
+ *
+ * Os menores (índices 3 e 11) ficam fora: não há por que inventar caminhada
+ * espiritual de criança fictícia para exercitar tela.
+ */
+export const JORNADA_DEMO: readonly JourneyStepSeed[] = [
+  {
+    personId: demoId(6, 1),
+    etapa: 'Contato de boas-vindas',
+    status: 'pendente',
+    prazoEmDias: -3,
+    nextAction: 'Ligar para dar as boas-vindas e convidar para um Elo.',
+    responsiblePersonId: COORDENADORA.personId,
+  },
+  {
+    personId: demoId(5, 1),
+    etapa: 'Consolidação',
+    status: 'em_andamento',
+    prazoEmDias: 5,
+    nextAction: 'Visitar em casa com o líder do Elo.',
+    responsiblePersonId: LIDER_1.personId,
+  },
+  {
+    personId: demoId(5, 2),
+    etapa: 'baptism_at',
+    status: 'concluida',
+    occurredOn: '2025-11-16',
+  },
+  {
+    personId: demoId(5, 3),
+    etapa: 'integration_course_at',
+    status: 'pendente',
+    prazoEmDias: -2,
+    nextAction: 'Inscrever na próxima turma do curso.',
+  },
+  {
+    personId: demoId(5, 6),
+    etapa: 'Contato de boas-vindas',
+    status: 'concluida',
+    occurredOn: '2024-03-08',
+    responsiblePersonId: LIDER_2.personId,
+  },
+];

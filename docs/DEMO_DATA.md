@@ -33,6 +33,7 @@ A §15 do `MASTER_SPEC.md` lista o conjunto completo de dados de demonstração.
 | Relatórios semanais                                                             | 8            | Depende do módulo                                  |
 | Estudos semanais                                                                | 9            | Depende do módulo                                  |
 | Consentimentos e política                                                       | 11           | Depende do módulo                                  |
+| Jornada da pessoa (etapas e acompanhamentos)                                    | 13           | Depende do módulo                                  |
 | **Eventos e ministérios**                                                       | Prioridade 2 | Fora do MVP — seeds só quando os módulos existirem |
 | **Pedidos de oração**                                                           | Prioridade 2 | Fora do MVP                                        |
 
@@ -81,21 +82,31 @@ Cada Elo tem vice-líder e anfitrião entre os participantes.
 
 Os dados não são decorativos: existem para que cada indicador e cada regra tenha algo que exercitar.
 
-| Cenário                                                    | Por que existe                                                 |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| Um Elo **sem relatório** na semana corrente                | Indicador principal do dashboard da coordenação                |
-| Um relatório em **rascunho**, não enviado                  | Distinguir "não preencheu" de "não enviou"                     |
-| Um relatório em **correção solicitada**                    | Exercitar o fluxo de revisão do supervisor                     |
-| Um encontro **cancelado**, com motivo                      | Garantir que cancelamento não conte como ausência de relatório |
-| Um Elo com **queda de frequência** ao longo de 4 semanas   | Exercitar o gráfico de evolução                                |
-| Um Elo que **recebeu visitantes** e outro que não          | Comparação entre Elos                                          |
-| Uma **multiplicação** registrada, com Elo de origem        | Verificar preservação de histórico                             |
-| Um participante que **saiu** de um Elo, com `left_at`      | Reconstrução de trajetória                                     |
-| Um estudo **publicado** e um **agendado** para data futura | Verificar que o agendado é invisível a líderes                 |
-| Uma **solicitação do titular** aberta                      | Exercitar o fluxo de LGPD                                      |
-| Um supervisor com Elos e outro com Elos diferentes         | **Base dos testes de isolamento**                              |
+| Cenário                                                                                           | Por que existe                                                                                        |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Um Elo **sem relatório** na semana corrente                                                       | Indicador principal do dashboard da coordenação                                                       |
+| Um relatório em **rascunho**, não enviado                                                         | Distinguir "não preencheu" de "não enviou"                                                            |
+| Um relatório em **correção solicitada**                                                           | Exercitar o fluxo de revisão do supervisor                                                            |
+| Um encontro **cancelado**, com motivo                                                             | Garantir que cancelamento não conte como ausência de relatório                                        |
+| Um Elo com **queda de frequência** ao longo de 4 semanas                                          | Exercitar o gráfico de evolução                                                                       |
+| Um Elo que **recebeu visitantes** e outro que não                                                 | Comparação entre Elos                                                                                 |
+| Uma **multiplicação** registrada, com Elo de origem                                               | Verificar preservação de histórico                                                                    |
+| Um participante que **saiu** de um Elo, com `left_at`                                             | Reconstrução de trajetória                                                                            |
+| Um estudo **publicado** e um **agendado** para data futura                                        | Verificar que o agendado é invisível a líderes                                                        |
+| Uma **solicitação do titular** aberta                                                             | Exercitar o fluxo de LGPD                                                                             |
+| Dois **acompanhamentos atrasados** na jornada — um de visitante, um de participante do Elo Semear | Mostrar a diferença de escopo no painel: a coordenação vê os dois, o líder 1 e o supervisor A veem um |
+| Um **batismo** e uma **membresia** registrados pela jornada                                       | Provar que a data do cadastro vem da etapa (ADR-010)                                                  |
+| Um supervisor com Elos e outro com Elos diferentes                                                | **Base dos testes de isolamento**                                                                     |
 
 O último item é o mais importante: sem dois supervisores com escopos distintos, a suíte de RLS não tem o que provar.
+
+**Desde a Fase 13 o seed não grava as datas eclesiásticas no cadastro.** A
+membresia da liderança e a primeira visita dos visitantes são registradas como
+etapas concluídas da jornada, e o gatilho preenche `person` — o banco recusaria o
+caminho antigo (ADR-010). Os prazos das etapas por fazer são relativos a hoje e
+**renovados a cada execução do seed**, pela mesma razão do DEF-01 da rodada de QA:
+um "atrasado há três dias" cravado na data do primeiro seed viraria "atrasado há
+três meses".
 
 ---
 

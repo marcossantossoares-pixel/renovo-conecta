@@ -85,7 +85,10 @@ export type PermissionCode =
   | 'setting.update'
   | 'privacy.read_requests'
   | 'privacy.handle_requests'
-  | 'privacy.export_subject_data';
+  | 'privacy.export_subject_data'
+  | 'journey.read'
+  | 'journey.update'
+  | 'journey.configure';
 
 type Grants = Partial<Record<RoleCode, Scope>>;
 
@@ -432,6 +435,40 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     pastor_admin: 'congregation',
     membro: 'self',
   },
+
+  /* --- Jornada da pessoa — Fase 13 --------------------------------------
+   *
+   * `read` e `update` repetem `person.read` e `person.update`: a jornada é parte
+   * do cadastro, e quem alcança a pessoa alcança a caminhada dela.
+   *
+   * ⚠️ **O "E" de `update` NÃO É "qualquer etapa".** Supervisor, líder e vice
+   * registram só as etapas que a igreja abriu à liderança — e nunca as que
+   * alimentam batismo, membresia ou decisão, que são da secretaria por `CHECK`
+   * no banco. É a nota 4 da matriz, agora sobre etapas: quem decide é a RLS
+   * (`app.can_register_journey_step`, migration 0019) e o serviço, com a etapa
+   * em mãos. `can()` decide sobre o recurso, não sobre a etapa.
+   *
+   * `configure` é pastoral, como `setting.update`: renomear "Batismo" ou abrir
+   * uma etapa à liderança muda o que todos os líderes registram.
+   */
+  'journey.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+    membro: 'self',
+  },
+  'journey.update': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'journey.configure': { superadmin: 'global', pastor_admin: 'congregation' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_GRANTS) as PermissionCode[];

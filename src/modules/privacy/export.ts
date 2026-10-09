@@ -38,12 +38,14 @@ export interface SubjectData extends Record<string, unknown> {
   readonly consentimentos: readonly Record<string, unknown>[];
   readonly solicitacoes: readonly Record<string, unknown>[];
   readonly historico_de_alteracoes: readonly Record<string, unknown>[];
+  readonly jornada: readonly Record<string, unknown>[];
+  readonly historico_da_jornada: readonly Record<string, unknown>[];
 }
 
 /**
  * Monta o pacote dentro de **uma** transação.
  *
- * Sete consultas, uma conexão. É a lição da Fase 10a: cada `withUserContext`
+ * Nove consultas, uma conexão — sete até a Fase 12, mais as duas da jornada. É a lição da Fase 10a: cada `withUserContext`
  * toma uma conexão de um pool de dez, e sete por exportação limitariam o
  * sistema a uma pessoa exportando por vez.
  *
@@ -130,6 +132,33 @@ export async function coletarDadosDoTitular(
      ORDER BY changed_at
   `);
 
+  /*
+   * A jornada (Fase 13) é a caminhada do titular na igreja, e é dele. O
+   * **responsável** pelo acompanhamento fica de fora, pela regra deste arquivo:
+   * é outra pessoa, e o pacote de portabilidade não carrega dado de terceiros.
+   * Pelo mesmo motivo, o histórico da jornada sai sem as trocas de responsável.
+   */
+  const jornada = await tx.execute<Record<string, unknown>>(sql`
+    SELECT st.name AS etapa, s.status::text AS situacao, s.occurred_on AS em,
+           s.next_action AS proxima_acao, s.due_on AS prazo, s.notes AS observacoes,
+           s.updated_at AS atualizada_em
+      FROM person_journey_step s
+      JOIN journey_stage st ON st.id = s.stage_id
+     WHERE s.person_id = ${personId}::uuid AND s.deleted_at IS NULL
+     ORDER BY st.position
+  `);
+
+  const historicoDaJornada = await tx.execute<Record<string, unknown>>(sql`
+    SELECT st.name AS etapa, h.field_name AS campo, h.old_value AS de,
+           h.new_value AS para, h.changed_at AS em
+      FROM journey_step_change_log h
+      JOIN person_journey_step s ON s.id = h.step_id
+      JOIN journey_stage st ON st.id = s.stage_id
+     WHERE h.person_id = ${personId}::uuid
+       AND h.field_name <> 'responsible_person_id'
+     ORDER BY h.changed_at
+  `);
+
   return {
     gerado_em: new Date().toISOString(),
     titular: titular[0] ?? null,
@@ -139,6 +168,8 @@ export async function coletarDadosDoTitular(
     consentimentos,
     solicitacoes,
     historico_de_alteracoes: historico,
+    jornada,
+    historico_da_jornada: historicoDaJornada,
   };
 }
 

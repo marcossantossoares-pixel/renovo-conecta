@@ -128,13 +128,15 @@ Testes end-to-end (baixe os navegadores uma vez com `pnpm exec playwright instal
 pnpm test:e2e
 ```
 
-Suíte de isolamento (exige banco de pé, semeado):
+Suíte de isolamento (exige Docker):
 
 ```bash
 pnpm test:rls
 ```
 
 Ela é obrigatória: prova que um líder não vê o Elo de outro e que um tenant não vê dados de outro. Roda contra o banco real, por papel — nunca contra mock.
+
+`test:rls` e `test:e2e` rodam numa **pilha do Supabase só da suíte** (portas 544xx, app na 3100), recriada do seed a cada execução. O banco da homologação manual nunca é tocado (ADR-011). `pnpm db:teste` só prepara essa pilha; `BANCO_DE_TESTE_REUSAR=1` pula a recriação.
 
 Plano completo em [docs/TESTING.md](docs/TESTING.md).
 

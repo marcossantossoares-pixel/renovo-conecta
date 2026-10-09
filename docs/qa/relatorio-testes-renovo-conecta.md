@@ -315,7 +315,11 @@ Enquanto isso, a varredura registra a ocorrência como **anotação** ("pendênc
 conhecida") em vez de falhar — ver `PENDENCIAS_CONHECIDAS` em
 `tests/e2e/helpers/varredura.ts`. Decidida a questão, a entrada sai de lá.
 
-#### PEND-02 — Dados da homologação manual no mesmo banco da suíte — PENDENTE (decisão)
+#### PEND-02 — Dados da homologação manual no mesmo banco da suíte — RESOLVIDA (2026-10-09, ADR-011)
+
+**Resolução:** a suíte (RLS e e2e) passou a rodar numa pilha do Supabase só dela,
+recriada do seed a cada execução (`scripts/banco-de-teste.ts`). O registro
+original segue abaixo.
 
 O banco local tinha um Elo e uma pessoa criados à mão em 11/08 ("elo caminho
 alpha"). Testes que contam o conjunto exato da igreja (RLS e painel) falham com

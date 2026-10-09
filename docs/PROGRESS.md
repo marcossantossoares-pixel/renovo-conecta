@@ -1,5 +1,74 @@
 # Progresso
 
+## Fase atual
+
+**Fase 13 — Jornada da pessoa (`MASTER_SPEC` §4.4). Concluída — 13a e 13b.**
+
+Primeira fase da Prioridade 2, escolhida pelo usuário em 2026-10-09 entre as
+quatro candidatas: usa o cadastro que já existe, não depende do login de membro e
+não acrescenta destino ao menu do celular (a PEND-01 continua em aberto, e passa
+a importar no primeiro módulo que acrescentar um).
+
+### Antes dela: a PEND-02, porque nenhuma fase abre com teste vermelho
+
+A linha de base tinha **um** vermelho, e não era defeito: `dashboard.test.ts`
+contava cinco Elos em vez de quatro, porque o "elo caminho alpha" da homologação
+manual (11/08) estava no mesmo banco da suíte. A decisão do usuário foi separar
+os bancos (ADR-011).
+
+**Uma segunda pilha do Supabase, e não um segundo banco no mesmo Postgres** — o
+e2e passa pelo Auth e pelo Storage, que ficam presos ao banco `postgres` da
+pilha. `scripts/banco-de-teste.ts` gera a configuração dela a partir do
+`supabase/config.toml` (mesmas regras de autenticação, portas 544xx, app na
+3100), recria o banco, aplica as migrations pelo Drizzle e semeia, a cada
+execução. A homologação nunca é tocada.
+
+**O que o primeiro build achou:** `NodeJS.ProcessEnv` exige `NODE_ENV` quando o
+Next está no projeto — o script passava no `node` e quebrava no typecheck do
+build, que inclui `scripts/`. Corrigido antes de seguir.
+
+### A decisão que organiza a fase: a jornada é a fonte das datas (ADR-010)
+
+O cadastro já tinha cinco datas eclesiásticas, e as etapas padrão têm os mesmos
+nomes. Duas fontes para o batismo de alguém divergem. O usuário escolheu a
+jornada como fonte: concluir a etapa grava a data em `person` por gatilho, e um
+segundo gatilho recusa **qualquer valor** nessas colunas que a jornada não afirme
+— inclusive do dono do banco.
+
+**A guarda é sobre o valor, e não sobre quem escreve.** Não há sinalizador de
+sessão do tipo "estou sincronizando", que um caminho de escrita esqueceria de
+ligar ou desligar: o gatilho de sincronia grava a data que a jornada afirma, e
+por isso passa; qualquer outro caminho grava outra coisa, e é recusado.
+
+**A nota 4 da matriz passou a valer sobre etapas.** Liderança de Elo não declara
+batismo, membresia nem decisão — e etapa que grava no cadastro é da secretaria
+por `CHECK`. A igreja não consegue abri-la à liderança sem mudar a matriz.
+
+### Quatro achados da fase
+
+| Achado                                                         | O que era                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Brecha de leitura que a primeira versão da migration abria** | `app.journey_date_for` é `SECURITY DEFINER`, e o Postgres concede `EXECUTE` a todos por padrão: qualquer sessão perguntaria a data de batismo de quem a RLS esconde dela. Pego na revisão, antes de rodar; há teste que falha se alguém conceder a função de volta                             |
+| **`BEFORE INSERT` roda antes do `ON CONFLICT`**                | Reexecutar o seed quebrou: o `INSERT … ON CONFLICT DO NOTHING` da liderança propunha a linha com a membresia vazia, a guarda comparava com a jornada já registrada e recusava uma linha que nunca seria gravada. No `INSERT`, data vazia nunca contradiz a jornada — pessoa nova não tem etapa |
+| **Um teste que sujava o banco quando a proteção quebrava**     | A mutação "guarda desligada" foi pega — e deixou a membresia de 2001 gravada, porque `adminSql.begin` confirma a transação quando nada falha. O teste passou a desfazer sempre; refeita a mutação, o banco fica limpo                                                                          |
+| **Um botão novo quebrou um teste de outra fase**               | A jornada pôs no perfil da pessoa o botão "Registrar Decisão por Cristo". O teste de consentimento da Fase 11 procurava "Registrar decisão" por trecho, sem diferenciar maiúsculas, e passou a achar dois. Os nomes são distintos para leitor de tela; o teste passou a pedir o nome exato     |
+
+### O que ficou de fora, e por quê
+
+Notificações por etapa (dependem de comunicação e push), campos personalizados
+(sem caso de uso descrito pela igreja) e pré-requisito entre etapas (impõe uma
+ordem que a vida real nem sempre segue). Registrado no `ROADMAP.md`.
+
+### A homologação recebeu a migration 0019
+
+Pela CLI (`supabase migration up`), que é quem controla aquele banco desde a
+Fase 11a. Backup antes, em `pg_dump`. As datas que já estavam no cadastro viraram
+13 etapas concluídas; nada se perdeu. **O seed não foi reexecutado ali**, então os
+cenários de acompanhamento da demonstração existem só na pilha de teste — rodar
+`pnpm db:seed` na homologação os cria.
+
+---
+
 ## Rodada de QA 1 — 2026-10-09
 
 **Auditoria funcional automatizada, depois do MVP fechado.** Relatório completo,
@@ -37,7 +106,7 @@ DEF-11 só existiam ali, e é ali que a homologação acontece.
 
 ---
 
-## Fase atual
+## Fase 12b
 
 **Fase 12b — Os 12 fluxos da §13, hardening e plano de deploy. Concluída.**
 
@@ -145,7 +214,7 @@ migrations é a própria CLI.**
 
 ---
 
-## Fase anterior
+## Fase 12a
 
 **Fase 12a — PWA instalável e auditoria de acessibilidade. Concluída.**
 
@@ -1592,6 +1661,59 @@ revisado item a item, `TESTING.md` §4 com o mapa dos doze fluxos,
 As migrations foram aplicadas **do zero** (`supabase db reset`), com seed e suíte
 de isolamento reexecutados verdes.
 
+### Fase 13 — Jornada da pessoa (2026-10-09)
+
+Primeira fase da Prioridade 2. Antes dela, a PEND-02 (ADR-011); no centro dela, a
+jornada como fonte das cinco datas eclesiásticas do cadastro (ADR-010). Relato
+completo em "Fase atual", no topo deste arquivo.
+
+**Banco (migration 0019):**
+
+| Objeto                                | Por quê                                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `journey_stage`                       | Etapas por congregação: nome, ordem, quem registra, prazo padrão, arquivamento, vínculo fixo com o cadastro |
+| `person_journey_step`                 | Uma linha por pessoa e etapa: situação, data, responsável, observações, próxima ação, prazo                 |
+| `journey_step_change_log`             | Histórico campo a campo, escrito só por gatilho, lido com `person.read_history`                             |
+| `app.sync_journey_to_person()`        | Concluir, reabrir ou mudar a data da etapa vinculada reescreve a coluna de `person`                         |
+| `app.person_journey_fields_guard()`   | As cinco datas de `person` só aceitam o que a jornada afirma — inclusive do dono do banco                   |
+| `app.create_default_journey_stages()` | As doze etapas da §4.4 em toda congregação, por gatilho na criação                                          |
+| `app.can_register_journey_step()`     | A nota 4 da matriz sobre etapas, na RLS                                                                     |
+| `app.anonymize_person()` (reescrita)  | Alcança a jornada: limpa o que descreve a pessoa, apaga o histórico das etapas, preserva as etapas          |
+
+**Arquivos criados:**
+
+| Área     | Arquivos                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Banco    | `supabase/migrations/0019_jornada.sql`, `src/core/db/schema/journey.ts`                                                                                                  |
+| Módulo   | `src/modules/journey/{schemas,rules,repository,service,actions}.ts`                                                                                                      |
+| Telas    | `src/app/(app)/pessoas/[id]/journey-panel.tsx`, `src/app/(app)/pessoas/jornada/{page,stage-manager}.tsx`                                                                 |
+| Testes   | `tests/rls/journey.test.ts`, `tests/e2e/{jornada,jornada-configuracao}.spec.ts`, `tests/unit/modules/journey/rules.test.ts`, `tests/unit/scripts/banco-de-teste.test.ts` |
+| Ambiente | `scripts/banco-de-teste.ts`                                                                                                                                              |
+
+**Alterados:** `src/core/authz/catalog.ts` (três permissões `journey.*`),
+`src/core/db/errors.ts` (recusa da RLS e de gatilho), `src/core/db/schema/{_shared,index}.ts`,
+`src/modules/people/{fields,schemas,repository,actions}.ts` (as cinco datas saem do
+formulário e são recusadas pelo nome), `src/modules/privacy/export.ts` (a jornada no
+pacote do titular), `src/modules/dashboard/service.ts` e a página do painel
+(acompanhamentos atrasados), as páginas de pessoa (perfil, edição, lista),
+`supabase/seeds/{seed,fixtures}.ts` (datas pela jornada e cenários de
+acompanhamento), `package.json`, `playwright.config.ts`, `.gitignore`,
+`.claude/launch.json`, os testes afetados pela decisão (`can`, `fields`,
+`mensagens-de-validacao`, `people.spec`, `tests/rls/{helpers,people}.test.ts`) e a
+documentação (`DECISIONS` com ADR-010 e ADR-011, `PERMISSIONS`, `DATABASE`,
+`ROADMAP`, `TESTING`, `LGPD`, `DEMO_DATA`, `USER_FLOWS`, `CHANGELOG`, `README` e o
+relatório da rodada de QA).
+
+| Comando                                         | Resultado                                    |
+| ----------------------------------------------- | -------------------------------------------- |
+| `pnpm test`                                     | ✅ **532** (era 498)                         |
+| `pnpm test:rls`                                 | ✅ **289** (era 253), banco recriado do zero |
+| `pnpm test:e2e`                                 | ✅ **318** (era 310), numa execução só       |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros                                 |
+
+Três mutações na suíte de RLS — liderança registrando qualquer etapa, guarda
+desligada, função de leitura exposta —, todas pegas.
+
 ---
 
 ## Problemas conhecidos
@@ -1653,6 +1775,18 @@ Não afeta produção: nada foi implantado. O banco local volta ao normal com
 exportações houve" no banco de desenvolvimento, os números anteriores a
 2026-08-02 não querem dizer nada.
 
+### O job de e2e do CI não sobe o Supabase
+
+Observado na Fase 13, ao ler o `ci.yml` para decidir como a pilha de teste se
+comportaria no CI. O job `quality` sobe o Supabase, aplica as migrations e roda
+`test:rls`; o job `e2e` **não**: instala os navegadores e roda `pnpm test:e2e`
+direto. Sem banco nem Auth, o login de qualquer caso não teria com quem falar.
+
+Não foi alterado: é anterior a esta fase, e o histórico de execuções do GitHub
+Actions é que diz se o job de fato falha ou se algo o sustenta que a leitura do
+arquivo não mostra. Fica registrado para ser conferido antes do primeiro merge
+no `main`.
+
 ### Bloqueios externos
 
 Não impedem o desenvolvimento com dados fictícios:
@@ -1667,9 +1801,22 @@ Não impedem o desenvolvimento com dados fictícios:
 
 ## Próxima tarefa
 
-**O MVP está fechado no que depende de código.** As doze fases do roadmap estão
-concluídas; o que falta para produção **não é técnico**, e nenhum item abaixo
-fecha porque o sistema ficou pronto.
+**O MVP está fechado no que depende de código, e a Fase 13 abriu a Prioridade 2.**
+O que falta para produção **não é técnico**, e nenhum item abaixo fecha porque o
+sistema ficou pronto.
+
+### A próxima fase da Prioridade 2 é decisão do usuário
+
+O roadmap não numera nada depois da 13. Na ordem da §11 do `MASTER_SPEC`, as
+candidatas são:
+
+| Módulo                         | O que pesa na escolha                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Eventos, inscrições e check-in | Acrescenta destino ao menu: a **PEND-01** precisa ser decidida antes                                            |
+| Ministérios e escalas          | Traz o papel `lider_ministerio`, previsto em `PERMISSIONS.md` e sem escopo implementado                         |
+| Comunicação                    | Segmentação por público; disparo por WhatsApp e push é da Prioridade 3                                          |
+| Pedidos de oração              | O dado mais sensível do sistema — RLS reforçada e log de **leitura**. Sem o portal, quem registra é a liderança |
+| Portal do membro               | Ativa o login do papel `membro` e revê a ADR-003; é a maior das cinco                                           |
 
 ### Bloqueios para a entrada em produção
 
@@ -1702,9 +1849,8 @@ aparecem no dia:
 - **PEND-01** — menu inferior do celular com mais de cinco destinos corta os
   rótulos (coordenação a partir de 360 px; pastor e superadmin em 390 px).
   Proposta: quatro itens e "Mais". Muda a navegação aprovada.
-- **PEND-02** — o banco local é usado ao mesmo tempo pela homologação manual e
-  pela suíte, que conta o conjunto exato da igreja. Um Elo criado à mão em 11/08
-  derruba testes de contagem.
+- ~~**PEND-02**~~ — **resolvida na Fase 13** (ADR-011): a suíte roda numa pilha
+  do Supabase só dela, recriada do seed a cada execução.
 
 ### Trabalho técnico que continua aberto, e nenhum bloqueia produção
 
@@ -1717,17 +1863,21 @@ aparecem no dia:
   o mesmo histórico em lugares diferentes;
 - Sentry com `beforeSend` e o scan automatizado de segredos no CI, ambos
   previstos em `SECURITY.md` e ainda não configurados;
+- o job de e2e do CI não sobe o Supabase — ver "Problemas conhecidos";
 - a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP
 
-A Prioridade 2 do roadmap: jornada configurável, portal do membro, eventos,
-ministérios, comunicados e **pedidos de oração** — este último com RLS reforçada
-e log de todo acesso desde o desenho, porque é o dado mais sensível que o sistema
-vai guardar.
+A Prioridade 2 do roadmap: ~~jornada configurável~~ (Fase 13), portal do membro,
+eventos, ministérios, comunicados e **pedidos de oração** — este último com RLS
+reforçada e log de todo acesso desde o desenho, porque é o dado mais sensível que
+o sistema vai guardar.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
-baixadas. Se quiser um banco limpo: `pnpm db:migrate` e `pnpm db:seed`.
+baixadas. A homologação é controlada pela CLI: migration nova entra com
+`pnpm exec supabase migration up`. A suíte cuida da própria pilha
+(`pnpm test:rls`, `pnpm test:e2e`); para desligá-la,
+`pnpm exec supabase stop --workdir supabase/.teste`.
 
 ⚠️ Se precisar recriar o schema `public` à mão, reconceda
 `GRANT USAGE ON SCHEMA public TO PUBLIC` — o `CREATE SCHEMA` não repete o que o

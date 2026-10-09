@@ -12,6 +12,15 @@
 /** `23505` é `unique_violation` no PostgreSQL. */
 const UNIQUE_VIOLATION = '23505';
 
+/** `23514` é `check_violation`: um `CHECK` ou um gatilho que recusou a linha. */
+const CHECK_VIOLATION = '23514';
+
+/**
+ * `42501` é `insufficient_privilege` — o código da recusa da RLS num INSERT
+ * (e num `ON CONFLICT DO UPDATE`, que **lança** em vez de pular a linha).
+ */
+const INSUFFICIENT_PRIVILEGE = '42501';
+
 /** Até onde descer na cadeia de `cause` antes de desistir. */
 const PROFUNDIDADE_MAXIMA = 5;
 
@@ -27,6 +36,39 @@ const PROFUNDIDADE_MAXIMA = 5;
  * tabela tem mais de uma.
  */
 export function isUniqueViolation(erro: unknown, constraint?: string): boolean {
+  const detalhe = erroDoBanco(erro, UNIQUE_VIOLATION);
+
+  return (
+    detalhe !== null &&
+    (constraint === undefined || detalhe.constraint_name === constraint)
+  );
+}
+
+/**
+ * Recusa de `CHECK` ou de gatilho, com a mensagem do banco.
+ *
+ * Devolve a mensagem, e não um booleano, porque os gatilhos deste sistema
+ * explicam a recusa em português ("a etapa está arquivada…") — e é essa frase
+ * que a tela pode mostrar.
+ */
+export function checkViolationMessage(erro: unknown): string | null {
+  const detalhe = erroDoBanco(erro, CHECK_VIOLATION);
+
+  return detalhe && typeof detalhe.message === 'string' ? detalhe.message : null;
+}
+
+/** A RLS recusou a escrita. */
+export function isRowLevelSecurityViolation(erro: unknown): boolean {
+  return erroDoBanco(erro, INSUFFICIENT_PRIVILEGE) !== null;
+}
+
+interface DetalheDoBanco {
+  readonly code?: unknown;
+  readonly constraint_name?: unknown;
+  readonly message?: unknown;
+}
+
+function erroDoBanco(erro: unknown, codigo: string): DetalheDoBanco | null {
   let atual: unknown = erro;
 
   for (
@@ -35,15 +77,13 @@ export function isUniqueViolation(erro: unknown, constraint?: string): boolean {
     nivel += 1
   ) {
     if (typeof atual === 'object' && 'code' in atual) {
-      const detalhe = atual as { code?: unknown; constraint_name?: unknown };
+      const detalhe = atual as DetalheDoBanco;
 
-      if (detalhe.code === UNIQUE_VIOLATION) {
-        return constraint === undefined || detalhe.constraint_name === constraint;
-      }
+      if (detalhe.code === codigo) return detalhe;
     }
 
     atual = (atual as { cause?: unknown }).cause;
   }
 
-  return false;
+  return null;
 }

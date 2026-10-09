@@ -92,13 +92,20 @@ Implementados no MVP, no módulo `privacy`.
 
 **O que a anonimização faz, e o que ela deliberadamente não faz** (`app.anonymize_person`, migration 0016):
 
-| Alcança                                                                                        | Não toca                                                                                                         |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Cadastro (nome, contato, nascimento, foto, observações), endereço, etiquetas, conta de acesso  | `audit_log` — é o instrumento de responsabilização; apagá-lo a pedido de quem quer sumir inverte a função dele   |
-| **`person_change_log`** — a cópia sombra do cadastro. Sem ele, a anonimização seria só fachada | `consent` — a prova de que houve autorização defende a igreja sobre o período em que tratou o dado legitimamente |
-| `elo_report.submitted_by_person_id`, que deixa de identificar quem enviou                      | As contagens dos relatórios e as participações em Elo — são os agregados que a lei permite preservar             |
+| Alcança                                                                                                                                                                 | Não toca                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Cadastro (nome, contato, nascimento, foto, observações), endereço, etiquetas, conta de acesso                                                                           | `audit_log` — é o instrumento de responsabilização; apagá-lo a pedido de quem quer sumir inverte a função dele   |
+| **`person_change_log`** — a cópia sombra do cadastro. Sem ele, a anonimização seria só fachada                                                                          | `consent` — a prova de que houve autorização defende a igreja sobre o período em que tratou o dado legitimamente |
+| `elo_report.submitted_by_person_id`, que deixa de identificar quem enviou                                                                                               | As contagens dos relatórios e as participações em Elo — são os agregados que a lei permite preservar             |
+| Jornada (Fase 13): observações, próxima ação e responsável de cada etapa; o histórico das etapas inteiro; e o nome dela como responsável pela jornada de outras pessoas | As etapas e suas datas — "quantos batismos houve em 2026" é agregado, e as cinco datas do cadastro continuam     |
 
-**Limitação conhecida:** texto livre de relatório pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita — a revisão é humana, registrada na resolução da solicitação (Fluxo 10).
+**A jornada no pacote do titular (Fase 13):** a exportação do Art. 18, II e V
+inclui as etapas da pessoa e o histórico delas. O **responsável** pelo
+acompanhamento fica de fora, pela mesma regra que deixa de fora a lista de quem
+mais participa do Elo: é outra pessoa, e o pacote de portabilidade não carrega
+dado de terceiros.
+
+**Limitação conhecida:** texto livre de relatório — e, desde a Fase 13, das observações da jornada de outras pessoas — pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita — a revisão é humana, registrada na resolução da solicitação (Fluxo 10).
 
 ---
 

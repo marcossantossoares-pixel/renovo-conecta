@@ -4,7 +4,8 @@
  * Núcleo da Fase 3 — tenancy, identidade, controle de acesso, Elos, auditoria e
  * arquivos — mais o que as fases seguintes acrescentaram: os relatórios
  * semanais entraram na Fase 8, os estudos semanais na Fase 9, e os
- * consentimentos e solicitações do titular na Fase 11.
+ * consentimentos e solicitações do titular na Fase 11, e a jornada da pessoa
+ * na Fase 13.
  *
  * Ao adicionar uma tabela aqui, ela precisa obrigatoriamente:
  *   - carregar `tenant_id` e `congregation_id` (ADR-002);
@@ -22,5 +23,6 @@ export * from './elos';
 export * from './reports';
 export * from './studies';
 export * from './privacy';
+export * from './journey';
 export * from './audit';
 export * from './auth';

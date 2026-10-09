@@ -303,12 +303,15 @@ test('consentimento de imagem de menor exige o responsável', async ({ page }) =
     finalidade.getByRole('option', { name: 'Uso de imagem', exact: true }),
   ).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Registrar decisão' }).click();
+  // `exact`: desde a Fase 13 o perfil tem também "Registrar Decisão por Cristo",
+  // o botão da jornada — e a busca por trecho, sem diferenciar maiúsculas, achava
+  // os dois.
+  await page.getByRole('button', { name: 'Registrar decisão', exact: true }).click();
   await expect(page.getByText(/Informe quem autorizou/i)).toBeVisible();
 
   await page.getByLabel('Responsável que autorizou').fill('Responsável Fictício');
   await page.getByLabel('Parentesco').fill('mãe');
-  await page.getByRole('button', { name: 'Registrar decisão' }).click();
+  await page.getByRole('button', { name: 'Registrar decisão', exact: true }).click();
 
   await expect(page.getByText('Consentimento registrado.')).toBeVisible();
   await page.reload();
@@ -396,7 +399,7 @@ test('o pastor publica uma versão nova da política', async ({ page }) => {
    */
   await page.goto(`/pessoas/${TITULAR.id}`);
   await page.getByLabel('Finalidade').selectOption('comunicacao');
-  await page.getByRole('button', { name: 'Registrar decisão' }).click();
+  await page.getByRole('button', { name: 'Registrar decisão', exact: true }).click();
 
   await expect(page.getByText('Consentimento registrado.')).toBeVisible();
   await page.reload();

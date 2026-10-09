@@ -9,12 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ReportIcon } from '@/components/ui/icons';
+import { PeopleIcon, ReportIcon } from '@/components/ui/icons';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
 import { isoDateToBr } from '@/lib/format';
 import { descreverJanela } from '@/lib/periodo';
 import type { EloPendente } from '@/modules/dashboard/metrics';
+import type { FollowUpRow } from '@/modules/journey/repository';
 import { dashboardQuerySchema } from '@/modules/dashboard/schemas';
 import { carregarPainel } from '@/modules/dashboard/service';
 import { canSubmitReport } from '@/modules/reports/service';
@@ -36,11 +37,11 @@ export const metadata: Metadata = {
  * daqui mencione supervisão — um `if` de escopo na tela seria a terceira
  * implementação da mesma regra.
  *
- * **Três indicadores da §4.2 não estão aqui, e a ausência é deliberada:**
- * próximos eventos e pedidos de oração pertencem a módulos da Prioridade 2, e
- * "indicadores da jornada do membro" depende da jornada configurável, que também
- * é da Prioridade 2. Mostrá-los como cartões vazios ensinaria que o sistema
- * está quebrado; omiti-los e registrar por quê é honesto.
+ * **Dois indicadores da §4.2 não estão aqui, e a ausência é deliberada:**
+ * próximos eventos e pedidos de oração pertencem a módulos da Prioridade 2 que
+ * ainda não existem. Mostrá-los como cartões vazios ensinaria que o sistema
+ * está quebrado; omiti-los e registrar por quê é honesto. O terceiro, a jornada
+ * do membro, chegou com a Fase 13: a lista dos acompanhamentos atrasados.
  */
 export default async function DashboardPage({
   searchParams,
@@ -113,6 +114,36 @@ export default async function DashboardPage({
             Ver relatórios
           </Link>
         ),
+    },
+  ];
+
+  const colunasAcompanhamentos: readonly DataTableColumn<FollowUpRow>[] = [
+    {
+      id: 'pessoa',
+      header: 'Pessoa',
+      primary: true,
+      cell: (linha) => (
+        <Link
+          href={`/pessoas/${linha.person_id}#jornada`}
+          className="font-medium text-primary-strong underline underline-offset-2"
+        >
+          {linha.person_name}
+        </Link>
+      ),
+    },
+    { id: 'etapa', header: 'Etapa', cell: (linha) => linha.stage_name },
+    {
+      id: 'acao',
+      header: 'Próxima ação',
+      hideOnMobile: true,
+      cell: (linha) => linha.next_action ?? '—',
+    },
+    { id: 'prazo', header: 'Prazo', cell: (linha) => isoDateToBr(linha.due_on) },
+    {
+      id: 'responsavel',
+      header: 'Responsável',
+      hideOnMobile: true,
+      cell: (linha) => linha.responsible_name ?? 'sem responsável',
     },
   ];
 
@@ -278,6 +309,39 @@ export default async function DashboardPage({
           />
         </CardContent>
       </Card>
+
+      {painel.acompanhamentos && (
+        <Card className="mt-6">
+          <CardHeader>
+            <div>
+              <CardTitle as="h2">Acompanhamentos atrasados</CardTitle>
+              <CardDescription>
+                Etapas da jornada com o prazo vencido, das pessoas no seu alcance. Os
+                filtros do período não se aplicam: atraso é atraso hoje.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              caption={
+                painel.acompanhamentos.total > painel.acompanhamentos.rows.length
+                  ? `Os ${String(painel.acompanhamentos.rows.length)} mais atrasados de ${String(painel.acompanhamentos.total)}`
+                  : `${String(painel.acompanhamentos.total)} ${painel.acompanhamentos.total === 1 ? 'acompanhamento atrasado' : 'acompanhamentos atrasados'}`
+              }
+              columns={colunasAcompanhamentos}
+              rows={painel.acompanhamentos.rows}
+              rowKey={(linha) => linha.step_id}
+              empty={
+                <EmptyState
+                  title="Nenhum acompanhamento atrasado"
+                  description="Toda etapa planejada está dentro do prazo."
+                  icon={<PeopleIcon className="size-10" />}
+                />
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <section className="mt-6 flex flex-wrap gap-3">
         <ButtonLink href="/elos" variant="secondary">

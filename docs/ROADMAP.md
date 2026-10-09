@@ -331,9 +331,45 @@ Dividida em duas, como as Fases 7 a 11: **12a** (PWA instalável e auditoria de 
 
 ## Depois do MVP
 
+### Fase 13 — Jornada da pessoa · M · ✅ concluída
+
+Primeira fase da Prioridade 2, e a primeira da lista da §11 do `MASTER_SPEC`. Escolhida pelo usuário em 2026-10-09: usa o cadastro que já existe, não depende do login de membro e não acrescenta destino ao menu (a PEND-01 continua em aberto).
+
+**Entrega:** etapas configuráveis por congregação (nome, ordem, quem registra, prazo padrão, arquivamento) · registro da etapa na tela da pessoa, com situação, data, responsável, observações, próxima ação e prazo · histórico por etapa · acompanhamentos atrasados no painel · a jornada no pacote do titular e na anonimização.
+
+Dividida em duas, como as fases anteriores: **13a** (banco, RLS, motor e servidor) e **13b** (telas, painel e e2e).
+
+**Antes dela, a PEND-02:** a suíte passou a rodar numa pilha do Supabase só dela (ADR-011). Nenhuma fase abre com teste vermelho, e o único vermelho da linha de base era um Elo da homologação manual contado pela suíte.
+
+**Aceite:**
+
+**13a — banco, RLS e motor (concluída):**
+
+- [x] As doze etapas da §4.4 em toda congregação, criadas por gatilho na criação da congregação
+- [x] **A jornada é a fonte das cinco datas do cadastro** (ADR-010): concluir grava, reabrir apaga, e o banco recusa qualquer outro valor — inclusive do dono do banco. Provado por teste e por mutação
+- [x] Nota 4 da matriz sobre etapas: liderança registra só o que a igreja abriu a ela, e etapa que grava no cadastro é da secretaria por `CHECK`
+- [x] Ler a jornada é ler a pessoa: o líder vê a do próprio Elo, a coordenação a da congregação, o membro a própria
+- [x] Histórico por etapa, escrito só por gatilho, lido só com `person.read_history`
+- [x] Anonimização alcança a jornada e preserva as etapas; o pacote do titular inclui a jornada sem o responsável, que é terceiro
+- [x] O que já estava no cadastro virou jornada, sem perder dado — backfill antes dos gatilhos
+- [x] Três mutações confirmando que a suíte guarda algo — e uma delas mostrou um teste que sujava o banco quando a proteção quebrava
+
+**13b — telas (concluída):**
+
+- [x] Jornada no perfil da pessoa, oferecendo só as etapas que a sessão registra, com o motivo escrito nas outras
+- [x] Formulário da pessoa sem os cinco campos de data, com leitura e link para a jornada
+- [x] Configuração das etapas em `/pessoas/jornada`: o pastor altera, a coordenação lê
+- [x] Acompanhamentos atrasados no painel — o indicador "jornada do membro" que a Fase 10a deixou de fora — recortados pela RLS, na mesma transação do painel
+
+**Ficou de fora, com o motivo:**
+
+- **Notificações por etapa** — dependem do módulo de comunicação e de push (Prioridade 2 e 3);
+- **Campos personalizados por etapa** — sem caso de uso descrito pela igreja, seriam um formulário genérico desenhado no escuro;
+- **Pré-requisito entre etapas** ("batismo exige decisão") — a §4.4 pede "regras", e as duas implementadas são as que a consolidação usa; regra de sequência impõe uma ordem que a vida real nem sempre segue.
+
 ### Prioridade 2
 
-Jornada da pessoa configurável · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · **pedidos de oração e cuidado pastoral** (com RLS reforçada e log de todo acesso) · busca pública de Elo por bairro e solicitação por visitante.
+~~Jornada da pessoa configurável~~ (Fase 13) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · **pedidos de oração e cuidado pastoral** (com RLS reforçada e log de todo acesso) · busca pública de Elo por bairro e solicitação por visitante.
 
 ### Prioridade 3
 

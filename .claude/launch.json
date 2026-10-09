@@ -6,6 +6,13 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3000
+    },
+    {
+      "name": "renovo-dev-pilha-de-teste",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/banco-de-teste.ts", "pnpm", "dev", "--port", "3100"],
+      "env": { "BANCO_DE_TESTE_REUSAR": "1" },
+      "port": 3100
     }
   ]
 }

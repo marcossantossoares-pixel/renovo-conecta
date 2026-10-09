@@ -143,6 +143,36 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-10-09 — ADR-010: a jornada é a fonte das cinco datas eclesiásticas do cadastro
+
+- **Contexto:** a Fase 13 entrega a jornada configurável (`MASTER_SPEC` §4.4). O cadastro já tinha, desde a Fase 3, cinco datas eclesiásticas — primeira visita, decisão por Cristo, curso de integração, batismo e recebimento como membro —, e as etapas padrão da jornada têm os mesmos nomes. Duas fontes para o mesmo fato divergem, e a divergência aqui é grave: o batismo de alguém com uma data no cadastro e outra na jornada.
+- **Decisão (aprovada pelo usuário em 2026-10-09):** a jornada passa a ser a fonte. Cada uma das cinco colunas de `person` é alimentada por uma etapa vinculada (`journey_stage.person_field`); concluir, reabrir ou mudar a data da etapa grava a coluna por gatilho, na mesma transação. Um segundo gatilho em `person` **recusa qualquer valor** nessas colunas que não seja o que a jornada afirma — inclusive para `postgres`. O formulário da pessoa deixa de ter os cinco campos de data e passa a mostrá-los só para leitura, com link para a jornada.
+- **Como a guarda funciona, e por que assim:** a regra é sobre o **valor**, e não sobre quem escreve. Não existe sinalizador de sessão do tipo "estou sincronizando": o gatilho de sincronia grava a data que a jornada afirma, e por isso passa; qualquer outro caminho grava uma data que a jornada não afirma, e é recusado. Um sinalizador seria mais uma coisa que um caminho de escrita esquece de ligar ou de desligar.
+- **Consequências na matriz de permissões:** a nota 4 de `PERMISSIONS.md` §4 (liderança de Elo não declara batismo, membresia nem decisão) passa a valer sobre etapas. Etapa vinculada ao cadastro é obrigatoriamente da secretaria, por `CHECK` no banco (`journey_stage_campo_e_da_secretaria`); a igreja não consegue abri-la à liderança sem antes mudar a matriz.
+- **Alternativas consideradas:**
+  - **Sincronizar nos dois sentidos** — o formulário atual não mudaria. Custo: gatilhos cruzados entre `person` e `person_journey_step`, com risco de recursão e de divergência na primeira escrita que chegasse pelos dois lados na mesma transação. **Descartada.**
+  - **Manter as duas independentes** — a mais simples. Aceita, por construção, o batismo com duas datas. **Descartada.**
+  - **Apagar as cinco colunas de `person`** — uma fonte só, sem gatilho de sincronia. Custo: migration destrutiva, e reescrever a busca, o painel, a exportação do titular e a anonimização, que leem as colunas. **Descartada:** as colunas continuam como leitura derivada, que é o que todos esses caminhos precisam.
+- **O que a migration fez com o que já existia:** cada data preenchida no cadastro virou uma etapa concluída (backfill antes de os gatilhos existirem, para não registrar uma mudança que não houve). Toda congregação ganha as doze etapas padrão por gatilho na criação, porque sem a etapa vinculada a guarda recusaria qualquer batismo naquela congregação.
+- **Status:** aprovada.
+
+---
+
+## 2026-10-09 — ADR-011: a suíte roda numa pilha do Supabase só dela
+
+- **Contexto:** a PEND-02 da rodada de QA 1. A suíte (RLS e e2e) e a homologação manual dividiam o mesmo banco local, e a suíte conta o conjunto exato da igreja fictícia. Um Elo criado à mão em 11/08 fazia "a coordenação agrega os quatro Elos" contar cinco — uma falha que não dizia nada sobre o produto.
+- **Decisão (aprovada pelo usuário em 2026-10-09):** `pnpm test:rls` e `pnpm test:e2e` passam por `scripts/banco-de-teste.ts`, que sobe uma **segunda pilha local do Supabase** (portas 544xx, `project_id` `renovo-conecta-teste`), recria o banco do zero, aplica as migrations pelo Drizzle e semeia — a cada execução. O app sob teste roda na porta 3100, e nunca reaproveita o `pnpm dev` da homologação na 3000.
+- **Por que uma pilha, e não um banco irmão no mesmo Postgres:** o e2e passa pelo Supabase Auth e pelo Storage, que ficam presos ao banco `postgres` da pilha. Um banco irmão serviria à suíte de RLS e deixaria o login falando com o banco da homologação.
+- **Por que a configuração é gerada:** a pilha de teste precisa das mesmas regras de autenticação da principal (MFA, expiração, redirecionamentos). O script gera o `config.toml` dela a partir do `supabase/config.toml`, trocando só portas, `project_id`, redirecionamentos e os serviços que a suíte não usa. Cada substituição é conferida e falha alto se deixar de valer; no CI, onde o script passa direto, um teste unitário faz essa conferência.
+- **Alternativas consideradas:**
+  - **Ocultar o Elo manual** (exclusão lógica) — resolvia naquele dia e voltava a quebrar no próximo cadastro feito à mão. **Descartada.**
+  - **Recriar o banco único antes de cada suíte** — apagaria a homologação manual. **Descartada.**
+  - **Cópia versionada do `config.toml` para a pilha de teste** — legível, mas diverge na primeira mudança da original. **Descartada.**
+- **Consequências:** cerca de 35 s a mais por execução para recriar o banco (`BANCO_DE_TESTE_REUSAR=1` pula a recriação durante a depuração), e uma segunda pilha de containers em memória. O build deixado em `.next` por `pnpm test:e2e` aponta para a pilha de teste; quem for usar `pnpm start` à mão precisa refazer o build. No CI nada muda: o script detecta `CI` e roda o comando contra a pilha que o workflow subiu.
+- **Status:** aprovada.
+
+---
+
 ## Decisões pendentes de aprovação
 
 - Provedor de pagamento para fase futura (Asaas / Mercado Pago / outro) — só se torna relevante na Prioridade 3.

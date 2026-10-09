@@ -13,6 +13,7 @@ import {
   fieldLabel,
   rejectedEcclesiasticalFields,
   requiresEloLink,
+  sentJourneyDerivedFields,
 } from './fields';
 import {
   attachTag,
@@ -98,12 +99,27 @@ const RECUSA_DE_CAMPO = (campos: readonly string[]): string =>
   'Dados eclesiásticos são registrados pela secretaria, pela coordenação ou ' +
   'pelo pastor.';
 
+/**
+ * As cinco datas da jornada não se alteram pelo cadastro, para ninguém
+ * (ADR-010). Recusa pelo nome, e dizendo onde se faz — e antes de validar o
+ * resto: o banco recusaria de qualquer forma, com um erro que a tela não sabe
+ * explicar.
+ */
+const RECUSA_DE_DATA_DA_JORNADA = (campos: readonly string[]): string =>
+  `${campos.map(fieldLabel).join(', ')} vem da jornada da pessoa. ` +
+  'Registre a etapa correspondente na jornada, no perfil dela.';
+
 export async function createPersonAction(
   _anterior: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const { claims } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
+
+  const datasDaJornada = sentJourneyDerivedFields(formData);
+  if (datasDaJornada.length > 0) {
+    return { error: RECUSA_DE_DATA_DA_JORNADA(datasDaJornada) };
+  }
 
   const analise = createPersonSchema.safeParse(readForm(formData));
 
@@ -172,6 +188,11 @@ export async function updatePersonAction(
 ): Promise<FormState> {
   const { claims } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
+
+  const datasDaJornada = sentJourneyDerivedFields(formData);
+  if (datasDaJornada.length > 0) {
+    return { error: RECUSA_DE_DATA_DA_JORNADA(datasDaJornada) };
+  }
 
   const analise = updatePersonSchema.safeParse({
     ...readForm(formData),
