@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Rodar à mão pela aba Actions. Sem isto, o CI só roda com um evento novo — e
+  # habilitar o Actions não dispara nada retroativamente: foi o que aconteceu na
+  # publicação do repositório, na Fase 13.
+  workflow_dispatch:
 
 # Cancela execuções antigas do mesmo branch: só o último commit importa.
 concurrency:
@@ -25,6 +29,9 @@ env:
   NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
   NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
   NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-ficticia-de-ci
+  # Senha das contas de demonstração, criadas pelo seed numa pilha local que só
+  # existe durante o job. Fictícia como todo o resto: não abre nada fora dele.
+  SEED_DEMO_PASSWORD: senha-ficticia-de-ci
 
 jobs:
   quality:
@@ -75,24 +82,14 @@ jobs:
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
 
-      # Sobe o mesmo stack usado localmente. Testar RLS contra um Postgres
-      # genérico não valeria: os papéis `authenticated` e `anon`, sobre os
-      # quais as políticas são escritas, vêm do Supabase.
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Subir o Supabase local
-        run: supabase start
-
-      - name: Aplicar migrations do zero
-        run: pnpm db:migrate
-
-      - name: Semear dados fictícios
-        run: pnpm db:seed
-
       # Esta é a suíte que impede um incidente de privacidade. Falha aqui
       # bloqueia o merge, sem exceção (docs/TESTING.md §3).
+      #
+      # `test:rls` sobe a pilha de teste do Supabase, recria o banco, aplica as
+      # migrations do zero e semeia — o mesmo caminho da máquina local
+      # (`scripts/banco-de-teste.ts`, ADR-011). Testar RLS contra um Postgres
+      # genérico não valeria: os papéis `authenticated` e `anon`, sobre os
+      # quais as políticas são escritas, vêm do Supabase.
       - name: Suíte de isolamento
         run: pnpm test:rls
 
@@ -116,6 +113,8 @@ jobs:
       - name: Instalar navegadores do Playwright
         run: pnpm exec playwright install --with-deps chromium
 
+      # Sobe a própria pilha do Supabase, como `test:rls`. Até a Fase 13 este job
+      # rodava sem banco nem Auth — não havia com quem fazer login.
       - name: Executar e2e
         run: pnpm test:e2e
 

@@ -274,8 +274,120 @@ describe('assertCan', () => {
 });
 
 describe('integridade do catálogo', () => {
+  /*
+   * Contagem fixa de propósito: é um alarme, não uma medida.
+   *
+   * Quem acrescenta uma permissão ao catálogo passa por aqui e é obrigado a
+   * conferir se a matriz de `docs/PERMISSIONS.md` §4 recebeu a linha
+   * correspondente — que é a única forma de as duas não divergirem em silêncio.
+   *
+   * 29 na Fase 5; 36 desde a Fase 8, que acrescentou as sete de `report`; 41
+   * desde a Fase 9, com as cinco de `study`; 44 desde a Fase 11, com as três de
+   * `privacy` — que constavam na §3 desde a Fase 0 e **nunca tinham existido no
+   * catálogo**. Foi este caso que apontou a lacuna. 47 desde a Fase 13, com as
+   * três de `journey`.
+   */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(29);
+    expect(ALL_PERMISSIONS).toHaveLength(47);
+  });
+
+  /**
+   * A jornada é parte do cadastro: ler e registrar repetem `person.read` e
+   * `person.update`, papel por papel. Configurar é pastoral, como
+   * `setting.update` — a coordenação lê as etapas e não as muda.
+   */
+  it('a jornada segue o alcance do cadastro, e configurar é pastoral', () => {
+    expect(PERMISSION_GRANTS['journey.read']).toEqual(PERMISSION_GRANTS['person.read']);
+
+    const { membro: _membroAtualiza, ...updateSemMembro } =
+      PERMISSION_GRANTS['person.update'];
+    expect(PERMISSION_GRANTS['journey.update']).toEqual(updateSemMembro);
+
+    expect(PERMISSION_GRANTS['journey.configure']).toEqual({
+      superadmin: 'global',
+      pastor_admin: 'congregation',
+    });
+  });
+
+  /**
+   * Privacidade é a linha mais estreita da matriz, e a estreiteza é o ponto.
+   *
+   * A **coordenação fica de fora** embora tenha o alcance mais largo do sistema
+   * sobre pessoas: um pedido de exclusão é, com frequência, feito contra o
+   * trabalho de quem administra o cadastro. É a mesma escolha de `audit.read`.
+   */
+  it('privacidade é do pastor e do superadmin, e não da coordenação', () => {
+    for (const permission of [
+      'privacy.read_requests',
+      'privacy.handle_requests',
+      'privacy.export_subject_data',
+    ] as const) {
+      expect(PERMISSION_GRANTS[permission].superadmin, permission).toBe('global');
+      expect(PERMISSION_GRANTS[permission].pastor_admin, permission).toBe(
+        'congregation',
+      );
+      expect(
+        PERMISSION_GRANTS[permission].coordenador_elos,
+        permission,
+      ).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].supervisor, permission).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].lider, permission).toBeUndefined();
+    }
+
+    // O titular sobre os próprios dados (Art. 18, II), no escopo `self`.
+    expect(PERMISSION_GRANTS['privacy.export_subject_data'].membro).toBe('self');
+    expect(PERMISSION_GRANTS['privacy.handle_requests'].membro).toBeUndefined();
+  });
+
+  it('toda permissão de estudo existe, com o escopo da matriz §4', () => {
+    /*
+     * A linha de leitura mais larga do sistema: supervisor, líder e vice leem
+     * estudo em escopo de **congregação**, embora leiam pessoa e Elo apenas no
+     * escopo dos próprios Elos. É o "T" da matriz, e parece engano de digitação
+     * quando comparado com as linhas vizinhas.
+     */
+    for (const role of ['supervisor', 'lider', 'vice_lider'] as const) {
+      expect(PERMISSION_GRANTS['study.read'][role], role).toBe('congregation');
+      expect(PERMISSION_GRANTS['person.read'][role], role).toBe('elo');
+    }
+
+    // E escrever é da coordenação para cima. Quem usa o estudo não o edita.
+    for (const permission of [
+      'study.create',
+      'study.update',
+      'study.publish',
+    ] as const) {
+      expect(PERMISSION_GRANTS[permission].coordenador_elos, permission).toBe(
+        'congregation',
+      );
+      expect(PERMISSION_GRANTS[permission].supervisor, permission).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].lider, permission).toBeUndefined();
+      expect(PERMISSION_GRANTS[permission].vice_lider, permission).toBeUndefined();
+    }
+
+    /*
+     * ⚠️ `study.read` amplo **não** significa ler rascunho. O escopo responde
+     * "quais estudos, uma vez no ar, esta pessoa alcança?"; o que ainda não
+     * está no ar é recortado pela RLS. Quem prova isso é
+     * `tests/rls/studies.test.ts` — o caso 10 de docs/PERMISSIONS.md §7 —, e
+     * esta nota existe para que ninguém conclua daqui o contrário.
+     */
+    expect(PERMISSION_GRANTS['study.delete'].coordenador_elos).toBe('congregation');
+  });
+
+  it('toda permissão de relatório existe, com o escopo da matriz §4', () => {
+    // O supervisor lê, aprova, pede correção, reabre e exporta — e não cria nem
+    // envia. É o "(L)" da matriz, e a assimetria mais fácil de quebrar sem notar.
+    expect(PERMISSION_GRANTS['report.read'].supervisor).toBe('elo');
+    expect(PERMISSION_GRANTS['report.approve'].supervisor).toBe('elo');
+    expect(PERMISSION_GRANTS['report.create'].supervisor).toBeUndefined();
+    expect(PERMISSION_GRANTS['report.submit'].supervisor).toBeUndefined();
+
+    // O líder envia e não aprova. A porta do "não aprova o próprio" é fechada
+    // por linha no serviço; aqui prova-se só que ele não a tem em escopo algum.
+    expect(PERMISSION_GRANTS['report.submit'].lider).toBe('elo');
+    expect(PERMISSION_GRANTS['report.approve'].lider).toBeUndefined();
+    expect(PERMISSION_GRANTS['report.reopen'].lider).toBeUndefined();
   });
 
   it('todo papel citado existe na hierarquia', () => {

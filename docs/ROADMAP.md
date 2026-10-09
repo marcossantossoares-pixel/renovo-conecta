@@ -175,11 +175,29 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Aceite:**
 
-- [ ] Fluxos 4, 5 e 9 de `USER_FLOWS.md` funcionando
-- [ ] Supervisor vê estritamente seus Elos; acesso por URL direta a Elo fora do escopo retorna "não encontrado"
-- [ ] Endereço completo invisível sem `elo.read_full_address`
-- [ ] Árvore hierárquica correta com mais de 20 Elos
-- [ ] Multiplicação preserva todo o histórico
+**7a — Elo, liderança e endereço (concluída):**
+
+- [x] Fluxo 4 de `USER_FLOWS.md` funcionando, criando Elo, liderança e supervisão numa transação
+- [x] Claims recalculadas de imediato — o "ponto crítico" do fluxo, verificado com a sessão do líder aberta antes do vínculo
+- [x] Supervisor vê estritamente seus Elos; acesso por URL direta a Elo fora do escopo retorna "não encontrado"
+- [x] Endereço completo invisível sem `elo.read_full_address`
+- [x] **E inalterável sem permissão** — a Fase 3 fechara só a leitura; a escrita permitia apagar às cegas o que não se lê (migration 0009)
+
+**7b — participantes e solicitações (concluída):**
+
+- [x] Fluxo 5 de `USER_FLOWS.md` funcionando: registrar interessado → decidir → participação criada na mesma transação
+- [x] Participante ativo e inativo, entrada e saída com motivo, discipulador e potencial líder
+- [x] Transferência entre Elos preservando o histórico das duas pontas
+- [x] Duplicidade impedida no banco, sem proibir sair e voltar (migration 0010)
+- [x] **Quem decide enxerga quem pediu** — sem isso o líder não podia decidir, e o Fluxo 5 dizia que ele decide (migration 0011)
+
+**7c — hierarquia e multiplicação (concluída):**
+
+- [x] Fluxo 9 de `USER_FLOWS.md` funcionando
+- [x] Árvore hierárquica correta com mais de 20 Elos — o seed tem 4, e os testes os criam: 30 em memória para a forma, 25 no banco para o recorte da RLS
+- [x] Hierarquia também em lista e em cards
+- [x] Multiplicação preserva todo o histórico
+- [x] **Ciclo impedido no banco** (migration 0012) — uma consulta recursiva sobre ciclo não termina, e nada impedia criar um
 
 ---
 
@@ -191,13 +209,13 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Aceite:**
 
-- [ ] Fluxo 6 de `USER_FLOWS.md` funcionando
-- [ ] Preenchimento completo em **≤ 2 minutos** em celular real — medido, não estimado
-- [ ] Rascunho sobrevive a queda de conexão e a fechamento do navegador
-- [ ] Rascunho apagado após envio e no logout
-- [ ] Líder não aprova o próprio relatório (teste)
-- [ ] Soma das parcelas validada no servidor
-- [ ] Exportação registrada em `audit_log`
+- [x] Fluxo 6 de `USER_FLOWS.md` funcionando por inteiro (8a envio, 8b decisão)
+- [ ] Preenchimento completo em **≤ 2 minutos** em celular real — medido, não estimado. **Pendente de campo:** o formulário foi construído para isso (uma coluna, teclado numérico, total somado sozinho), mas navegador automatizado não mede polegar
+- [x] Rascunho sobrevive a queda de conexão e a fechamento do navegador
+- [x] Rascunho apagado após envio e no logout
+- [x] Líder não aprova o próprio relatório (teste) — a trava é por linha, em `approvalBlock`, porque a coordenação também lidera Elos e `can()` diria sim para ela
+- [x] Soma das parcelas validada no servidor — em Zod **e** como `CHECK` no banco
+- [x] Exportação registrada em `audit_log` — com o formato e o que o servidor de fato observou: `xlsx` é arquivo gerado, `impressao` é apenas a tela aberta (ADR-007)
 
 ---
 
@@ -205,13 +223,24 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Entrega:** criação · publicação · agendamento · anexos em Storage privado · leitura mobile · gerador de mensagem para o grupo de líderes.
 
+Dividida em duas, como as Fases 7 e 8: **9a** (banco, RLS, módulo e telas de gestão) e **9b** (anexos, leitura mobile e mensagem).
+
 **Aceite:**
 
-- [ ] Fluxo 7 de `USER_FLOWS.md` funcionando
-- [ ] Rascunho e agendado invisíveis a líder e supervisor (teste)
-- [ ] Anexos acessíveis apenas por URL assinada com expiração
-- [ ] Leitura confortável em tela de 360 px
-- [ ] Mensagem gerada é texto copiável — **sem integração com WhatsApp**
+**9a — banco, RLS e gestão (concluída):**
+
+- [x] Fluxo 7 de `USER_FLOWS.md` funcionando do rascunho à leitura
+- [x] Rascunho e agendado invisíveis a líder e supervisor — caso 10 de `PERMISSIONS.md` §7, provado na RLS **e** na tela, com quatro mutações confirmando que a suíte guarda algo
+- [x] **Agendado vira público sozinho na data, sem job** — o predicado vive na política de RLS, não na aplicação (`ARCHITECTURE.md` §11)
+- [x] Publicar e agendar exigem conteúdo mínimo, recusado no servidor com o motivo por extenso
+- [x] `study.delete` ganhou a linha que faltava na matriz §4
+
+**9b — anexos, leitura mobile e mensagem (concluída):**
+
+- [x] Anexos acessíveis apenas por URL assinada com expiração — bucket privado **sem política alguma**, e o endereço nasce no clique, nunca no HTML (ADR-008). Provado ponta a ponta: os bytes voltam pela URL assinada e o mesmo objeto sem a assinatura é recusado
+- [x] Leitura em tela de 360 px sem rolagem horizontal, com o material de apoio ao alcance — **mas "confortável" continua pendente de campo**, pela mesma razão do cronômetro da Fase 8: quem julga é quem conduz o encontro
+- [x] Mensagem gerada é texto copiável — **sem integração com WhatsApp**, com as sete partes que a §4.7 pede
+- [x] Link externo como alternativa ao envio, recusando o que não é `http(s)` no servidor **e** no banco
 
 ---
 
@@ -219,13 +248,25 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Entrega:** indicadores núcleo · filtros por período, congregação, supervisor e Elo · gráficos acessíveis e tabelas equivalentes · exportação.
 
+Dividida em duas: **10a** (seed de relatórios, motor de indicadores e painel) e **10b** (lista geral em `/relatorios` e exportação).
+
 **Aceite:**
 
-- [ ] Todos os indicadores da §4.2 do `MASTER_SPEC` relativos ao MVP
-- [ ] Cada gráfico acompanhado da tabela com os mesmos dados
-- [ ] Números respeitam o escopo do usuário (supervisor vê apenas os seus)
-- [ ] Consultas agregadas no banco, com desempenho aceitável na massa de demonstração
-- [ ] "Elos sem relatório na semana" correto, inclusive com encontro cancelado
+**10a — indicadores e painel (concluída):**
+
+- [x] Indicadores da §4.2 relativos ao MVP — três ficaram de fora com o motivo registrado: próximos eventos, pedidos de oração e jornada do membro dependem de módulos da Prioridade 2
+- [x] Cada gráfico acompanhado da tabela com os mesmos dados — garantido pelo `BarChart` do design system, com teste que quebra se alguém o trocar por uma biblioteca que só desenha
+- [x] Números respeitam o escopo do usuário — e **sem que a tela ou o módulo filtrem**: a RLS recorta antes da agregação
+- [x] Consultas agregadas no banco. **Uma transação por render**, não cinco: o primeiro rascunho esgotava o pool de conexões com duas pessoas simultâneas
+- [x] "Elos sem relatório na semana" correto, inclusive com encontro cancelado — o cenário existe no seed desde esta fase
+- [x] **Os cenários de `DEMO_DATA.md` §3 passaram a existir no seed.** Não existiam; sem eles o painel mostra zeros, indistinguíveis de um painel quebrado
+
+**10b — lista geral e exportação (concluída):**
+
+- [x] `/relatorios` deixa de responder 404, com filtros por período, supervisor e situação — e também por Elo, que a entrega da fase nomeia
+- [x] Exportação registrada em `audit_log`, em Excel e na folha de impressão, **com o recorte da tela junto**
+- [x] **Filtrar não amplia o alcance** — filtrar pelo supervisor vizinho devolve lista vazia, provado na RLS e na tela
+- [x] **O `audit_log` deixou de registrar exportações que ninguém fez** — o `next/link` pré-carregava as rotas de exportação, e o defeito existia desde a Fase 6b
 
 ---
 
@@ -233,14 +274,27 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Entrega:** política e termos versionados · consentimentos · área de solicitações do titular · exportação · anonimização.
 
+Dividida em duas, como as Fases 7 a 10: **11a** (banco, RLS, motor de privacidade, anonimização e scrubbing de logs) e **11b** (telas do titular, política e termos versionados, e o checklist §10 revisado item a item).
+
 **Aceite:**
 
-- [ ] Fluxo 10 de `USER_FLOWS.md` funcionando
-- [ ] Exportação estruturada dos dados do titular
-- [ ] Anonimização preserva agregados históricos
-- [ ] Consentimento de imagem de menor implementado
-- [ ] Teste de scrubbing de logs passando
-- [ ] Checklist de `LGPD.md` §10 revisado item a item
+**11a — banco, motor e anonimização (concluída):**
+
+- [x] Exportação estruturada dos dados do titular — JSON, e não planilha: o inciso V pede formato legível por máquina, porque o destino é outro sistema
+- [x] Anonimização preserva agregados históricos — e alcança `person_change_log`, que é a cópia sombra do cadastro
+- [x] Consentimento de imagem de menor implementado — com responsável nomeado exigido no banco, e a finalidade de adulto recusada para criança (Art. 14)
+- [x] Teste de scrubbing de logs passando — com `console` proibido em todo o `src/`, senão o teste guardaria uma função que ninguém é obrigado a chamar
+- [x] **Consentimento é append-only** (ADR-009): revogar cria linha nova, e nem o administrador do banco reescreve a prova
+- [x] **Privacidade não é da coordenação** — mesma escolha de `audit.read`, provada por teste de isolamento
+- [x] As três permissões `privacy.*` existiam em `PERMISSIONS.md` §3 desde a Fase 0 e **nunca tinham entrado no catálogo**
+
+**11b — telas, política e checklist (concluída):**
+
+- [x] Fluxo 10 de `USER_FLOWS.md` funcionando ponta a ponta — registrar, responder no prazo, entregar o pacote e anonimizar, tudo provado por e2e
+- [x] Política de privacidade e termos versionados, exibidos no sistema — e **legíveis por qualquer sessão**: política que só a administração enxerga é rascunho interno
+- [x] Área de solicitações do titular e registro de consentimento na tela da pessoa — a fila ordenada pelo prazo, não pela chegada
+- [x] Checklist de `LGPD.md` §10 revisado item a item — **cinco dos doze itens não dependem de código**, e a revisão os separou dos que dependem
+- [x] **Abrir a solicitação não registra acesso aos dados** — a regressão da 10b aplicada ao caso mais sensível: o pacote de uma pessoa nomeada
 
 ---
 
@@ -248,23 +302,74 @@ rodaria como superusuário. Ver `PROGRESS.md`.
 
 **Entrega:** PWA instalável · e2e dos 12 fluxos obrigatórios da §13 do `MASTER_SPEC` · auditoria de acessibilidade · hardening · homologação · plano de deploy.
 
+Dividida em duas, como as Fases 7 a 11: **12a** (PWA instalável e auditoria de acessibilidade) e **12b** (os 12 fluxos da §13, checklist de segurança, cabeçalhos e plano de deploy).
+
 **Aceite:**
 
-- [ ] Os 12 fluxos e2e passando
-- [ ] PWA instalável em Android e iOS
-- [ ] Checklist de `SECURITY.md` §13 completo
-- [ ] Cabeçalhos de segurança verificados na resposta real
-- [ ] Auditoria de acessibilidade sem falha bloqueante
-- [ ] Homologação validada por usuários reais da igreja
+**12a — PWA e acessibilidade (concluída):**
+
+- [x] PWA instalável em Android e iOS — manifesto, ícones (inclusive `maskable`), service worker e as declarações que o iOS exige, que ignora o manifesto
+- [x] **O service worker não guarda página alguma da aplicação** — cache de tela autenticada seria dado pessoal parado num aparelho que a igreja não controla, sobrevivendo ao logout. Há caso de e2e que falha se alguém acrescentar o cache de navegação
+- [x] Sem rede, a navegação cai numa tela que diz o que importa: **o rascunho do relatório não se perde** (ADR-004)
+- [x] Auditoria de acessibilidade sem falha bloqueante — axe em 19 telas reais, com sessão real, em 1280 px e em 360 px. A Fase 2 cobria os componentes; esta cobre as telas
+- [x] Ícones gerados por script sem dependência nova, a partir do símbolo provisório — e determinísticos, verificado por regeração
+
+**12b — fluxos, hardening e implantação (concluída):**
+
+- [x] Os 12 fluxos e2e passando, **mapeados um a um** contra a §13 em `TESTING.md` §4 — quatro não tinham caso próprio, sempre pelo mesmo motivo: cada fase testou quem **constrói** o recurso, e a §13 pergunta por quem **consome**
+- [x] Cabeçalhos de segurança verificados na resposta real, com **CSP fechada**: nonce por resposta, `strict-dynamic`, sem `'unsafe-inline'` nem `'unsafe-eval'` em `script-src`
+- [x] Checklist de `SECURITY.md` §13 revisado item a item — nove itens provados por teste, um por inspeção, e **dois que não dependem de código**
+- [x] Rate limiting na **exportação**, que o checklist pedia e não existia (migration 0017)
+- [x] Plano de deploy revisado em `DEPLOYMENT.md` §7, com os dois bloqueios anteriores a qualquer passo e os pontos que só apareceram depois de o sistema existir
+
+**Não dependem de código, e não fecham sozinhos:**
+
+- [ ] Homologação validada por usuários reais da igreja — inclui as duas medições de campo pendentes das Fases 8 e 9b
 - [ ] **Validação jurídica de LGPD concluída** — bloqueia a entrada em produção
 
 ---
 
 ## Depois do MVP
 
+### Fase 13 — Jornada da pessoa · M · ✅ concluída
+
+Primeira fase da Prioridade 2, e a primeira da lista da §11 do `MASTER_SPEC`. Escolhida pelo usuário em 2026-10-09: usa o cadastro que já existe, não depende do login de membro e não acrescenta destino ao menu (a PEND-01 continua em aberto).
+
+**Entrega:** etapas configuráveis por congregação (nome, ordem, quem registra, prazo padrão, arquivamento) · registro da etapa na tela da pessoa, com situação, data, responsável, observações, próxima ação e prazo · histórico por etapa · acompanhamentos atrasados no painel · a jornada no pacote do titular e na anonimização.
+
+Dividida em duas, como as fases anteriores: **13a** (banco, RLS, motor e servidor) e **13b** (telas, painel e e2e).
+
+**Antes dela, a PEND-02:** a suíte passou a rodar numa pilha do Supabase só dela (ADR-011). Nenhuma fase abre com teste vermelho, e o único vermelho da linha de base era um Elo da homologação manual contado pela suíte.
+
+**Aceite:**
+
+**13a — banco, RLS e motor (concluída):**
+
+- [x] As doze etapas da §4.4 em toda congregação, criadas por gatilho na criação da congregação
+- [x] **A jornada é a fonte das cinco datas do cadastro** (ADR-010): concluir grava, reabrir apaga, e o banco recusa qualquer outro valor — inclusive do dono do banco. Provado por teste e por mutação
+- [x] Nota 4 da matriz sobre etapas: liderança registra só o que a igreja abriu a ela, e etapa que grava no cadastro é da secretaria por `CHECK`
+- [x] Ler a jornada é ler a pessoa: o líder vê a do próprio Elo, a coordenação a da congregação, o membro a própria
+- [x] Histórico por etapa, escrito só por gatilho, lido só com `person.read_history`
+- [x] Anonimização alcança a jornada e preserva as etapas; o pacote do titular inclui a jornada sem o responsável, que é terceiro
+- [x] O que já estava no cadastro virou jornada, sem perder dado — backfill antes dos gatilhos
+- [x] Três mutações confirmando que a suíte guarda algo — e uma delas mostrou um teste que sujava o banco quando a proteção quebrava
+
+**13b — telas (concluída):**
+
+- [x] Jornada no perfil da pessoa, oferecendo só as etapas que a sessão registra, com o motivo escrito nas outras
+- [x] Formulário da pessoa sem os cinco campos de data, com leitura e link para a jornada
+- [x] Configuração das etapas em `/pessoas/jornada`: o pastor altera, a coordenação lê
+- [x] Acompanhamentos atrasados no painel — o indicador "jornada do membro" que a Fase 10a deixou de fora — recortados pela RLS, na mesma transação do painel
+
+**Ficou de fora, com o motivo:**
+
+- **Notificações por etapa** — dependem do módulo de comunicação e de push (Prioridade 2 e 3);
+- **Campos personalizados por etapa** — sem caso de uso descrito pela igreja, seriam um formulário genérico desenhado no escuro;
+- **Pré-requisito entre etapas** ("batismo exige decisão") — a §4.4 pede "regras", e as duas implementadas são as que a consolidação usa; regra de sequência impõe uma ordem que a vida real nem sempre segue.
+
 ### Prioridade 2
 
-Jornada da pessoa configurável · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · **pedidos de oração e cuidado pastoral** (com RLS reforçada e log de todo acesso) · busca pública de Elo por bairro e solicitação por visitante.
+~~Jornada da pessoa configurável~~ (Fase 13) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · **pedidos de oração e cuidado pastoral** (com RLS reforçada e log de todo acesso) · busca pública de Elo por bairro e solicitação por visitante.
 
 ### Prioridade 3
 

@@ -207,9 +207,12 @@ E `tests/unit/design/contrast.test.ts` relê `globals.css` e recalcula todos os 
 
 ## 10. PWA
 
-- Instalável em Android e iPhone.
-- Ícone e tela de abertura com o placeholder de marca até o material oficial ser fornecido.
-- Aviso claro de estado offline.
+Implementado na **Fase 12a**.
+
+- Instalável em Android e iPhone. O iOS **ignora o manifesto** para ícone e modo de tela cheia: as declarações dele ficam em `src/app/layout.tsx` (`appleWebApp` e `apple-touch-icon`), e sem elas o sistema é instalável no Android e vira uma captura de tela borrada no iPhone.
+- Ícones gerados por `pnpm icons` (`scripts/gerar-icones.ts`) a partir do símbolo provisório — inclusive um **`maskable` separado**, porque o Android recorta o ícone em formas variadas e só garante os 80% centrais.
+- Aviso claro de estado offline, em `/offline`. Ele diz a frase que evita o abandono do Fluxo 6: **o rascunho não se perde**.
+- ⚠️ **O service worker não guarda página alguma da aplicação** (`public/sw.js`). No cache ficam apenas os ícones e a tela de falta de conexão. Cache de tela autenticada seria dado pessoal parado num aparelho que a igreja não controla, sobrevivendo ao logout — e transformaria a decisão "PWA online" da ADR-004 em offline-first pela porta dos fundos.
 - Rascunho do relatório preservado localmente (ADR-004) e **apagado após o envio e no logout**.
 
 ---

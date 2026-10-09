@@ -66,6 +66,17 @@ export const person = pgTable(
 
     notes: text('notes'),
 
+    /**
+     * Quando os dados pessoais foram apagados a pedido do titular (Fase 11).
+     *
+     * A linha **continua existindo**, e é essa a diferença entre anonimizar e
+     * excluir: as participações e os relatórios antigos apontam para ela, e os
+     * números daquele encontro continuam certos sem identificar ninguém
+     * (`LGPD.md` §4). Preenchida junto com `deleted_at` — quem foi anonimizado
+     * saiu do cadastro ativo.
+     */
+    anonymizedAt: timestamp('anonymized_at', { withTimezone: true }),
+
     ...timestamps,
     createdBy: uuid('created_by'),
     updatedBy: uuid('updated_by'),

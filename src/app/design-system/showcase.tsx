@@ -38,6 +38,8 @@ interface DemoElo {
   readonly id: string;
   readonly nome: string;
   readonly lider: string;
+  /** Um deles longo e sem espaço, de propósito: é o que transbordava no celular. */
+  readonly contato: string;
   readonly dia: string;
   readonly participantes: number;
   readonly status: 'enviado' | 'atrasado' | 'rascunho';
@@ -48,6 +50,7 @@ const demoElos: readonly DemoElo[] = [
     id: '1',
     nome: 'Elo Semear',
     lider: 'Marcela Furtado',
+    contato: 'marcela@exemplo.test',
     dia: 'Quinta',
     participantes: 12,
     status: 'enviado',
@@ -56,6 +59,7 @@ const demoElos: readonly DemoElo[] = [
     id: '2',
     nome: 'Elo Caminho',
     lider: 'Henrique Vasques',
+    contato: 'secretaria.consolidacao.elo.caminho@exemplo.test',
     dia: 'Terça',
     participantes: 9,
     status: 'atrasado',
@@ -64,6 +68,7 @@ const demoElos: readonly DemoElo[] = [
     id: '3',
     nome: 'Elo Fonte',
     lider: 'Tarcísio Lemos',
+    contato: 'tarcisio@exemplo.test',
     dia: 'Quarta',
     participantes: 7,
     status: 'rascunho',
@@ -91,6 +96,7 @@ const statusBadge: Record<DemoElo['status'], ReactNode> = {
 const colunas: readonly DataTableColumn<DemoElo>[] = [
   { id: 'nome', header: 'Elo', cell: (row) => row.nome, primary: true },
   { id: 'lider', header: 'Líder', cell: (row) => row.lider },
+  { id: 'contato', header: 'Contato', cell: (row) => row.contato },
   { id: 'dia', header: 'Dia', cell: (row) => row.dia },
   {
     id: 'participantes',

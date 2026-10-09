@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { gerarNonce, montarCsp } from '@/core/security/csp';
+
 /**
  * Renovação de sessão e guarda de rotas.
  *
@@ -31,6 +33,22 @@ const ROTAS_PUBLICAS = [
   // Referência visual dos componentes. Não expõe dado algum e a própria
   // página se recusa a existir em produção — ver src/app/design-system/page.tsx.
   '/design-system',
+  /*
+   * O PWA (Fase 12a). As três precisam responder **sem sessão**:
+   *
+   *   - `/manifest.webmanifest` é lido pelo navegador antes de qualquer login,
+   *     e é ele que torna o sistema instalável;
+   *   - `/sw.js` é buscado pelo próprio service worker ao atualizar, sem
+   *     cookies de navegação;
+   *   - `/offline` é a tela de falta de conexão, e mandá-la para o login seria
+   *     redirecionar justamente quem não tem rede para alcançá-lo.
+   *
+   * Nenhuma das três expõe dado de ninguém — é a mesma razão pela qual o
+   * service worker não guarda página de aplicação.
+   */
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/offline',
 ];
 
 function ehRotaPublica(pathname: string): boolean {
@@ -40,7 +58,42 @@ function ehRotaPublica(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  /*
+   * A CSP nasce aqui, e não no `next.config.ts` (Fase 12b).
+   *
+   * O **nonce** muda a cada resposta, e é ele que permite recusar script inline
+   * sem `'unsafe-inline'`: o Next lê a política no cabeçalho da **requisição** e
+   * carimba o nonce nos próprios scripts. Por isso a política vai nos dois
+   * lados — na requisição para o Next enxergá-la, na resposta para o navegador
+   * obedecê-la.
+   */
+  const nonce = gerarNonce();
+  const csp = montarCsp({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    nonce,
+    desenvolvimento: process.env.NODE_ENV !== 'production',
+  });
+
+  /**
+   * Uma resposta com a política aplicada.
+   *
+   * Fabricada por função, e não guardada numa constante, porque os cabeçalhos
+   * precisam ser clonados **depois** de o cliente do Supabase mexer nos cookies
+   * da requisição — um clone feito antes entregaria ao servidor a sessão
+   * anterior.
+   */
+  function comCsp(): NextResponse {
+    const cabecalhos = new Headers(request.headers);
+    cabecalhos.set('x-nonce', nonce);
+    cabecalhos.set('content-security-policy', csp);
+
+    const resposta = NextResponse.next({ request: { headers: cabecalhos } });
+    resposta.headers.set('Content-Security-Policy', csp);
+
+    return resposta;
+  }
+
+  let response = comCsp();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
@@ -55,7 +108,9 @@ export async function proxy(request: NextRequest) {
             request.cookies.set(name, value);
           }
 
-          response = NextResponse.next({ request });
+          // `comCsp()` e não `NextResponse.next({ request })`: a resposta
+          // refeita aqui precisa continuar carregando a política e o nonce.
+          response = comCsp();
 
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, {
@@ -79,19 +134,28 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // O redirecionamento também leva a política: a resposta é do mesmo servidor,
+  // e um cabeçalho ausente aqui viraria uma janela sem CSP na navegação.
+  function redirecionarPara(destino: URL): NextResponse {
+    const resposta = NextResponse.redirect(destino);
+    resposta.headers.set('Content-Security-Policy', csp);
+
+    return resposta;
+  }
+
   if (!user && !ehRotaPublica(pathname)) {
     const destino = request.nextUrl.clone();
     destino.pathname = '/entrar';
     // Preserva o destino pretendido, para levar a pessoa até lá após entrar.
     destino.searchParams.set('proximo', pathname);
-    return NextResponse.redirect(destino);
+    return redirecionarPara(destino);
   }
 
   if (user && pathname === '/entrar') {
     const destino = request.nextUrl.clone();
     destino.pathname = '/dashboard';
     destino.search = '';
-    return NextResponse.redirect(destino);
+    return redirecionarPara(destino);
   }
 
   return response;

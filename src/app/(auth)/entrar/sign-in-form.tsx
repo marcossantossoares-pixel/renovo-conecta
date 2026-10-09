@@ -58,7 +58,9 @@ export function SignInForm() {
 
       <Link
         href="/recuperar-senha"
-        className="text-center text-sm text-primary-strong underline underline-offset-4"
+        // Alvo de 44 px: é a saída de quem esqueceu a senha, e quem esqueceu
+        // costuma ser justamente quem tem menos familiaridade com o celular.
+        className="inline-flex min-h-11 items-center justify-center text-center text-sm text-primary-strong underline underline-offset-4"
       >
         Esqueci minha senha
       </Link>

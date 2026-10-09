@@ -56,7 +56,7 @@ export function PasswordResetForm() {
 
       <Link
         href="/entrar"
-        className="text-center text-sm text-primary-strong underline underline-offset-4"
+        className="inline-flex min-h-11 items-center justify-center text-center text-sm text-primary-strong underline underline-offset-4"
       >
         Voltar para o login
       </Link>

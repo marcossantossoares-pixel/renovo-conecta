@@ -53,8 +53,10 @@ export const passwordResetSchema = z
 
 export const createInvitationSchema = z.object({
   email: emailSchema,
-  roleCode: z.enum(ROLE_CODES),
-  scopeType: z.enum(['congregation', 'elo']),
+  roleCode: z.enum(ROLE_CODES, 'Escolha o papel.'),
+  // Campo oculto: só falha se alguém adulterar o formulário — e mesmo assim
+  // a resposta não lista os valores aceitos.
+  scopeType: z.enum(['congregation', 'elo'], 'Convite inválido.'),
   scopeId: z.uuid(),
 });
 

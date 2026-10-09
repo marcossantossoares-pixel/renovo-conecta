@@ -133,8 +133,16 @@ export function DataTable<T>({
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {secondaryColumns.map((column) => (
                     <div key={column.id} className="flex justify-between gap-3">
-                      <dt className="text-sm text-text-muted">{column.header}</dt>
-                      <dd className="text-right text-sm text-text">
+                      <dt className="shrink-0 text-sm text-text-muted">
+                        {column.header}
+                      </dt>
+                      {/*
+                       * `min-w-0` + `wrap-anywhere`: um e-mail não tem espaço onde
+                       * quebrar, e sem isto empurrava o cartão para fora da tela no
+                       * celular. Foi o primeiro CI no GitHub que mostrou, com os
+                       * convidados de `invitation.spec` na lista de pessoas.
+                       */}
+                      <dd className="min-w-0 text-right text-sm wrap-anywhere text-text">
                         {column.cell(row)}
                       </dd>
                     </div>

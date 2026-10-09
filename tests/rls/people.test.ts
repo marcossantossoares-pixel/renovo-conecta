@@ -195,8 +195,12 @@ describe('histórico de alterações', () => {
     const historico = await asUser(claimsPastor, async (tx) => {
       await tx`UPDATE person SET notes = 'anotação de teste' WHERE id = ${alvo!.id}::uuid`;
 
+      // Filtrado pelo campo: desde a Fase 13 o seed registra o batismo desta
+      // pessoa pela jornada, e o gatilho deixa no histórico a data que chegou
+      // ao cadastro — uma linha legítima, sem conta, que não é a deste teste.
       return tx<{ changed_by: string }[]>`
-        SELECT changed_by FROM person_change_log WHERE person_id = ${alvo!.id}::uuid
+        SELECT changed_by FROM person_change_log
+         WHERE person_id = ${alvo!.id}::uuid AND field_name = 'notes'
       `;
     });
 

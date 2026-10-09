@@ -1,4 +1,9 @@
-import { can, effectiveScope, type AuthzSubject } from '@/core/authz/can';
+import {
+  effectiveScope,
+  hasBroadScope,
+  hasNarrowScope,
+  type AuthzSubject,
+} from '@/core/authz/can';
 
 /**
  * Regras de campo — a camada que `can()` deliberadamente não cobre.
@@ -26,19 +31,32 @@ import { can, effectiveScope, type AuthzSubject } from '@/core/authz/can';
  * registrado por engano não é um dado errado qualquer — é uma afirmação sobre a
  * vida de alguém, feita por quem não a acompanhou.
  */
-export const ECCLESIASTICAL_FIELDS = [
-  'churchStatus',
-  'firstVisitAt',
-  'howFoundChurch',
-  'decisionAt',
-  'baptismAt',
-  'integrationCourseAt',
-  'membershipAt',
-] as const;
+export const ECCLESIASTICAL_FIELDS = ['churchStatus', 'howFoundChurch'] as const;
 
 export type EcclesiasticalField = (typeof ECCLESIASTICAL_FIELDS)[number];
 
 const ECCLESIASTICAL_SET: ReadonlySet<string> = new Set(ECCLESIASTICAL_FIELDS);
+
+/**
+ * As cinco datas que **vêm da jornada** desde a Fase 13 (ADR-010).
+ *
+ * Eram campos eclesiásticos do formulário até a Fase 12. Agora o formulário não
+ * as tem, para ninguém: concluir a etapa da jornada grava a data no cadastro, e
+ * o banco recusa qualquer outro caminho (migration 0019). Um envio que as traga
+ * é recusado pelo nome — inclusive o da coordenação, que até ontem podia.
+ */
+export const JOURNEY_DERIVED_FIELDS = [
+  'firstVisitAt',
+  'decisionAt',
+  'integrationCourseAt',
+  'baptismAt',
+  'membershipAt',
+] as const;
+
+/** Campos derivados da jornada presentes num envio de formulário. */
+export function sentJourneyDerivedFields(formData: FormData): readonly string[] {
+  return JOURNEY_DERIVED_FIELDS.filter((campo) => formData.has(campo));
+}
 
 /** Rótulos para a mensagem de recusa e para a tela do histórico. */
 export const FIELD_LABELS: Readonly<Record<string, string>> = {
@@ -57,6 +75,13 @@ export const FIELD_LABELS: Readonly<Record<string, string>> = {
   baptism_at: 'Batismo nas águas',
   integration_course_at: 'Curso de integração',
   membership_at: 'Recebimento como membro',
+  // As mesmas cinco no formato do formulário: a recusa nominal de
+  // `sentJourneyDerivedFields` fala com os nomes que a pessoa conhece.
+  firstVisitAt: 'Primeira visita',
+  decisionAt: 'Decisão por Cristo',
+  baptismAt: 'Batismo nas águas',
+  integrationCourseAt: 'Curso de integração',
+  membershipAt: 'Recebimento como membro',
   photo_file_id: 'Foto',
   deleted_at: 'Exclusão',
 };
@@ -80,6 +105,9 @@ export function canWriteEcclesiasticalFields(
   subject: AuthzSubject,
   permission: WritePermission,
 ): boolean {
+  // Sem alvo, de propósito: a pergunta aqui é só sobre a **largura** do escopo.
+  // Passar por `hasBroadScope` exigiria uma congregação que este chamador não
+  // tem — e a resposta viraria `false` para toda a coordenação.
   const escopo = effectiveScope(subject, permission);
 
   return escopo === 'global' || escopo === 'congregation';
@@ -133,11 +161,7 @@ export function canSeeMinorContact(
   subject: AuthzSubject,
   congregationId: string | undefined,
 ): boolean {
-  const escopo = effectiveScope(subject, 'person.export');
-
-  if (escopo !== 'global' && escopo !== 'congregation') return false;
-
-  return can(subject, 'person.export', { congregationId });
+  return hasBroadScope(subject, 'person.export', { congregationId });
 }
 
 /**
@@ -152,9 +176,7 @@ export function canSeeMinorContact(
  * da congregação, com Elo ou sem.
  */
 export function requiresEloLink(subject: AuthzSubject): boolean {
-  const escopo = effectiveScope(subject, 'person.create');
-
-  return escopo === 'elo' || escopo === 'supervision';
+  return hasNarrowScope(subject, 'person.create');
 }
 
 /**
@@ -166,7 +188,5 @@ export function requiresEloLink(subject: AuthzSubject): boolean {
  * trabalho, e auditar tudo seria auditar nada.
  */
 export function hasNarrowPersonScope(subject: AuthzSubject): boolean {
-  const escopo = effectiveScope(subject, 'person.read');
-
-  return escopo === 'elo' || escopo === 'supervision';
+  return hasNarrowScope(subject, 'person.read');
 }

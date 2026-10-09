@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
-import { brDateToIso, onlyDigits } from '@/lib/format';
+import { onlyDigits } from '@/lib/format';
+import {
+  cepSchema,
+  optionalDate,
+  optionalText,
+  pageParam,
+  searchParam,
+  ufSchema,
+} from '@/lib/schema-fragments';
 
 /**
  * Schemas de entrada do cadastro de pessoas.
@@ -14,44 +22,6 @@ import { brDateToIso, onlyDigits } from '@/lib/format';
  * tudo aqui passa por `optionalText`, que transforma vazio em `null`. Sem isso,
  * a busca por quem não tem telefone nunca encontraria ninguém.
  */
-
-/** Texto opcional: espaços aparados, vazio vira `null`. */
-const optionalText = z
-  .string()
-  .trim()
-  .transform((valor) => (valor.length === 0 ? null : valor))
-  .nullable();
-
-/**
- * Data em `dd/mm/aaaa` (o que o campo mascarado produz) ou em ISO (o que vem de
- * um parâmetro de URL ou de um teste). Sai sempre em ISO, que é o que o
- * PostgreSQL espera.
- */
-const optionalDate = z
-  .string()
-  .trim()
-  .transform((valor, ctx) => {
-    if (valor.length === 0) return null;
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-      const data = new Date(`${valor}T00:00:00Z`);
-      if (Number.isNaN(data.getTime())) {
-        ctx.addIssue({ code: 'custom', message: 'Data inválida.' });
-        return z.NEVER;
-      }
-      return valor;
-    }
-
-    const iso = brDateToIso(valor);
-
-    if (iso === null) {
-      ctx.addIssue({ code: 'custom', message: 'Use o formato dd/mm/aaaa.' });
-      return z.NEVER;
-    }
-
-    return iso;
-  })
-  .nullable();
 
 /**
  * Data de nascimento.
@@ -137,7 +107,9 @@ const personalFieldsSchema = z.object({
     .max(200, 'O nome pode ter no máximo 200 caracteres.'),
   socialName: optionalText,
   birthDate: birthDateSchema,
-  maritalStatus: z.enum(MARITAL_STATUSES).default('nao_informado'),
+  maritalStatus: z
+    .enum(MARITAL_STATUSES, 'Escolha o estado civil.')
+    .default('nao_informado'),
   phone: phoneSchema,
   whatsapp: phoneSchema,
   email: emailOptionalSchema,
@@ -153,13 +125,10 @@ const personalFieldsSchema = z.object({
  * viver em dois lugares, e um dia divergir.
  */
 const ecclesiasticalFieldsSchema = z.object({
-  churchStatus: z.enum(CHURCH_STATUSES),
-  firstVisitAt: optionalDate,
+  churchStatus: z.enum(CHURCH_STATUSES, 'Escolha a situação na igreja.'),
   howFoundChurch: optionalText,
-  decisionAt: optionalDate,
-  baptismAt: optionalDate,
-  integrationCourseAt: optionalDate,
-  membershipAt: optionalDate,
+  // Primeira visita, decisão, curso de integração, batismo e membresia não
+  // estão aqui desde a Fase 13: vêm da jornada (ADR-010, `fields.ts`).
 });
 
 /** Endereço. Uma pessoa tem no máximo um endereço principal no MVP. */
@@ -169,13 +138,8 @@ export const addressSchema = z.object({
   complement: optionalText,
   district: optionalText,
   city: optionalText,
-  state: optionalText.refine((valor) => valor === null || /^[A-Za-z]{2}$/.test(valor), {
-    message: 'Use a sigla do estado, com duas letras.',
-  }),
-  zipCode: optionalText.refine(
-    (valor) => valor === null || onlyDigits(valor).length === 8,
-    { message: 'O CEP tem 8 dígitos.' },
-  ),
+  state: ufSchema,
+  zipCode: cepSchema,
 });
 
 export const createPersonSchema = personalFieldsSchema
@@ -193,7 +157,7 @@ export type UpdatePersonInput = z.infer<typeof updatePersonSchema>;
 /* Consulta da listagem                                                    */
 /* ---------------------------------------------------------------------- */
 
-export const PAGE_SIZE = 20;
+export { PAGE_SIZE } from '@/lib/schema-fragments';
 
 /**
  * Filtros da lista, lidos dos parâmetros da URL.
@@ -204,7 +168,7 @@ export const PAGE_SIZE = 20;
  * merece uma lista, não um erro.
  */
 export const peopleQuerySchema = z.object({
-  q: z.string().trim().max(120).optional().catch(undefined),
+  q: searchParam,
   status: z.enum(CHURCH_STATUSES).optional().catch(undefined),
   tagId: z.uuid().optional().catch(undefined),
   eloId: z.uuid().optional().catch(undefined),
@@ -213,7 +177,7 @@ export const peopleQuerySchema = z.object({
     .union([z.literal('true'), z.literal('false')])
     .optional()
     .catch(undefined),
-  page: z.coerce.number().int().min(1).max(10_000).default(1).catch(1),
+  page: pageParam,
 });
 
 export type PeopleQuery = z.infer<typeof peopleQuerySchema>;
@@ -247,3 +211,27 @@ export const personTagSchema = z.object({
   personId: z.uuid(),
   tagId: z.uuid(),
 });
+
+/**
+ * Pessoa dentro de um seletor de outra tela.
+ *
+ * Declarado aqui, e não junto de `listPersonOptions`, porque componentes de
+ * cliente precisam do tipo e `service.ts` é `server-only`. Estava escrito quatro
+ * vezes, uma em cada componente dos Elos — quatro tipos idênticos que o
+ * TypeScript deixaria divergir sem reclamar.
+ *
+ * É `type`, e não `interface`, de propósito: o `tx.execute<T>` do Drizzle exige
+ * `T extends Record<string, unknown>`, e só o alias de tipo ganha a assinatura
+ * de índice implícita que satisfaz essa restrição.
+ */
+export type PersonOption = {
+  readonly id: string;
+  readonly full_name: string;
+};
+
+/** Pessoas no formato que o `<Select>` espera. */
+export function toOptions(
+  pessoas: readonly PersonOption[],
+): { value: string; label: string }[] {
+  return pessoas.map((pessoa) => ({ value: pessoa.id, label: pessoa.full_name }));
+}

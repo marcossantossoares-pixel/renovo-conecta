@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { forbidden, notFound } from 'next/navigation';
-import type { ReactNode } from 'react';
 
 import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
@@ -8,39 +7,37 @@ import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
+import { DescriptionItem } from '@/components/ui/description-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
 import { formatDateTime, isoDateToBr } from '@/lib/format';
+import { getPersonJourneyForViewer } from '@/modules/journey/service';
 import { fieldLabel } from '@/modules/people/fields';
 import {
   listPersonHistory,
   listPersonTags,
   listTags,
 } from '@/modules/people/repository';
-import { CHURCH_STATUS_LABELS, MARITAL_STATUS_LABELS } from '@/modules/people/schemas';
-import { getPersonForViewer } from '@/modules/people/service';
+import {
+  CHURCH_STATUS_LABELS,
+  MARITAL_STATUS_LABELS,
+  toOptions,
+} from '@/modules/people/schemas';
+import { getPersonForViewer, listPersonOptions } from '@/modules/people/service';
+import { currentConsentsForViewer } from '@/modules/privacy/service';
+import { idDaRota } from '@/lib/route-id';
+import { ConsentPanel } from './consent-panel';
 import { DeletePerson } from './delete-person';
+import { JourneyPanel } from './journey-panel';
 import { TagManager } from './tag-manager';
 
 export const metadata: Metadata = {
   title: 'Pessoa · Renovo Conecta',
   robots: { index: false, follow: false },
 };
-
-/** Par rótulo/valor. Campo vazio vira travessão, e não some da tela. */
-function Campo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-sm text-text-muted">{rotulo}</dt>
-      <dd className="text-base text-text">
-        {valor === null || valor === '' ? '—' : valor}
-      </dd>
-    </div>
-  );
-}
 
 const data = (valor: string | null) => (valor ? isoDateToBr(valor) : null);
 
@@ -59,7 +56,7 @@ export default async function PessoaPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (
     !can(claims, 'person.read', {
@@ -87,11 +84,32 @@ export default async function PessoaPage({
   const podeExcluir = can(claims, 'person.delete', { congregationId });
   const podeVerHistorico = can(claims, 'person.read_history', { congregationId });
 
-  const [etiquetas, disponiveis, historico] = await Promise.all([
-    listPersonTags(claims, person.id),
-    podeEditar ? listTags(claims) : Promise.resolve([]),
-    podeVerHistorico ? listPersonHistory(claims, person.id) : Promise.resolve([]),
-  ]);
+  /*
+   * Ver os consentimentos é `person.read` — quem já enxerga o cadastro precisa
+   * saber se pode publicar a foto. **Registrar** é `privacy.handle_requests`,
+   * que é do pastor e do superadmin: consentimento é prova, e quem a produz é
+   * quem responde pela privacidade (`PERMISSIONS.md` §4).
+   */
+  const podeRegistrarConsentimento = can(claims, 'privacy.handle_requests', {
+    congregationId,
+  });
+
+  const [etiquetas, disponiveis, historico, consentimentos, jornada] =
+    await Promise.all([
+      listPersonTags(claims, person.id),
+      podeEditar ? listTags(claims) : Promise.resolve([]),
+      podeVerHistorico ? listPersonHistory(claims, person.id) : Promise.resolve([]),
+      currentConsentsForViewer(claims, congregationId, person.id),
+      // A congregação da LINHA, e não das claims: é a das etapas desta pessoa.
+      getPersonJourneyForViewer(claims, {
+        id: person.id,
+        congregationId: person.congregation_id,
+      }),
+    ]);
+
+  // Quem pode ser responsável é quem a sessão enxerga — a RLS recorta a lista:
+  // o líder escolhe entre as pessoas do próprio Elo.
+  const responsaveis = jornada?.canRegisterAny ? await listPersonOptions(claims) : [];
 
   const contatoOculto = person.is_minor && !showsMinorContact;
   const nomeExibido = person.social_name ?? person.full_name;
@@ -146,19 +164,19 @@ export default async function PessoaPage({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Nome completo" valor={person.full_name} />
-              <Campo rotulo="Nome social" valor={person.social_name} />
-              <Campo rotulo="Nascimento" valor={data(person.birth_date)} />
-              <Campo
+              <DescriptionItem rotulo="Nome completo" valor={person.full_name} />
+              <DescriptionItem rotulo="Nome social" valor={person.social_name} />
+              <DescriptionItem rotulo="Nascimento" valor={data(person.birth_date)} />
+              <DescriptionItem
                 rotulo="Estado civil"
                 valor={
                   MARITAL_STATUS_LABELS[person.marital_status as 'solteiro'] ?? null
                 }
               />
-              <Campo rotulo="Telefone" valor={person.phone} />
-              <Campo rotulo="WhatsApp" valor={person.whatsapp} />
-              <Campo rotulo="E-mail" valor={person.email} />
-              <Campo rotulo="Observações" valor={person.notes} />
+              <DescriptionItem rotulo="Telefone" valor={person.phone} />
+              <DescriptionItem rotulo="WhatsApp" valor={person.whatsapp} />
+              <DescriptionItem rotulo="E-mail" valor={person.email} />
+              <DescriptionItem rotulo="Observações" valor={person.notes} />
             </dl>
           </CardContent>
         </Card>
@@ -169,13 +187,13 @@ export default async function PessoaPage({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Rua" valor={person.street} />
-              <Campo rotulo="Número" valor={person.number} />
-              <Campo rotulo="Complemento" valor={person.complement} />
-              <Campo rotulo="Bairro" valor={person.district} />
-              <Campo rotulo="Cidade" valor={person.city} />
-              <Campo rotulo="UF" valor={person.state} />
-              <Campo rotulo="CEP" valor={person.zip_code} />
+              <DescriptionItem rotulo="Rua" valor={person.street} />
+              <DescriptionItem rotulo="Número" valor={person.number} />
+              <DescriptionItem rotulo="Complemento" valor={person.complement} />
+              <DescriptionItem rotulo="Bairro" valor={person.district} />
+              <DescriptionItem rotulo="Cidade" valor={person.city} />
+              <DescriptionItem rotulo="UF" valor={person.state} />
+              <DescriptionItem rotulo="CEP" valor={person.zip_code} />
             </dl>
           </CardContent>
         </Card>
@@ -185,25 +203,66 @@ export default async function PessoaPage({
             <div>
               <CardTitle as="h2">Dados eclesiásticos</CardTitle>
               <CardDescription>
-                Registrados pela secretaria, pela coordenação ou pelo pastor.
+                As datas vêm da jornada, logo abaixo: concluir a etapa grava a data
+                aqui.
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Campo rotulo="Primeira visita" valor={data(person.first_visit_at)} />
-              <Campo rotulo="Como conheceu a igreja" valor={person.how_found_church} />
-              <Campo rotulo="Decisão por Cristo" valor={data(person.decision_at)} />
-              <Campo rotulo="Batismo nas águas" valor={data(person.baptism_at)} />
-              <Campo
+              <DescriptionItem
+                rotulo="Primeira visita"
+                valor={data(person.first_visit_at)}
+              />
+              <DescriptionItem
+                rotulo="Como conheceu a igreja"
+                valor={person.how_found_church}
+              />
+              <DescriptionItem
+                rotulo="Decisão por Cristo"
+                valor={data(person.decision_at)}
+              />
+              <DescriptionItem
+                rotulo="Batismo nas águas"
+                valor={data(person.baptism_at)}
+              />
+              <DescriptionItem
                 rotulo="Curso de integração"
                 valor={data(person.integration_course_at)}
               />
-              <Campo
+              <DescriptionItem
                 rotulo="Recebimento como membro"
                 valor={data(person.membership_at)}
               />
             </dl>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle as="h2">Consentimentos</CardTitle>
+              <CardDescription>
+                Cada decisão é um registro novo — revogar não apaga a autorização
+                anterior, e é isso que permite dizer "houve autorização entre março e
+                agosto".
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ConsentPanel
+              personId={person.id}
+              isMinor={person.is_minor}
+              atuais={consentimentos.map((consentimento) => ({
+                id: consentimento.id,
+                purpose: consentimento.purpose,
+                granted: consentimento.granted,
+                occurred_at: consentimento.occurred_at,
+                policy_version: consentimento.policy_version,
+                responsible_name: consentimento.responsible_name,
+              }))}
+              podeRegistrar={podeRegistrarConsentimento}
+            />
           </CardContent>
         </Card>
 
@@ -224,6 +283,56 @@ export default async function PessoaPage({
           </CardContent>
         </Card>
       </div>
+
+      {jornada && (
+        <Card className="mt-6" id="jornada">
+          <CardHeader>
+            <div>
+              <CardTitle as="h2">Jornada</CardTitle>
+              <CardDescription>
+                A caminhada da pessoa na igreja, etapa por etapa, na ordem que a igreja
+                definiu.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <JourneyPanel
+              personId={person.id}
+              steps={jornada.steps.map((etapa) => ({
+                stageId: etapa.stage_id,
+                stageName: etapa.stage_name,
+                stageDescription: etapa.stage_description,
+                feedsRecord: etapa.person_field !== null,
+                stageArchived: etapa.stage_archived_at !== null,
+                status: etapa.status,
+                occurredOn: etapa.occurred_on,
+                dueOn: etapa.due_on,
+                notes: etapa.notes,
+                nextAction: etapa.next_action,
+                responsiblePersonId: etapa.responsible_person_id,
+                responsibleName: etapa.responsible_name,
+                updatedAt: etapa.updated_at,
+                updatedByName: etapa.updated_by_name,
+                canRegister: etapa.canRegister,
+                overdue: etapa.overdue,
+              }))}
+              responsibleOptions={toOptions(
+                responsaveis.filter((opcao) => opcao.id !== person.id),
+              )}
+              history={jornada.history.map((linha) => ({
+                id: linha.id,
+                stageName: linha.stage_name,
+                fieldName: linha.field_name,
+                oldValue: linha.old_value,
+                newValue: linha.new_value,
+                changedAt: linha.changed_at,
+                changedByName: linha.changed_by_name,
+              }))}
+              showsHistory={podeVerHistorico}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {podeVerHistorico && (
         <Card className="mt-6">

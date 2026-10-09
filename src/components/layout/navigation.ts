@@ -26,9 +26,10 @@ export interface NavItem {
 /**
  * Destinos da navegação principal.
  *
- * ⚠️ Rotas ainda não construídas — pessoas (Fase 6), Elos (7), relatórios (8) e
- * estudos (9) — continuam na lista para que o esqueleto do menu exista. Elas
- * levam a 404 até serem implementadas.
+ * `/relatorios` foi de esqueleto da Fase 2 a rota real na **Fase 10b** — até
+ * lá o item levava a 404, de propósito e registrado. Ele é a lista **geral**,
+ * que cruza os Elos; os relatórios de um Elo continuam em
+ * `/elos/[id]/relatorios`, que é onde o líder trabalha.
  */
 export const mainNavigation: readonly NavItem[] = [
   { href: '/dashboard', label: 'Início', shortLabel: 'Início', icon: HomeIcon },
@@ -51,14 +52,17 @@ export const mainNavigation: readonly NavItem[] = [
     label: 'Relatórios',
     shortLabel: 'Relatórios',
     icon: ReportIcon,
-    permission: 'elo.read',
+    // `report.read`, e não `elo.read`: era o que a rota inexistente usava por
+    // aproximação. As duas listas coincidem hoje, mas a permissão que governa a
+    // tela é a que a própria tela confere no servidor.
+    permission: 'report.read',
   },
   {
     href: '/estudos',
     label: 'Estudos',
     shortLabel: 'Estudos',
     icon: StudyIcon,
-    permission: 'elo.read',
+    permission: 'study.read',
   },
   {
     href: '/usuarios',
@@ -73,6 +77,15 @@ export const mainNavigation: readonly NavItem[] = [
     shortLabel: 'Auditoria',
     icon: ReportIcon,
     permission: 'audit.read',
+  },
+  {
+    href: '/privacidade',
+    label: 'Privacidade',
+    shortLabel: 'LGPD',
+    icon: ReportIcon,
+    // Pastor e superadmin, como `audit.read` — e pelo mesmo motivo: um pedido de
+    // exclusão costuma ser feito contra o trabalho de quem administra o cadastro.
+    permission: 'privacy.read_requests',
   },
 ];
 

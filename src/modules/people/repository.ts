@@ -346,8 +346,7 @@ export async function createPerson(
         id,
         tenant_id, congregation_id, full_name, social_name, birth_date,
         marital_status, phone, whatsapp, email, notes,
-        church_status, first_visit_at, how_found_church, decision_at,
-        baptism_at, integration_course_at, membership_at,
+        church_status, how_found_church,
         created_by, updated_by
       )
       VALUES (
@@ -357,10 +356,7 @@ export async function createPerson(
         ${input.maritalStatus}::marital_status,
         ${input.phone}, ${input.whatsapp}, ${input.email}, ${input.notes},
         ${input.churchStatus ?? 'visitante'}::church_status,
-        ${input.firstVisitAt ?? null}::date, ${input.howFoundChurch ?? null},
-        ${input.decisionAt ?? null}::date, ${input.baptismAt ?? null}::date,
-        ${input.integrationCourseAt ?? null}::date,
-        ${input.membershipAt ?? null}::date,
+        ${input.howFoundChurch ?? null},
         ${claims.app_user_id}::uuid, ${claims.app_user_id}::uuid
       )
     `);
@@ -416,16 +412,12 @@ export async function updatePerson(
   const { input, ecclesiastical } = params;
 
   // Sem permissão de campo eclesiástico, as colunas correspondentes não entram
-  // no UPDATE — mantêm o valor que já tinham.
+  // no UPDATE — mantêm o valor que já tinham. As cinco datas da jornada não
+  // entram nunca: quem as escreve é o gatilho da etapa (migration 0019).
   const eclesiasticos = ecclesiastical
     ? sql`,
         church_status = COALESCE(${input.churchStatus ?? null}::text, church_status::text)::church_status,
-        first_visit_at = ${input.firstVisitAt ?? null}::date,
-        how_found_church = ${input.howFoundChurch ?? null},
-        decision_at = ${input.decisionAt ?? null}::date,
-        baptism_at = ${input.baptismAt ?? null}::date,
-        integration_course_at = ${input.integrationCourseAt ?? null}::date,
-        membership_at = ${input.membershipAt ?? null}::date`
+        how_found_church = ${input.howFoundChurch ?? null}`
     : sql``;
 
   return withUserContext(claims, async (tx) => {

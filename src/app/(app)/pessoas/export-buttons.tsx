@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 
-import { ButtonLink } from '@/components/ui/button';
+import { NoPrefetchLink } from '@/components/ui/button';
 
 /**
  * Exportação da lista, respeitando os filtros da tela.
@@ -13,6 +13,12 @@ import { ButtonLink } from '@/components/ui/button';
  * pessoal que ninguém pediu para tirar.
  *
  * A permissão é conferida na rota, não aqui — esconder o botão é conveniência.
+ *
+ * ⚠️ **`NoPrefetchLink`, e não `ButtonLink`** — corrigido na Fase 10b. O
+ * `next/link` pré-carregava a rota de exportação ao vê-la na tela e ao passar o
+ * mouse, e a rota **gera o arquivo e grava no `audit_log`**. O log tinha 155
+ * exportações de CSV de pessoas onde deveria haver um punhado: abrir
+ * `/pessoas` registrava, sozinho, uma exportação que ninguém pediu.
  */
 export function ExportButtons() {
   const params = useSearchParams();
@@ -27,13 +33,13 @@ export function ExportButtons() {
 
   return (
     <div className="flex gap-2">
-      <ButtonLink href={href('csv')} variant="secondary" size="sm" download>
+      <NoPrefetchLink href={href('csv')} variant="secondary" size="sm" download>
         Exportar CSV
-      </ButtonLink>
+      </NoPrefetchLink>
 
-      <ButtonLink href={href('xlsx')} variant="secondary" size="sm" download>
+      <NoPrefetchLink href={href('xlsx')} variant="secondary" size="sm" download>
         Exportar Excel
-      </ButtonLink>
+      </NoPrefetchLink>
     </div>
   );
 }

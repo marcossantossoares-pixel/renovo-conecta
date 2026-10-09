@@ -20,6 +20,14 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'next-env.d.ts',
+      /*
+       * O service worker (Fase 12a) roda em outro escopo global — `self`,
+       * `caches`, `clients` —, fora do `tsconfig` da aplicação e fora do
+       * empacotamento do Next: ele é servido como está, de `public/`. Lintá-lo
+       * com as regras de tipo do projeto exigiria um segundo `tsconfig` para
+       * um arquivo de setenta linhas.
+       */
+      'public/sw.js',
     ],
   },
 
@@ -56,9 +64,17 @@ export default tseslint.config(
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
 
-      // Dados pessoais nunca em log (docs/SECURITY.md §9). `console.log` solto
-      // é o caminho mais comum para isso acontecer sem ninguém perceber.
-      'no-console': ['error', { allow: ['warn', 'error'] }],
+      /*
+       * Dados pessoais nunca em log (docs/SECURITY.md §9, `LGPD.md` §6).
+       *
+       * ⚠️ **Nem `warn`, nem `error`** — apertado na Fase 11. A permissão
+       * anterior deixava dois caminhos de saída sem filtro, e o descuido típico
+       * (`console.error('falhou', pessoa)`) mora justamente ali. Todo log passa
+       * por `src/core/log/logger.ts`, que oculta campo pessoal antes de
+       * escrever; sem ponto de saída único, o teste de scrubbing guardaria uma
+       * função que ninguém é obrigado a chamar.
+       */
+      'no-console': 'error',
 
       'no-restricted-imports': [
         'error',
@@ -72,16 +88,45 @@ export default tseslint.config(
                 'permitido apenas em migrations, seeds e jobs — ver ' +
                 'docs/SECURITY.md §4.',
             },
+            /*
+             * A chave `service_role` do Supabase, que ignora RLS e permite
+             * criar e apagar contas.
+             *
+             * `supabase-admin.ts` sempre AFIRMOU que seu import era proibido
+             * fora da lista de exceções — e a regra que o proibia não existia.
+             * A divergência apareceu na Fase 9b, ao surgir o segundo consumidor
+             * legítimo (o Storage privado): antes dele, a afirmação passava por
+             * verdadeira porque só havia um.
+             */
+            {
+              group: ['**/core/auth/supabase-admin', '@/core/auth/supabase-admin'],
+              message:
+                'A chave service_role ignora toda a RLS. Uso permitido apenas ' +
+                'em provisionamento de conta (modules/auth/service.ts) e no ' +
+                'acesso ao bucket privado (core/storage) — ver docs/SECURITY.md §4.',
+            },
           ],
         },
       ],
     },
   },
 
-  // O próprio módulo administrativo pode se referenciar.
+  // Os próprios módulos administrativos podem se referenciar, e os dois
+  // consumidores legítimos da chave `service_role`.
   {
-    files: ['src/core/db/admin.ts'],
+    files: [
+      'src/core/db/admin.ts',
+      'src/core/auth/supabase-admin.ts',
+      'src/core/storage/*.ts',
+      'src/modules/auth/service.ts',
+    ],
     rules: { 'no-restricted-imports': 'off' },
+  },
+
+  // O único ponto de saída de log da aplicação. Ver o cabeçalho do arquivo.
+  {
+    files: ['src/core/log/logger.ts'],
+    rules: { 'no-console': 'off' },
   },
 
   // Migrations, seeds e scripts têm uso legítimo da conexão administrativa.

@@ -3,6 +3,7 @@ import postgres from 'postgres';
 
 import { LIDER_1, PASTOR } from '../../supabase/seeds/fixtures.ts';
 import { generateTotp, waitForFreshWindow } from './helpers/totp.ts';
+import { SENHA } from './helpers/session';
 
 /**
  * Segundo fator — docs/SECURITY.md §2.
@@ -15,8 +16,6 @@ import { generateTotp, waitForFreshWindow } from './helpers/totp.ts';
  * dispositivo, e duas execuções paralelas com a mesma conta disputariam o
  * mesmo cadastro.
  */
-
-const SENHA = process.env.SEED_DEMO_PASSWORD ?? 'renovo-demo-local-2026';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -77,6 +76,32 @@ test('ir direto ao painel sem cumprir o 2FA não funciona', async ({ page }) => 
   await expect(page).toHaveURL(/\/verificacao/);
 });
 
+/**
+ * O QR Code aparece de fato, e a tela não quebra ao desenhá-lo.
+ *
+ * Regressão da homologação: o SVG do Supabase termina em quebra de linha, e o
+ * `next/image` **em desenvolvimento** recusa `src` com caractere de controle na
+ * ponta, derrubando a tela inteira (`src/core/auth/mfa.ts`). Contra o build de
+ * produção este caso passa mesmo sem a correção — ele só é conclusivo rodando a
+ * suíte contra `pnpm dev` (`PLAYWRIGHT_BASE_URL`), como faz a rodada de QA
+ * descrita em `docs/qa/relatorio-testes-renovo-conecta.md`.
+ */
+test('o QR Code do cadastro é desenhado, sem exceção na página', async ({ page }) => {
+  const excecoes: string[] = [];
+  page.on('pageerror', (erro) => excecoes.push(erro.message));
+
+  await entrar(page, PASTOR.email);
+  await expect(page).toHaveURL(/\/verificacao/);
+
+  const qr = page.getByRole('img', { name: /Código QR/ });
+  await expect(qr).toBeVisible();
+  // `naturalWidth` zero é imagem quebrada com moldura no lugar: visível, e inútil.
+  expect(
+    await qr.evaluate((img) => (img as HTMLImageElement).naturalWidth),
+  ).toBeGreaterThan(0);
+  expect(excecoes).toEqual([]);
+});
+
 test('cadastrar o autenticador libera o acesso', async ({ page }) => {
   await entrar(page, PASTOR.email);
   await expect(page).toHaveURL(/\/verificacao/);
@@ -88,7 +113,7 @@ test('cadastrar o autenticador libera o acesso', async ({ page }) => {
   await informarCodigo(page, segredo);
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-  await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Painel' })).toBeVisible();
 });
 
 test('código errado não libera o acesso', async ({ page }) => {
@@ -133,7 +158,7 @@ test('papel não administrativo não passa pela verificação', async ({ page })
   await entrar(page, LIDER_1.email);
 
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Painel' })).toBeVisible();
 });
 
 test('quem não precisa de 2FA é mandado de volta se tentar a tela', async ({

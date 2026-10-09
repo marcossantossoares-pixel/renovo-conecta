@@ -19,11 +19,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rls": "vitest run --config vitest.rls.config.ts",
-    "test:e2e": "playwright test",
+    "test:rls": "node scripts/banco-de-teste.ts vitest run --config vitest.rls.config.ts",
+    "test:e2e": "node scripts/banco-de-teste.ts playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "node supabase/seeds/seed.ts",
+    "db:teste": "node scripts/banco-de-teste.ts",
+    "icons": "node scripts/gerar-icones.ts",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky"
   },
@@ -32,7 +34,7 @@
     "@supabase/supabase-js": "2.110.8",
     "clsx": "2.1.1",
     "drizzle-orm": "0.45.2",
-    "next": "16.2.11",
+    "next": "16.3.8",
     "postgres": "3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -48,7 +50,7 @@
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "drizzle-kit": "0.31.10",
+    "drizzle-kit": "0.31.11",
     "eslint": "10.8.0",
     "eslint-config-prettier": "10.1.8",
     "husky": "9.1.7",
@@ -59,7 +61,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [

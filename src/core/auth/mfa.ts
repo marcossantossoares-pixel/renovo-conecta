@@ -88,8 +88,22 @@ export async function startEnrollment(): Promise<EnrollmentStart | null> {
 
   return {
     factorId: data.id,
-    qrCode: data.totp.qr_code,
-    secret: data.totp.secret,
+    /*
+     * ⚠️ `trim()`, e a razão é concreta: o SVG que o Supabase devolve **termina
+     * com uma quebra de linha**, e o `next/image` recusa `src` que comece ou
+     * termine em caractere de controle — derrubando a tela inteira com "Image
+     * with src ... cannot end with a control character".
+     *
+     * A validação só roda em **desenvolvimento**, e é por isso que a suíte nunca
+     * pegou: ela sobe o build de produção, onde o `src` passa direto e o
+     * navegador desenha o QR sem reclamar. Quem encontrou foi a homologação, na
+     * primeira tentativa de entrar como pastor.
+     *
+     * A limpeza fica aqui, e não na tela: quem consome este dado não deveria
+     * precisar saber que ele vem com sujeira na ponta.
+     */
+    qrCode: data.totp.qr_code.trim(),
+    secret: data.totp.secret.trim(),
   };
 }
 

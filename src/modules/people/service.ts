@@ -3,13 +3,14 @@ import 'server-only';
 import { sql } from 'drizzle-orm';
 
 import { recordAudit } from '@/core/audit/record';
+import { assertExportQuota } from '@/core/security/export-quota';
 import { assertCan } from '@/core/authz/can';
 import type { UserClaims } from '@/core/db/with-user-context';
 import { withUserContext } from '@/core/db/with-user-context';
 import { canSeeMinorContact, hasNarrowPersonScope } from './fields';
 import type { PersonDetail, PersonListRow } from './repository';
 import { getPerson, listAllPeopleForExport, listPeople } from './repository';
-import type { PeopleQuery } from './schemas';
+import type { PeopleQuery, PersonOption } from './schemas';
 
 /**
  * Leitura de pessoas, com as regras que a RLS não alcança.
@@ -163,6 +164,10 @@ export async function prepareExport(
   query: PeopleQuery,
   format: string,
 ): Promise<ExportResult> {
+  // A cota vem antes da leitura: recusar depois de montar a planilha gastaria
+  // exatamente o trabalho que o limite existe para evitar (Fase 12b).
+  await assertExportQuota(claims);
+
   assertCan(claims, 'person.export', {
     congregationId,
     eloId: claims.elo_ids[0],
@@ -222,4 +227,33 @@ export async function listFilterOptions(claims: UserClaims): Promise<FilterOptio
 
     return { elos, tags };
   });
+}
+
+/**
+ * Pessoas para um seletor de outra tela — liderança, supervisão, participação.
+ *
+ * Mora aqui, e não no módulo que faz a pergunta, porque `person` é deste
+ * domínio. A Fase 7 tinha escrito esta consulta dentro de
+ * `modules/elos/repository.ts`: a letra da regra de `docs/ARCHITECTURE.md`
+ * ("um módulo não importa o `repository` de outro") ficava cumprida, e o
+ * acoplamento continuava — só que sem passar por este arquivo, que é onde as
+ * regras de leitura de pessoa vivem. A próxima regra a nascer aqui ("não
+ * oferecer falecidos", "só desta congregação") não alcançaria o seletor dos
+ * Elos, e nada acusaria.
+ *
+ * Roda sob RLS: a coordenação vê a congregação inteira, o líder vê o próprio
+ * Elo. Devolve só `id` e `full_name` — nenhum dado de contato passa por aqui, e
+ * por isso a §6 (contato de menor) não se aplica.
+ */
+export async function listPersonOptions(
+  claims: UserClaims,
+): Promise<readonly PersonOption[]> {
+  return withUserContext(claims, (tx) =>
+    tx.execute<PersonOption>(sql`
+      SELECT id, full_name FROM person
+       WHERE deleted_at IS NULL
+       ORDER BY full_name
+       LIMIT 500
+    `),
+  );
 }

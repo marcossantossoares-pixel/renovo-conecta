@@ -5,11 +5,15 @@ import { AppShell, PageHeader } from '@/components/layout/app-shell';
 import { allowedNavHrefs } from '@/components/layout/navigation';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { can } from '@/core/authz/can';
-import { isoDateToBr } from '@/lib/format';
+import { isoDateToBr, isoDateToBrInput } from '@/lib/format';
 import { updatePersonAction } from '@/modules/people/actions';
 import { canWriteEcclesiasticalFields } from '@/modules/people/fields';
 import { getPersonForViewer } from '@/modules/people/service';
+import { idDaRota } from '@/lib/route-id';
 import { PersonForm } from '../../person-form';
+
+/** Data do cadastro para leitura: vazia continua vazia, e a tela mostra o travessão. */
+const exibir = (valor: string | null) => (valor ? isoDateToBr(valor) : null);
 
 export const metadata: Metadata = {
   title: 'Editar pessoa · Renovo Conecta',
@@ -17,8 +21,6 @@ export const metadata: Metadata = {
 };
 
 /** Datas vêm do banco em ISO; o campo mascarado fala dd/mm/aaaa. */
-const data = (valor: string | null) => (valor ? isoDateToBr(valor) : '');
-
 export default async function EditarPessoaPage({
   params,
 }: {
@@ -26,7 +28,7 @@ export default async function EditarPessoaPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
-  const { id } = await params;
+  const id = await idDaRota(params);
 
   if (
     !can(claims, 'person.update', {
@@ -62,19 +64,21 @@ export default async function EditarPessoaPage({
           id: person.id,
           fullName: person.full_name,
           socialName: person.social_name,
-          birthDate: data(person.birth_date),
+          birthDate: isoDateToBrInput(person.birth_date),
           maritalStatus: person.marital_status,
           phone: person.phone,
           whatsapp: person.whatsapp,
           email: person.email,
           notes: person.notes,
           churchStatus: person.church_status,
-          firstVisitAt: data(person.first_visit_at),
           howFoundChurch: person.how_found_church,
-          decisionAt: data(person.decision_at),
-          baptismAt: data(person.baptism_at),
-          integrationCourseAt: data(person.integration_course_at),
-          membershipAt: data(person.membership_at),
+          journeyDates: {
+            firstVisitAt: exibir(person.first_visit_at),
+            decisionAt: exibir(person.decision_at),
+            integrationCourseAt: exibir(person.integration_course_at),
+            baptismAt: exibir(person.baptism_at),
+            membershipAt: exibir(person.membership_at),
+          },
           street: person.street,
           number: person.number,
           complement: person.complement,

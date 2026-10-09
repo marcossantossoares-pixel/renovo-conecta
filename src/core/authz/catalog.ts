@@ -63,6 +63,18 @@ export type PermissionCode =
   | 'elo_join_request.read'
   | 'elo_join_request.create'
   | 'elo_join_request.decide'
+  | 'report.read'
+  | 'report.create'
+  | 'report.submit'
+  | 'report.approve'
+  | 'report.request_changes'
+  | 'report.reopen'
+  | 'report.export'
+  | 'study.read'
+  | 'study.create'
+  | 'study.update'
+  | 'study.publish'
+  | 'study.delete'
   | 'dashboard.read'
   | 'user.read'
   | 'user.invite'
@@ -70,7 +82,13 @@ export type PermissionCode =
   | 'user.deactivate'
   | 'audit.read'
   | 'setting.read'
-  | 'setting.update';
+  | 'setting.update'
+  | 'privacy.read_requests'
+  | 'privacy.handle_requests'
+  | 'privacy.export_subject_data'
+  | 'journey.read'
+  | 'journey.update'
+  | 'journey.configure';
 
 type Grants = Partial<Record<RoleCode, Scope>>;
 
@@ -235,6 +253,123 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     vice_lider: 'elo',
   },
 
+  /* --- Relatório semanal — Fase 8 ------------------------------------
+   *
+   * A matriz de `docs/PERMISSIONS.md` §4, linha por linha. Duas assimetrias
+   * valem ser lidas em voz alta, porque parecem engano e não são:
+   *
+   *   - o **supervisor lê e não escreve**: ele acompanha os Elos, não os
+   *     conduz. É o mesmo "(L)" que ele tem em `elo_participant.read`;
+   *   - o **líder envia e não aprova**. Aprovar o próprio relatório esvazia a
+   *     revisão, e é a nota 3 da §4. Aqui isso aparece como ausência de
+   *     `lider` em `report.approve` — mas a ausência sozinha não basta: a
+   *     coordenação **também** lidera Elos, e para ela `can()` diria sim. Quem
+   *     fecha essa porta é a verificação por linha no serviço, comparando quem
+   *     aprova com quem enviou.
+   */
+  'report.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.create': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.submit': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'report.approve': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.request_changes': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.reopen': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+  'report.export': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+  },
+
+  /* --- Estudo semanal — Fase 9 ---------------------------------------
+   *
+   * A matriz da §4, e a linha de leitura é a mais larga do sistema: **todos os
+   * papéis leem estudo em escopo de congregação**, inclusive supervisor, líder
+   * e vice — que em `person.read` e `elo.read` só alcançam os próprios Elos.
+   *
+   * Não é descuido de matriz. Todo o resto do domínio é dado de pessoa, e por
+   * isso se recorta por Elo; o estudo é material de ensino, o mesmo texto para
+   * todos os líderes da igreja. Esconder de um líder o estudo da semana não
+   * protege ninguém — atrapalha o encontro de quinta.
+   *
+   * ⚠️ **O ESCOPO NÃO É O QUE SEPARA RASCUNHO DE PUBLICADO.** Ele responde
+   * "quais estudos, uma vez no ar, esta pessoa alcança?". O que ainda não está
+   * no ar é recortado pela RLS (migration 0014), e não por escopo — daí o caso
+   * 10 de `PERMISSIONS.md` §7 ser um teste de banco, e não de motor. Um leitor
+   * apressado desta linha concluiria que o líder lê rascunho, e ele não lê.
+   */
+  'study.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'congregation',
+    lider: 'congregation',
+    vice_lider: 'congregation',
+    // O membro lê só o estudo do próprio Elo — o "(L)" da matriz. Ele não tem
+    // login no MVP (ADR-003); a linha existe para quando tiver.
+    membro: 'elo',
+  },
+  'study.create': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  'study.update': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  'study.publish': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+  /*
+   * `study.delete` não tinha linha na matriz da §4 — só aparecia na lista de
+   * permissões da §3. A lacuna foi decidida na Fase 9a e a §4 foi corrigida:
+   * quem escreve o conteúdo descarta o próprio rascunho. Exclusão é soft
+   * delete, como no resto do sistema, e o caminho normal para tirar do ar um
+   * estudo já publicado é **arquivar**, não excluir.
+   */
+  'study.delete': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+  },
+
   // --- Painel -----------------------------------------------------------
   'dashboard.read': {
     superadmin: 'global',
@@ -281,6 +416,59 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     membro: 'self',
   },
   'setting.update': { superadmin: 'global', pastor_admin: 'congregation' },
+
+  /* --- Privacidade — Fase 11 -------------------------------------------
+   *
+   * A matriz da §4, e a ausência que importa é a da **coordenação**: ela
+   * administra o cadastro e não decide sobre os pedidos de exclusão feitos
+   * contra o próprio trabalho. É a mesma escolha de `audit.read`.
+   *
+   * `export_subject_data` chega ao **membro** em escopo `self` — é o Art. 18,
+   * II: o titular tem direito aos próprios dados. Ele ainda não tem login
+   * (ADR-003), e a linha existe assim mesmo, porque o dia de ativar o portal do
+   * membro não é o dia de decidir quem pode ver o quê.
+   */
+  'privacy.read_requests': { superadmin: 'global', pastor_admin: 'congregation' },
+  'privacy.handle_requests': { superadmin: 'global', pastor_admin: 'congregation' },
+  'privacy.export_subject_data': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    membro: 'self',
+  },
+
+  /* --- Jornada da pessoa — Fase 13 --------------------------------------
+   *
+   * `read` e `update` repetem `person.read` e `person.update`: a jornada é parte
+   * do cadastro, e quem alcança a pessoa alcança a caminhada dela.
+   *
+   * ⚠️ **O "E" de `update` NÃO É "qualquer etapa".** Supervisor, líder e vice
+   * registram só as etapas que a igreja abriu à liderança — e nunca as que
+   * alimentam batismo, membresia ou decisão, que são da secretaria por `CHECK`
+   * no banco. É a nota 4 da matriz, agora sobre etapas: quem decide é a RLS
+   * (`app.can_register_journey_step`, migration 0019) e o serviço, com a etapa
+   * em mãos. `can()` decide sobre o recurso, não sobre a etapa.
+   *
+   * `configure` é pastoral, como `setting.update`: renomear "Batismo" ou abrir
+   * uma etapa à liderança muda o que todos os líderes registram.
+   */
+  'journey.read': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+    membro: 'self',
+  },
+  'journey.update': {
+    superadmin: 'global',
+    pastor_admin: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'journey.configure': { superadmin: 'global', pastor_admin: 'congregation' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_GRANTS) as PermissionCode[];

@@ -119,13 +119,15 @@ Excedentes retornam `429` sem revelar se o alvo existe.
 
 **Regra inegociável:** dados pessoais **nunca** aparecem em log de aplicação, mensagem de erro, URL, ferramenta de analytics, notificação aberta ou dado de demonstração.
 
-- Logger estruturado com scrubbing por lista de campos proibidos (`full_name`, `email`, `phone`, `whatsapp`, endereço, conteúdo pastoral).
-- Sentry configurado com `beforeSend` removendo dados pessoais.
+- Logger estruturado com scrubbing por lista de campos proibidos (`full_name`, `email`, `phone`, `whatsapp`, endereço, conteúdo pastoral) — **implementado na Fase 11** em `src/core/log/logger.ts`.
+- **`console` é erro de lint em todo o `src/`, inclusive `warn` e `error`.** A exceção única é o próprio logger. Sem ponto de saída único, o teste de scrubbing guardaria uma função que ninguém é obrigado a chamar.
+- Além da lista de chaves, o filtro oculta **valores que se denunciam sozinhos** — e-mail, telefone e CPF —, porque `{ dado: 'maria@exemplo.test' }` passa por qualquer lista de nomes de campo.
+- Sentry configurado com `beforeSend` removendo dados pessoais — **pendente**, junto com o restante da observabilidade (Fase 12).
 - Erro exibido ao usuário é genérico e acionável; o detalhe fica no log correlacionado por `requestId`.
 - **Nunca** confirme a existência de um recurso ao qual o usuário não tem acesso: "não existe" e "não autorizado" produzem a mesma resposta.
 - Identificadores em URL são UUID, nunca sequenciais.
 
-Um teste automatizado falha o build se um campo da lista proibida aparecer na saída do logger.
+Um teste automatizado falha o build se um campo da lista proibida aparecer na saída do logger — `tests/unit/core/log/logger.test.ts`, desde a Fase 11.
 
 ---
 
@@ -165,15 +167,34 @@ O canal de contato para questões de privacidade e segurança será publicado ju
 
 ## 13. Checklist antes de produção
 
-- [ ] Toda tabela com RLS habilitada e política de negação padrão
-- [ ] Testes de isolamento por papel verdes no CI (os 10 casos de `PERMISSIONS.md` §7)
-- [ ] Nenhum segredo no repositório (verificado por scan automatizado)
-- [ ] `service_role` inacessível fora de `core/db/admin.ts`
-- [ ] Nenhuma variável sensível com prefixo `NEXT_PUBLIC_`
-- [ ] 2FA ativo em todas as contas administrativas
-- [ ] Cabeçalhos de segurança verificados na resposta real
-- [ ] Rate limiting ativo em login, recuperação e exportação
-- [ ] Storage privado; nenhum bucket público com dado pessoal
-- [ ] Teste de scrubbing de logs passando
-- [ ] Backup verificado por restauração de teste
+Revisado item a item na **Fase 12b**, com o que prova cada linha. A separação
+importa mais que a contagem: **dois itens não dependem de código**, e nenhum
+deles fecha porque o sistema ficou pronto.
+
+**Verificado por teste automatizado:**
+
+- [x] Toda tabela com RLS habilitada e política de negação padrão — varredura tabela a tabela em `tests/rls/isolation.test.ts`
+- [x] Testes de isolamento por papel verdes no CI (os 10 casos de `PERMISSIONS.md` §7) — 253 casos na suíte de isolamento
+- [x] `service_role` inacessível fora de `core/db/admin.ts` — regra de ESLint (`no-restricted-imports`), verificada com arquivo de violação temporário desde a Fase 1
+- [x] Nenhuma variável sensível com prefixo `NEXT_PUBLIC_` — o schema de ambiente separa as duas listas (`core/config/env.ts`), e `.env.example` diz por quê
+- [x] 2FA ativo em todas as contas administrativas — imposição no servidor, com 8 casos em `mfa.spec.ts`
+- [x] **Cabeçalhos de segurança verificados na resposta real** — `seguranca.spec.ts`, contra o build de produção, incluindo a CSP com nonce por resposta e sem `'unsafe-inline'` em `script-src`
+- [x] Rate limiting ativo em login, recuperação e **exportação** — os dois primeiros desde a Fase 4; a cota de exportação entrou na 12b (`core/security/export-quota.ts`)
+- [x] Storage privado; nenhum bucket público com dado pessoal — bucket sem política alguma (ADR-008), com teste que falha se alguém acrescentar uma
+- [x] Teste de scrubbing de logs passando — `tests/unit/core/log/logger.test.ts`, com `console` proibido em todo o `src/`
+
+**Verificado por inspeção, e que precisa ser refeito a cada implantação:**
+
+- [x] Nenhum segredo no repositório — varredura feita na Fase 1 e repetida na 12b; nenhum `.env` versionado. **Falta o scan automatizado no CI**, que é trabalho de pipeline e não de aplicação
+
+**Não dependem de código:**
+
+- [ ] **Backup verificado por restauração de teste** — depende do projeto Supabase de produção existir. O procedimento está em `DEPLOYMENT.md` §7; o que falta é executá-lo uma vez e registrar o resultado
 - [ ] **Base legal de LGPD validada juridicamente** (ver `LGPD.md`) — bloqueia o uso com dados reais
+
+**Duas pendências técnicas conhecidas, registradas em `PROGRESS.md`:**
+
+| Pendência                                                         | Por que ainda está aberta                                                                                                                                               |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FORCE ROW LEVEL SECURITY` prometido na §5 e não aplicado na 0001 | Sem `FORCE`, quem escapa é o **dono da tabela** — migrations e seeds. O caminho da aplicação (`authenticator`) não é afetado. Fechar exige tratar o seed explicitamente |
+| `person.is_minor` envelhece                                       | Calculado por gatilho na escrita; quem fez 18 anos continua marcado como menor até a próxima gravação. `app.refresh_minor_flags()` existe e falta o agendador           |

@@ -1,12 +1,12 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-
 import { Button } from '@/components/ui/button';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { SearchIcon } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { chipsAtivos, useUrlFilters } from '@/components/ui/use-url-filters';
+import { opcoes, rotulo } from '@/lib/labels';
 import { CHURCH_STATUSES, CHURCH_STATUS_LABELS } from '@/modules/people/schemas';
 
 export interface FilterOption {
@@ -45,40 +45,16 @@ const FILTROS = ['status', 'eloId', 'tagId', 'minors'] as const;
  * campo: ela é o caminho principal e funciona antes de o JavaScript carregar.
  */
 export function PeopleFilters({ elos, tags, canFilterMinors }: PeopleFiltersProps) {
-  const router = useRouter();
-  const params = useSearchParams();
+  const filtros = useUrlFilters('/pessoas');
+  const { atual, aplicar } = filtros;
 
-  const atual = (chave: string) => params.get(chave) ?? '';
-
-  /** Aplica um filtro preservando os demais. Sempre volta para a página 1. */
-  function aplicar(chave: string, valor: string) {
-    const novos = new URLSearchParams(params);
-
-    if (valor) novos.set(chave, valor);
-    else novos.delete(chave);
-
-    novos.delete('page');
-    router.push(`/pessoas?${novos.toString()}`);
-  }
-
-  const ativos = [
-    atual('q') && { id: 'q', label: `Busca: ${atual('q')}` },
-    atual('status') && {
-      id: 'status',
-      label:
-        CHURCH_STATUS_LABELS[atual('status') as 'membro'] ??
-        `Situação: ${atual('status')}`,
-    },
-    atual('eloId') && {
-      id: 'eloId',
-      label: elos.find((elo) => elo.id === atual('eloId'))?.name ?? 'Elo',
-    },
-    atual('tagId') && {
-      id: 'tagId',
-      label: tags.find((tag) => tag.id === atual('tagId'))?.name ?? 'Etiqueta',
-    },
-    atual('minors') === 'true' && { id: 'minors', label: 'Menores de idade' },
-  ].filter((filtro): filtro is { id: string; label: string } => Boolean(filtro));
+  const ativos = chipsAtivos(filtros, {
+    q: (valor) => `Busca: ${valor}`,
+    status: (valor) => rotulo(CHURCH_STATUS_LABELS, valor),
+    eloId: (valor) => elos.find((elo) => elo.id === valor)?.name ?? 'Elo',
+    tagId: (valor) => tags.find((tag) => tag.id === valor)?.name ?? 'Etiqueta',
+    minors: () => 'Menores de idade',
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,17 +89,14 @@ export function PeopleFilters({ elos, tags, canFilterMinors }: PeopleFiltersProp
       <FilterPanel
         active={ativos}
         onRemove={(chave) => aplicar(chave, '')}
-        onClearAll={() => router.push('/pessoas')}
+        onClearAll={filtros.limpar}
       >
         <Select
           label="Situação"
           value={atual('status')}
           onChange={(evento) => aplicar('status', evento.target.value)}
           placeholder="Todas"
-          options={CHURCH_STATUSES.map((valor) => ({
-            value: valor,
-            label: CHURCH_STATUS_LABELS[valor],
-          }))}
+          options={opcoes(CHURCH_STATUSES, CHURCH_STATUS_LABELS)}
         />
 
         <Select

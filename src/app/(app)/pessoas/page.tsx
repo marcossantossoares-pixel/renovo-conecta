@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PeopleIcon } from '@/components/ui/icons';
 import { Tag } from '@/components/ui/tag';
 import { requireAuthenticatedContext } from '@/core/auth/session';
-import { can } from '@/core/authz/can';
+import { can, hasBroadScope } from '@/core/authz/can';
 import { isoDateToBr } from '@/lib/format';
 import type { PersonListRow } from '@/modules/people/repository';
 import {
@@ -23,8 +23,8 @@ import {
 } from '@/modules/people/schemas';
 import { listFilterOptions, listPeopleForViewer } from '@/modules/people/service';
 import { ExportButtons } from './export-buttons';
+import { UrlPagination } from '@/components/ui/url-pagination';
 import { PeopleFilters } from './people-filters';
-import { PeoplePagination } from './people-pagination';
 
 export const metadata: Metadata = {
   title: 'Pessoas · Renovo Conecta',
@@ -68,6 +68,10 @@ export default async function PessoasPage({
     congregationId,
     eloId: claims.elo_ids[0],
   });
+
+  // As etapas da jornada são assunto de quem responde pela congregação: o
+  // líder registra as etapas na pessoa, e não precisa da tela das regras.
+  const veEtapasDaJornada = hasBroadScope(claims, 'journey.read', { congregationId });
 
   const podeExportar = can(claims, 'person.export', {
     congregationId,
@@ -145,6 +149,11 @@ export default async function PessoasPage({
         description="Cadastro da igreja. Você enxerga apenas quem está no seu alcance."
         actions={
           <>
+            {veEtapasDaJornada && (
+              <ButtonLink href="/pessoas/jornada" variant="secondary">
+                Etapas da jornada
+              </ButtonLink>
+            )}
             {podeExportar && <ExportButtons />}
             {podeCadastrar && <ButtonLink href="/pessoas/nova">Nova pessoa</ButtonLink>}
           </>
@@ -196,10 +205,12 @@ export default async function PessoasPage({
           />
 
           {total > PAGE_SIZE && (
-            <PeoplePagination
+            <UrlPagination
               page={query.page}
               pageSize={PAGE_SIZE}
               totalItems={total}
+              basePath="/pessoas"
+              itemName="pessoas"
             />
           )}
         </CardContent>
