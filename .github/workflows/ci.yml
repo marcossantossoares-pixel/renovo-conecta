@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Rodar à mão pela aba Actions. Sem isto, o CI só roda com um evento novo — e
+  # habilitar o Actions não dispara nada retroativamente: foi o que aconteceu na
+  # publicação do repositório, na Fase 13.
+  workflow_dispatch:
 
 # Cancela execuções antigas do mesmo branch: só o último commit importa.
 concurrency:
