@@ -217,12 +217,13 @@ tocado — um Elo criado à mão ali não derruba mais teste nenhum.
 A suíte de isolamento tem configuração própria (`vitest.rls.config.ts`) para que
 `pnpm test` continue funcionando sem Docker.
 
-No CI o script passa direto (`CI` definido): não há homologação manual para
-separar, e o workflow sobe a pilha de sempre. Por isso o gerador da configuração
-da pilha de teste tem teste unitário próprio — é ele que avisa, no CI, quando uma
-mudança no `supabase/config.toml` quebraria a geração.
+**O CI usa o mesmo caminho**: os jobs de isolamento e de e2e rodam `pnpm test:rls`
+e `pnpm test:e2e`, e o script sobe a pilha, recria o banco, aplica as migrations
+pelo Drizzle e semeia — como na máquina de qualquer pessoa. O gerador da
+configuração da pilha tem teste unitário próprio, que avisa na etapa mais barata
+do pipeline quando uma mudança no `supabase/config.toml` quebraria a geração.
 
-Pipeline de CI: `lint` → `format:check` → `typecheck` → `test` → `build`, depois, em paralelo, o job de **isolamento** (que sobe o stack real do Supabase, aplica migrations do zero, semeia e roda `test:rls`) e o job de **e2e**. Em separado, scan de segredos e auditoria de dependências.
+Pipeline de CI: `lint` → `format:check` → `typecheck` → `test` → `build`, depois, em paralelo, o job de **isolamento** (`test:rls`, com a pilha de teste) e o job de **e2e** (`test:e2e`, com a sua própria). Em separado, scan de segredos e auditoria de dependências.
 
 **Qualquer etapa vermelha bloqueia o merge.** Nenhuma fase é considerada concluída com teste falhando.
 

@@ -6,9 +6,9 @@ import { gerarConfiguracaoDeTeste } from '../../../scripts/banco-de-teste.ts';
 /**
  * A pilha de teste (PEND-02) é gerada a partir do `supabase/config.toml`.
  *
- * No CI o script passa direto, porque lá não há homologação manual para
- * separar — então é **este** teste que avisa, no CI, quando uma mudança no
- * arquivo de origem faria a geração falhar na máquina de alguém.
+ * Uma mudança no arquivo de origem que quebre a geração derruba a suíte de
+ * banco inteira, no CI e na máquina de todo mundo. Este teste avisa antes, na
+ * etapa mais barata do pipeline, e diz qual substituição deixou de valer.
  */
 
 const original = readFileSync('supabase/config.toml', 'utf8');

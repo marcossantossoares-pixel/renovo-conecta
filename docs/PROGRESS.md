@@ -1775,17 +1775,23 @@ Não afeta produção: nada foi implantado. O banco local volta ao normal com
 exportações houve" no banco de desenvolvimento, os números anteriores a
 2026-08-02 não querem dizer nada.
 
-### O job de e2e do CI não sobe o Supabase
+### ~~O CI nunca tinha rodado, e não passaria~~ — corrigido na Fase 13
 
-Observado na Fase 13, ao ler o `ci.yml` para decidir como a pilha de teste se
-comportaria no CI. O job `quality` sobe o Supabase, aplica as migrations e roda
-`test:rls`; o job `e2e` **não**: instala os navegadores e roda `pnpm test:e2e`
-direto. Sem banco nem Auth, o login de qualquer caso não teria com quem falar.
+O repositório foi publicado no GitHub pela primeira vez com a Fase 13, e o
+workflow nunca tinha sido executado. Lido antes da primeira execução, ele tinha
+três defeitos:
 
-Não foi alterado: é anterior a esta fase, e o histórico de execuções do GitHub
-Actions é que diz se o job de fato falha ou se algo o sustenta que a leitura do
-arquivo não mostra. Fica registrado para ser conferido antes do primeiro merge
-no `main`.
+- o job `e2e` não subia Supabase nenhum — sem banco nem Auth, nenhum login;
+- o job de isolamento rodava `supabase start`, que **já aplica as migrations**, e
+  em seguida `pnpm db:migrate`, que tentaria aplicá-las de novo desde a `0000`
+  (a armadilha registrada na 12b);
+- nenhum dos dois tinha `SEED_DEMO_PASSWORD`, e o seed recusa criar as contas
+  sem ela.
+
+A correção foi tirar do workflow a montagem do banco: os dois jobs rodam
+`pnpm test:rls` e `pnpm test:e2e`, e `scripts/banco-de-teste.ts` faz no CI o que
+faz em qualquer máquina. A senha das contas de demonstração entrou no workflow
+como valor fictício, válido só dentro do job.
 
 ### Bloqueios externos
 
@@ -1863,7 +1869,6 @@ aparecem no dia:
   o mesmo histórico em lugares diferentes;
 - Sentry com `beforeSend` e o scan automatizado de segredos no CI, ambos
   previstos em `SECURITY.md` e ainda não configurados;
-- o job de e2e do CI não sobe o Supabase — ver "Problemas conhecidos";
 - a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP

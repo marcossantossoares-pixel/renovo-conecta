@@ -22,13 +22,16 @@
  * origem mudar de forma que ela deixe de valer.
  *
  * **O que ela faz a cada execução:** sobe a pilha (se preciso), recria o banco
- * do zero, aplica as migrations pelo Drizzle — o mesmo caminho do CI — e
- * semeia. Depois roda o comando com as variáveis da pilha de teste. As demais
- * variáveis continuam vindo do `.env.local`: `process.loadEnvFile` e o Next
- * não sobrescrevem o que já está no ambiente.
+ * do zero, aplica as migrations pelo Drizzle e semeia. Depois roda o comando
+ * com as variáveis da pilha de teste. As demais variáveis continuam vindo do
+ * `.env.local` (ou, no CI, do ambiente do workflow): `process.loadEnvFile` e o
+ * Next não sobrescrevem o que já está no ambiente.
  *
- * Em CI, onde não existe homologação manual, o comando roda direto contra a
- * pilha que o workflow já subiu.
+ * **O CI usa este mesmo caminho**, e não uma pilha montada pelo workflow. A
+ * primeira versão deste script passava direto quando via `CI`, e o workflow
+ * subia o Supabase por conta própria — com o `supabase start` aplicando as
+ * migrations e, logo depois, o Drizzle tentando aplicá-las de novo desde a
+ * `0000`. Dois caminhos para preparar o mesmo banco divergem; um só, não.
  *
  * Uso:
  *   node scripts/banco-de-teste.ts                 só prepara o banco
@@ -225,10 +228,6 @@ function prepararPilha(): Variaveis {
 
 function main(): number {
   const args = process.argv.slice(2);
-
-  if (process.env.CI) {
-    return args.length > 0 ? rodar(comandoDe(args), {}) : 0;
-  }
 
   const env = prepararPilha();
   return args.length > 0 ? rodar(comandoDe(args), env) : 0;
