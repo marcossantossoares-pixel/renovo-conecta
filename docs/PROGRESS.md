@@ -67,6 +67,26 @@ Fase 11a. Backup antes, em `pg_dump`. As datas que já estavam no cadastro virar
 cenários de acompanhamento da demonstração existem só na pilha de teste — rodar
 `pnpm db:seed` na homologação os cria.
 
+### O primeiro CI no GitHub
+
+O repositório foi publicado com esta fase, e o workflow nunca tinha rodado.
+Lido antes da primeira execução, ele não passaria (sem Supabase no e2e,
+migrations aplicadas duas vezes, seed sem senha): os jobs de banco passaram a
+usar `scripts/banco-de-teste.ts`, como qualquer máquina. Também ganhou
+`workflow_dispatch`, porque habilitar o Actions não dispara nada
+retroativamente.
+
+**A primeira execução** — lint, tipos, unitários e **RLS verdes**; dois jobs
+vermelhos, e os dois por motivo real:
+
+| Job          | O que achou                                                                                                                                                                                                                                          | O que foi feito                                                                                                                                                                                                                                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| e2e          | Na lista de pessoas, em celular, um e-mail longo sem espaço ("convidado.…@exemplo.test", deixado por `invitation.spec`) empurrava o cartão para fora da tela. Na máquina local a varredura rodava antes do convite (4 workers); no CI, com 1, depois | `DataTable`: o valor do cartão quebra em qualquer ponto (`wrap-anywhere`, `min-w-0`). O design system ganhou um contato longo de propósito, e o teste de transbordo em 360 px falha sem a correção — provado por mutação                                                                                             |
+| Dependências | **24 vulnerabilidades, 3 críticas**: execução remota de código no Next.js 16.2 (otimização de imagem, `next/og`, servidor no Windows), SSRF, e as transitivas de sharp, postcss, nanoid, source-map-js e brace-expansion                             | Next **16.3.8** (a menor que corrige tudo; a 16.4.0 tinha três dias), Vitest 4.1.11, drizzle-kit 0.31.11 e as transitivas atualizadas. Resta **uma moderada**: o `esbuild` antigo que o drizzle-kit carrega por um módulo legado, que só afeta o servidor de desenvolvimento do esbuild — e o drizzle-kit não o sobe |
+
+`SECURITY.md` §11 já dizia que vulnerabilidade alta ou crítica bloqueia o merge;
+faltava o CI rodar para o bloqueio existir.
+
 ---
 
 ## Rodada de QA 1 — 2026-10-09
@@ -1867,8 +1887,17 @@ aparecem no dia:
   agendador;
 - as duas tabelas de controle de migration (Drizzle e CLI do Supabase) rastreiam
   o mesmo histórico em lugares diferentes;
-- Sentry com `beforeSend` e o scan automatizado de segredos no CI, ambos
-  previstos em `SECURITY.md` e ainda não configurados;
+- Sentry com `beforeSend`, previsto em `SECURITY.md` e ainda não configurado (o
+  scan de segredos no CI roda desde o primeiro push, e passou);
+- uma vulnerabilidade **moderada** sem correção disponível pelo caminho direto: o
+  `esbuild` antigo que o `drizzle-kit` carrega por `@esbuild-kit`. Só afeta o
+  servidor de desenvolvimento do esbuild, que o drizzle-kit não sobe; não bloqueia
+  o CI, cujo limite é "alta";
+- o GitHub avisa que `pnpm/action-setup@v4` e `gitleaks/gitleaks-action@v2` ainda
+  miram o Node 20, que está sendo descontinuado nos runners — aviso, não falha;
+  atualizar quando as duas publicarem versões novas;
+- Dependabot, previsto em `SECURITY.md` §11, não está configurado — e foi a falta
+  dele que deixou as 24 vulnerabilidades se acumularem até o primeiro CI;
 - a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP

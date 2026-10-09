@@ -34,7 +34,16 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
   decisão, curso de integração, batismo e membresia**, nem para a coordenação.
   Eles são registrados como etapas da jornada.
 - **Alterado — `pnpm test:rls` e `pnpm test:e2e` passam por
-  `scripts/banco-de-teste.ts`**, e o app sob teste sobe na porta 3100.
+  `scripts/banco-de-teste.ts`**, e o app sob teste sobe na porta 3100 — também no
+  CI, que nunca tinha rodado e não passaria: o e2e não subia Supabase, as
+  migrations seriam aplicadas duas vezes e o seed não tinha senha.
+- **Segurança — Next.js 16.2.11 → 16.3.8**, com três vulnerabilidades críticas de
+  execução remota de código e uma de SSRF, mais Vitest 4.1.11, drizzle-kit 0.31.11
+  e as transitivas (sharp, postcss, nanoid, source-map-js, brace-expansion). De 24
+  vulnerabilidades, resta uma moderada, de ferramenta de desenvolvimento.
+- **Corrigido — valor longo transbordava o cartão da tabela no celular.** Um
+  e-mail sem espaço empurrava a lista de pessoas para fora da tela; achado pelo
+  primeiro CI no GitHub.
 
 #### Fase 12b — Fluxos da §13, hardening e plano de deploy (2026-08-02)
 
