@@ -1,0 +1,68 @@
+# Dependabot — atualizações de dependências (docs/SECURITY.md §11).
+#
+# Foi a falta deste arquivo que deixou 24 vulnerabilidades se acumularem,
+# 3 críticas no Next.js, até o primeiro CI no GitHub (Fase 13).
+#
+# O que este arquivo configura são as atualizações de VERSÃO, semanais. As
+# atualizações de SEGURANÇA são outra chave, nas configurações do repositório
+# (Settings → Advanced Security → Dependabot security updates), e não esperam o
+# calendário nem a carência abaixo: abrem assim que o alerta sai.
+
+version: 2
+
+updates:
+  # Pacotes do projeto. O ecossistema `npm` é também o do pnpm: lê o
+  # package.json e atualiza o pnpm-lock.yaml.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Bahia
+    # Versão publicada há menos de sete dias não é proposta. É a regra que já
+    # valia à mão: na Fase 13 o Next.js foi para a 16.3.8, e não para a 16.4.0,
+    # que tinha três dias. Versão recém-publicada é onde aparece o pacote
+    # comprometido, e a semana de espera é a janela em que ele costuma ser
+    # descoberto e retirado.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    # As versões são fixadas sem `^` no package.json; `increase` mantém assim.
+    versioning-strategy: increase
+    commit-message:
+      prefix: deps
+      prefix-development: deps-dev
+    # Correção e versão menor chegam agrupadas — uma revisão por semana, e não
+    # uma por pacote. Versão maior fica fora dos grupos, de propósito: cada uma
+    # vira o próprio pull request, porque é onde a API muda.
+    groups:
+      producao:
+        dependency-type: production
+        update-types: [minor, patch]
+      desenvolvimento:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # ADR-005: o TypeScript 7 desligaria o lint com informação de tipos, que
+      # sustenta a proibição de `any` e a detecção de promise ignorada. Reabrir
+      # quando o typescript-eslint declarar suporte.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+
+  # As actions do workflow de CI. Também é por aqui que sai o aviso de que
+  # pnpm/action-setup@v4 e gitleaks/gitleaks-action@v2 ainda miram o Node 20.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Bahia
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']

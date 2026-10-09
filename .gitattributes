@@ -1,0 +1,8 @@
+# Fim de linha LF na cópia de trabalho, qualquer que seja o `core.autocrlf` da
+# máquina.
+#
+# O repositório sempre guardou LF, e o Prettier exige LF. Com `autocrlf=true` —
+# o padrão do Git no Windows —, todo `checkout` reescrevia os arquivos com CRLF,
+# e o `format:check` passava a acusar 251 arquivos que ninguém tinha tocado.
+# Arquivo binário (ícones do PWA) é detectado pelo `auto` e não é convertido.
+* text=auto eol=lf

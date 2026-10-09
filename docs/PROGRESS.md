@@ -1894,10 +1894,9 @@ aparecem no dia:
   servidor de desenvolvimento do esbuild, que o drizzle-kit não sobe; não bloqueia
   o CI, cujo limite é "alta";
 - o GitHub avisa que `pnpm/action-setup@v4` e `gitleaks/gitleaks-action@v2` ainda
-  miram o Node 20, que está sendo descontinuado nos runners — aviso, não falha;
-  atualizar quando as duas publicarem versões novas;
-- Dependabot, previsto em `SECURITY.md` §11, não está configurado — e foi a falta
-  dele que deixou as 24 vulnerabilidades se acumularem até o primeiro CI;
+  miram o Node 20, que está sendo descontinuado nos runners — aviso, não falha.
+  O Dependabot passou a vigiar as actions e propõe a atualização quando as duas
+  publicarem versões novas;
 - a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP

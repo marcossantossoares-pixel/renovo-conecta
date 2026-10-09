@@ -124,7 +124,7 @@ Formato sugerido para cada decisão:
 - **Alternativas consideradas:**
   - **TypeScript 7 com lint sem informação de tipos** — perderia `no-floating-promises`, `no-misused-promises` e a checagem real de `any`. Trocar segurança por atualidade de versão é uma troca ruim neste projeto. **Descartado.**
   - **TypeScript 5.9** — funcionaria, mas 6.0.3 é estável, está dentro da faixa suportada e é mais recente. **Descartado por não haver ganho.**
-- **Consequências:** o `pnpm install` avisa que existe uma versão mais nova — o aviso é esperado e não deve ser "corrigido" atualizando o TypeScript. Reavaliar quando o `typescript-eslint` passar a declarar suporte ao TypeScript 7.
+- **Consequências:** o `pnpm install` avisa que existe uma versão mais nova — o aviso é esperado e não deve ser "corrigido" atualizando o TypeScript. Reavaliar quando o `typescript-eslint` passar a declarar suporte ao TypeScript 7. Desde 2026-10-09 o Dependabot ignora a major do TypeScript pelo mesmo motivo (`.github/dependabot.yml`) — sem isso, ele abriria toda semana o pull request que esta decisão recusa.
 - **Status:** aprovada.
 
 ---

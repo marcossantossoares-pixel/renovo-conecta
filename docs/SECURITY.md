@@ -148,7 +148,7 @@ Um teste automatizado falha o build se um campo da lista proibida aparecer na sa
 - Sem bibliotecas abandonadas ou sem manutenção.
 - Toda nova dependência exige justificativa registrada.
 - `npm audit` (ou equivalente) no CI; vulnerabilidade alta ou crítica bloqueia o merge.
-- Dependabot ou equivalente ativo para atualizações de segurança.
+- Dependabot ativo (`.github/dependabot.yml`, desde 2026-10-09): versões novas toda segunda, agrupadas por correção e versão menor, com **carência de sete dias** para versão recém-publicada; versão maior em pull request próprio; TypeScript preso na major 6 (ADR-005). As **atualizações de segurança** são habilitadas nas configurações do repositório e não esperam calendário nem carência.
 - Lockfile sempre versionado.
 
 ---

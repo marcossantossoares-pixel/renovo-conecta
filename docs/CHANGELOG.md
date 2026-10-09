@@ -8,6 +8,14 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Manutenção — Dependabot (2026-10-09)
+
+- **`.github/dependabot.yml`** (`SECURITY.md` §11): pacotes do pnpm e actions do
+  CI, toda segunda às 6h (Bahia). Correções e versões menores agrupadas; versões
+  maiores em pull request próprio; carência de sete dias para versão
+  recém-publicada; TypeScript preso na major 6 (ADR-005). Foi a falta dele que
+  deixou 24 vulnerabilidades se acumularem até o primeiro CI.
+
 #### Fase 13 — Jornada da pessoa (2026-10-09)
 
 - **Jornada configurável** (`MASTER_SPEC` §4.4, migration 0019): as doze etapas
