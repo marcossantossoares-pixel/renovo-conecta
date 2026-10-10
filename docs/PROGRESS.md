@@ -46,13 +46,16 @@ O pacote do titular **leva as notas** (texto atual, sem versões e sem o autor),
 por decisão do usuário — e o acompanhamento dos pedidos de oração fica de fora. O
 sigilo do aconselhamento pode pedir outro tratamento (`LGPD.md` §4).
 
-### A homologação ainda não recebeu a migration 0021
+### A homologação recebeu a migration 0021
 
-A suíte roda na pilha de teste (ADR-011), e a homologação manual não foi tocada.
-Antes de abrir o perfil no `pnpm dev` com o código desta fase, a migration 0021
-precisa entrar ali (`pnpm exec supabase migration up`, com backup antes, como
-nas Fases 13 e 14); sem ela, as notas e a exportação do titular falham. Depois,
-`pnpm db:seed` cria as duas notas de demonstração.
+Pela CLI (`supabase migration up --local`), com backup antes em `pg_dump`, como
+nas Fases 13 e 14. Conferido no banco: as duas tabelas, só `INSERT` para a
+sessão nas notas e nada nas versões, as quatro políticas de leitura da equipe, o
+gatilho das versões e a anonimização reescrita. **O seed foi reexecutado ali**
+depois da migration — a homologação não o recebia desde antes da Fase 14: entraram
+as contas das duas equipes, os cinco pedidos de oração e as duas notas de
+demonstração (uma já corrigida, com a versão anterior guardada pelo gatilho). O
+que já estava no banco ficou como estava.
 
 ---
 
