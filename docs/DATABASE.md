@@ -23,7 +23,7 @@ Migrations: `supabase/migrations/0000_core_schema.sql` (gerada e revisada) e
 estudos e anexos (Fase 9, migrations 0014 e 0015), consentimentos e solicitações
 do titular (Fase 11, migration 0016), e a jornada da pessoa (Fase 13, migration
 0019: `journey_stage`, `person_journey_step`, `journey_step_change_log`, em
-`src/core/db/schema/journey.ts`).
+`src/core/db/schema/journey.ts`), e os pedidos de oração (Fase 14, migration 0020: `prayer_request` e `prayer_follow_up`, em `src/core/db/schema/prayer.ts`).
 
 ---
 
@@ -511,6 +511,8 @@ Os índices usados pelas políticas de RLS são críticos: sem eles, cada consul
 - `person.first_visit_at`, `decision_at`, `integration_course_at`, `baptism_at`, `membership_at` — **derivadas da jornada** desde a Fase 13 (ADR-010). Quem as escreve é o gatilho `app.sync_journey_to_person()`, a partir da etapa concluída vinculada; o gatilho `app.person_journey_fields_guard()` recusa qualquer outro valor, inclusive para `postgres`. A regra é sobre o valor, e não sobre quem escreve: não há sinalizador de sessão que um caminho possa esquecer.
 - `person_journey_step` — uma linha por `(person_id, stage_id)`; etapa concluída exige `occurred_on`; pessoa, etapa e linha na mesma congregação; etapa arquivada não recebe linha nova; a linha não troca de pessoa nem de etapa. Histórico campo a campo em `journey_step_change_log`, escrito só por gatilho, como `person_change_log`.
 - `journey_stage` — no máximo uma etapa por coluna de `person` em cada congregação; etapa vinculada ao cadastro é da secretaria (`CHECK`, nota 4 de `PERMISSIONS.md` §4); o vínculo não muda depois de criado. Toda congregação nasce com as doze etapas padrão da §4.4, por gatilho.
+- `prayer_request` — **sem SELECT para a sessão** (ADR-012): ler é `app.prayer_requests_read()`, que grava em `audit_log` uma linha por pedido devolvido na mesma instrução, e falha se não puder gravar. Pedido para o líder do Elo exige o Elo, e não pode ser anônimo; telefone só com autorização de contato; encerrado tem data, reaberto não. Pessoa, Elo e responsável na mesma congregação do pedido.
+- `prayer_follow_up` — escrito só por `app.prayer_request_follow_up()`, lido só por `app.prayer_follow_ups_read()`. Sem `UPDATE` nem `DELETE` para a sessão; sem gatilho de append-only, porque a anonimização apaga o acompanhamento de quem pediu para ser esquecido.
 
 ---
 
@@ -531,7 +533,6 @@ Presentes no planejamento para evitar migração destrutiva no futuro. **Não re
 | Entidade                                                              | Fase         | Observação                                                                         |
 | --------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------- |
 | `pastoral_note`                                                       | Prioridade 2 | **Dado altamente restrito** — RLS mais rígida e log de todo acesso desde o desenho |
-| `prayer_request`                                                      | Prioridade 2 | Idem; inclui níveis de visibilidade e anonimato                                    |
 | `follow_up_task`                                                      | Prioridade 2 | Tarefas de acompanhamento                                                          |
 | `ministry`, `ministry_member`, `volunteer_role`, `volunteer_schedule` | Prioridade 2 | Ministérios e escalas                                                              |
 | `event`, `event_ticket_type`, `event_registration`, `event_check_in`  | Prioridade 2 | Eventos e check-in                                                                 |

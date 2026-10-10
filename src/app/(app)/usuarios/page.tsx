@@ -6,7 +6,8 @@ import { allowedNavHrefs } from '@/components/layout/navigation';
 import { Alert } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
-import { can } from '@/core/authz/can';
+import { can, grantableRoles } from '@/core/authz/can';
+import type { RoleCode } from '@/core/authz/catalog';
 import { requireAuthenticatedContext } from '@/core/auth/session';
 import { listUsers } from '@/modules/users/repository';
 import { InviteForm } from './invite-form';
@@ -27,6 +28,22 @@ export const metadata: Metadata = {
  * Esconder o item no menu é conveniência; quem digitar a URL direto precisa
  * bater na mesma parede (docs/ARCHITECTURE.md §4).
  */
+/**
+ * Papéis oferecidos no convite, e só os que quem convida pode conceder.
+ *
+ * A lista é curta de propósito: coordenação e pastor entram por decisão da
+ * igreja, e não por um formulário. As duas equipes de oração (Fase 14) entram
+ * aqui porque quem as compõe costuma ainda não ter conta — e só aparecem para
+ * o pastor, que é quem as concede.
+ */
+const PAPEIS_DE_CONVITE: readonly { value: RoleCode; label: string }[] = [
+  { value: 'supervisor', label: 'Supervisor de Elos' },
+  { value: 'lider', label: 'Líder de Elo' },
+  { value: 'vice_lider', label: 'Vice-líder' },
+  { value: 'equipe_pastoral', label: 'Equipe pastoral' },
+  { value: 'intercessor', label: 'Intercessão' },
+];
+
 export default async function UsuariosPage() {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
@@ -66,7 +83,12 @@ export default async function UsuariosPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <InviteForm congregationId={congregationId ?? ''} />
+            <InviteForm
+              congregationId={congregationId ?? ''}
+              roles={PAPEIS_DE_CONVITE.filter((papel) =>
+                grantableRoles(claims).includes(papel.value),
+              )}
+            />
           </CardContent>
         </Card>
       )}
@@ -90,7 +112,7 @@ export default async function UsuariosPage() {
               roles: u.roles,
             }))}
             canAssign={podeAtribuir}
-            actorRoles={claims.roles}
+            grantable={grantableRoles(claims)}
           />
         </CardContent>
       </Card>

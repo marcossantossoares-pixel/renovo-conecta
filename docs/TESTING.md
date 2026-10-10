@@ -35,20 +35,22 @@ Em um sistema que guarda dados pastorais de pessoas reais, nem todo teste vale o
 
 Executa uma vez por papel, com sessão real e claims reais. Nenhuma tabela entra em produção sem constar aqui.
 
-| #   | Caso                                                           | Resultado esperado                       |
-| --- | -------------------------------------------------------------- | ---------------------------------------- |
-| 1   | Supervisor consulta Elo fora de `supervision_assignment`       | Zero linhas                              |
-| 2   | Líder consulta pessoa que não participa do seu Elo             | Zero linhas                              |
-| 3   | Líder tenta aprovar o próprio relatório                        | Negado                                   |
-| 4   | Coordenador tenta atribuir a si `pastor_admin` ou `superadmin` | Negado                                   |
-| 5   | Usuário do tenant A consulta qualquer tabela do tenant B       | Zero linhas, em **todas** as tabelas     |
-| 6   | Usuário sem `elo.read_full_address` lê endereço do Elo         | Colunas restritas ausentes               |
-| 7   | Qualquer papel tenta `UPDATE` ou `DELETE` em `audit_log`       | Erro no banco                            |
-| 8   | Sessão sem claims válidas consulta qualquer tabela             | Zero linhas — **nunca** a tabela inteira |
-| 9   | Membro (papel ativado) consulta cadastro de terceiro           | Zero linhas                              |
-| 10  | Líder ou supervisor consulta estudo em rascunho ou agendado    | Zero linhas                              |
-| 11  | Líder registra etapa da jornada da secretaria, ou fora do Elo  | Negado pela RLS                          |
-| 12  | Qualquer papel grava data eclesiástica direto em `person`      | Erro no banco, inclusive para `postgres` |
+| #   | Caso                                                           | Resultado esperado                                            |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | Supervisor consulta Elo fora de `supervision_assignment`       | Zero linhas                                                   |
+| 2   | Líder consulta pessoa que não participa do seu Elo             | Zero linhas                                                   |
+| 3   | Líder tenta aprovar o próprio relatório                        | Negado                                                        |
+| 4   | Coordenador tenta atribuir a si `pastor_admin` ou `superadmin` | Negado                                                        |
+| 5   | Usuário do tenant A consulta qualquer tabela do tenant B       | Zero linhas, em **todas** as tabelas                          |
+| 6   | Usuário sem `elo.read_full_address` lê endereço do Elo         | Colunas restritas ausentes                                    |
+| 7   | Qualquer papel tenta `UPDATE` ou `DELETE` em `audit_log`       | Erro no banco                                                 |
+| 8   | Sessão sem claims válidas consulta qualquer tabela             | Zero linhas — **nunca** a tabela inteira                      |
+| 9   | Membro (papel ativado) consulta cadastro de terceiro           | Zero linhas                                                   |
+| 10  | Líder ou supervisor consulta estudo em rascunho ou agendado    | Zero linhas                                                   |
+| 11  | Líder registra etapa da jornada da secretaria, ou fora do Elo  | Negado pela RLS                                               |
+| 12  | Qualquer papel grava data eclesiástica direto em `person`      | Erro no banco, inclusive para `postgres`                      |
+| 13  | Sessão consulta `prayer_request` diretamente                   | Erro de permissão — nem o pastor; ler é a função que registra |
+| 14  | Superadmin, ou supervisor do Elo, lê pedido de oração          | Zero linhas                                                   |
 
 **Regra de cobertura:** para cada tabela nova, um teste que prova que um usuário fora do escopo recebe zero linhas. Sem esse teste, a tabela não é considerada pronta.
 
@@ -129,6 +131,15 @@ iluminada.
 - Etapa arquivada não recebe registro novo; etapa planejada recebe o prazo padrão.
 - Anonimizar limpa observações, próxima ação e responsável, apaga o histórico das etapas e preserva as etapas.
 - O painel conta os acompanhamentos atrasados no alcance de quem olha: a coordenação vê os da congregação, o líder os do próprio Elo.
+
+### Pedidos de oração (Fase 14)
+
+- Ninguém lê a tabela; toda leitura pela função deixa uma linha em `audit_log`, na mesma transação, e falha se não puder deixar (mutação).
+- Cada papel lê exatamente o seu nível: total, líder, intercessão; o anônimo some só para a intercessão.
+- Abrir o painel — que tem o link para a lista em toda página — não registra leitura nenhuma.
+- Registrar respeita pessoa e Elo do alcance; `created_by` é sempre a conta da sessão.
+- Só a equipe pastoral muda a situação e o responsável; o responsável designado anota.
+- Anonimizar tira o texto, o telefone e o acompanhamento, e preserva o pedido.
 
 ### Privacidade e LGPD
 

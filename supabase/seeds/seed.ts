@@ -29,6 +29,7 @@ import {
   ELO_OUTRO_TENANT,
   ESTUDOS,
   JORNADA_DEMO,
+  PEDIDOS_DE_ORACAO,
   LIDERANCA,
   MOTIVO_CORRECAO,
   RECEBIMENTO_LIDERANCA,
@@ -96,6 +97,16 @@ const db = drizzle(client);
 const hoje = new Date().toISOString().slice(0, 10);
 
 type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Situação na igreja de quem tem conta. As equipes de oração (Fase 14) são
+ * membros que intercedem ou acompanham — não lideram Elo.
+ */
+function situacaoDaLideranca(roleCode: string): string {
+  if (roleCode === 'pastor_admin') return 'pastor';
+  if (roleCode === 'equipe_pastoral' || roleCode === 'intercessor') return 'membro';
+  return 'lider';
+}
 
 /**
  * Registra uma etapa da jornada da demonstração (Fase 13).
@@ -223,7 +234,7 @@ async function main(): Promise<void> {
           ${pessoa.personId}::uuid, ${TENANT_DEMO}::uuid,
           ${CONGREGACAO_CENTRAL}::uuid, ${pessoa.fullName}, ${pessoa.email},
           ${TELEFONE_FICTICIO(index + 1)},
-          ${pessoa.roleCode === 'pastor_admin' ? 'pastor' : 'lider'}::church_status,
+          ${situacaoDaLideranca(pessoa.roleCode)}::church_status,
           ${`${1970 + index}-06-21`}::date
         )
         ON CONFLICT (id) DO NOTHING
@@ -603,6 +614,45 @@ async function main(): Promise<void> {
       `);
     }
 
+    // --- Pedidos de oração (Fase 14) ---------------------------------------
+    /*
+     * Pela conexão administrativa, e por isso fora das políticas: o seed grava
+     * situação "em acompanhamento" direto, o que a sessão não pode — pela
+     * aplicação, todo pedido nasce aberto e muda só pelo acompanhamento.
+     */
+    for (const pedido of PEDIDOS_DE_ORACAO) {
+      await tx.execute(sql`
+        INSERT INTO prayer_request (
+          id, tenant_id, congregation_id, person_id, elo_id, category,
+          description, urgency, visibility, is_anonymous, status, created_by
+        )
+        VALUES (
+          ${pedido.id}::uuid, ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+          ${pedido.personId}::uuid, ${pedido.eloId}::uuid,
+          ${pedido.category}::prayer_category, ${pedido.description},
+          ${pedido.urgency}::prayer_urgency, ${pedido.visibility}::prayer_visibility,
+          ${pedido.isAnonymous}, ${pedido.status}::prayer_status,
+          ${pedido.registeredBy}::uuid
+        )
+        ON CONFLICT (id) DO NOTHING
+      `);
+
+      if (pedido.followUp) {
+        await tx.execute(sql`
+          INSERT INTO prayer_follow_up (
+            tenant_id, congregation_id, prayer_request_id, note, status_change,
+            created_by
+          )
+          SELECT ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+                 ${pedido.id}::uuid, ${pedido.followUp},
+                 ${pedido.status}::prayer_status, ${PASTOR.userId}::uuid
+           WHERE NOT EXISTS (
+             SELECT 1 FROM prayer_follow_up WHERE prayer_request_id = ${pedido.id}::uuid
+           )
+        `);
+      }
+    }
+
     // --- Segundo tenant, para os testes de isolamento --------------------
     await tx.execute(sql`
       INSERT INTO person (
@@ -656,6 +706,9 @@ async function main(): Promise<void> {
   console.log(`${ESTUDOS.length} estudos: um publicado e um agendado.`);
   console.log(
     `${RELATORIOS.length} relatórios; o Elo Alicerce fica sem o da semana, de propósito.`,
+  );
+  console.log(
+    `${PEDIDOS_DE_ORACAO.length} pedidos de oração fictícios, um por visibilidade.`,
   );
   console.log('Segundo tenant criado para os testes de isolamento.');
 }

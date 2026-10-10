@@ -58,6 +58,10 @@ export const ROLES: readonly RoleSeed[] = [
   { code: 'lider', name: 'Líder de Elo', level: 20 },
   { code: 'vice_lider', name: 'Vice-líder', level: 15 },
   { code: 'membro', name: 'Membro', level: 10 },
+  // Fase 14: as duas equipes de oração. Quem as concede é o pastor, por regra
+  // própria — o nível baixo não deixa a coordenação concedê-las (canGrantRole).
+  { code: 'equipe_pastoral', name: 'Equipe pastoral', level: 30 },
+  { code: 'intercessor', name: 'Intercessão', level: 12 },
 ];
 
 /* ---------------------------------------------------------------------- */
@@ -145,6 +149,27 @@ export const PASTOR_OUTRO_TENANT: LeaderSeed = {
   roleCode: 'pastor_admin',
 };
 
+/**
+ * As duas equipes de oração (Fase 14). Contas próprias, e não papéis somados à
+ * liderança: quem só intercede não tem cadastro de pessoas, painel de Elo nem
+ * relatório — e é esse o caso que a tela precisa mostrar.
+ */
+export const EQUIPE_PASTORAL: LeaderSeed = {
+  personId: demoId(2, 9),
+  userId: demoId(3, 9),
+  fullName: 'Rebeca Antunes',
+  email: 'rebeca.antunes@exemplo.test',
+  roleCode: 'equipe_pastoral',
+};
+
+export const INTERCESSORA: LeaderSeed = {
+  personId: demoId(2, 10),
+  userId: demoId(3, 10),
+  fullName: 'Lúcia Fontoura',
+  email: 'lucia.fontoura@exemplo.test',
+  roleCode: 'intercessor',
+};
+
 export const LIDERANCA: readonly LeaderSeed[] = [
   PASTOR,
   COORDENADORA,
@@ -154,6 +179,8 @@ export const LIDERANCA: readonly LeaderSeed[] = [
   LIDER_2,
   LIDER_3,
   LIDER_4,
+  EQUIPE_PASTORAL,
+  INTERCESSORA,
 ];
 
 /* ---------------------------------------------------------------------- */
@@ -718,5 +745,99 @@ export const JORNADA_DEMO: readonly JourneyStepSeed[] = [
     status: 'concluida',
     occurredOn: '2024-03-08',
     responsiblePersonId: LIDER_2.personId,
+  },
+];
+
+/* ---------------------------------------------------------------------- */
+/* Pedidos de oração — Fase 14                                             */
+/* ---------------------------------------------------------------------- */
+
+export interface PrayerSeed {
+  readonly id: string;
+  readonly personId: string | null;
+  readonly eloId: string | null;
+  readonly category: string;
+  readonly description: string;
+  readonly urgency: 'normal' | 'alta' | 'urgente';
+  readonly visibility: 'equipe_pastoral' | 'intercessao' | 'lider_elo';
+  readonly isAnonymous: boolean;
+  readonly registeredBy: string;
+  readonly status: 'aberto' | 'em_acompanhamento' | 'encerrado';
+  readonly followUp?: string;
+}
+
+/**
+ * "Alguns pedidos de oração fictícios e **não sensíveis**" (MASTER_SPEC §15).
+ *
+ * ⚠️ Nenhum fala de saúde, luto ou dinheiro, embora as categorias existam: a
+ * demonstração é vista por quem testa, e o que se exercita aqui é a regra de
+ * quem lê — uma visibilidade por pedido —, e não o conteúdo.
+ */
+export const PEDIDOS_DE_ORACAO: readonly PrayerSeed[] = [
+  {
+    // Líder do Elo: o líder 1 lê; o supervisor A, que acompanha o Elo, não.
+    id: demoId(10, 1),
+    personId: demoId(5, 1),
+    eloId: demoId(4, 1),
+    category: 'trabalho',
+    description: 'Pela entrevista de emprego da próxima semana.',
+    urgency: 'normal',
+    visibility: 'lider_elo',
+    isAnonymous: false,
+    registeredBy: LIDER_1.userId,
+    status: 'aberto',
+  },
+  {
+    // O urgente, para o painel ter o que contar.
+    id: demoId(10, 2),
+    personId: demoId(5, 2),
+    eloId: demoId(4, 1),
+    category: 'familia',
+    description: 'Pela mudança de casa neste fim de semana.',
+    urgency: 'urgente',
+    visibility: 'lider_elo',
+    isAnonymous: false,
+    registeredBy: LIDER_1.userId,
+    status: 'aberto',
+  },
+  {
+    // Intercessão e anônimo: a intercessora lê o pedido, e não o nome.
+    id: demoId(10, 3),
+    personId: demoId(5, 6),
+    eloId: demoId(4, 2),
+    category: 'familia',
+    description: 'Pela viagem da família para o interior no feriado.',
+    urgency: 'normal',
+    visibility: 'intercessao',
+    isAnonymous: true,
+    registeredBy: LIDER_2.userId,
+    status: 'aberto',
+  },
+  {
+    // Só a equipe pastoral — e quem registrou —, já em acompanhamento.
+    id: demoId(10, 4),
+    personId: demoId(6, 2),
+    eloId: null,
+    category: 'espiritual',
+    description: 'Pede oração pela decisão de voltar a frequentar a igreja.',
+    urgency: 'alta',
+    visibility: 'equipe_pastoral',
+    isAnonymous: false,
+    registeredBy: COORDENADORA.userId,
+    status: 'em_acompanhamento',
+    followUp: 'Conversa marcada com a família para o domingo, depois do culto.',
+  },
+  {
+    // Sem identificação: chegou pela caixa de pedidos do culto.
+    id: demoId(10, 5),
+    personId: null,
+    eloId: null,
+    category: 'outro',
+    description: 'Pela reforma do salão da igreja.',
+    urgency: 'normal',
+    visibility: 'intercessao',
+    isAnonymous: false,
+    registeredBy: PASTOR.userId,
+    status: 'aberto',
   },
 ];

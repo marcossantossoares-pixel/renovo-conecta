@@ -367,9 +367,27 @@ Dividida em duas, como as fases anteriores: **13a** (banco, RLS, motor e servido
 - **Campos personalizados por etapa** — sem caso de uso descrito pela igreja, seriam um formulário genérico desenhado no escuro;
 - **Pré-requisito entre etapas** ("batismo exige decisão") — a §4.4 pede "regras", e as duas implementadas são as que a consolidação usa; regra de sequência impõe uma ordem que a vida real nem sempre segue.
 
+### Fase 14 — Pedidos de oração · M · ✅ concluída
+
+Segunda fase da Prioridade 2, escolhida pelo usuário em 2026-10-09: o dado mais sensível do sistema, previsto desde a Fase 0 com "log de todo acesso".
+
+**Entrega:** registro do pedido (pela lista ou pelo perfil da pessoa), com categoria, urgência, visibilidade escolhida pela pessoa, anonimato e autorização de contato · lista e detalhe recortados por papel · acompanhamento com histórico · duas equipes nominais, concedidas só pelo pastor · contagem no painel · menu "4 + Mais" no celular (PEND-01).
+
+**Aceite:**
+
+- [x] **Toda leitura registrada pelo banco** (ADR-012): a sessão não tem `SELECT` na tabela, e a função de leitura grava uma linha em `audit_log` por pedido devolvido, na mesma instrução — provado por teste e por mutação (sem log, sem leitura)
+- [x] Três níveis de leitura (total, líder, intercessão), com o anônimo escondido só da intercessão; o supervisor não lê o pedido confiado ao líder
+- [x] **O superadmin não lê pedido algum**, e só pastor e superadmin concedem as equipes — a coordenação, não
+- [x] Quem registrou continua lendo o que registrou, e não registra em nome de outra conta
+- [x] Abrir o painel não lê pedido — medido com e sem `prefetch={false}` no menu
+- [x] Anonimização e pacote do titular alcançam os pedidos
+- [x] Menu inferior com "Mais" a partir do sexto destino; a exceção da PEND-01 saiu da varredura de telas
+
+**Ficou de fora, com o motivo:** "público no mural, após moderação" (o mural é da comunicação) · o próprio membro enviar o pedido (portal do membro) · notificações.
+
 ### Prioridade 2
 
-~~Jornada da pessoa configurável~~ (Fase 13) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · **pedidos de oração e cuidado pastoral** (com RLS reforçada e log de todo acesso) · busca pública de Elo por bairro e solicitação por visitante.
+~~Jornada da pessoa configurável~~ (Fase 13) · ~~pedidos de oração~~ (Fase 14; falta o cuidado pastoral — notas pastorais) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · busca pública de Elo por bairro e solicitação por visitante.
 
 ### Prioridade 3
 

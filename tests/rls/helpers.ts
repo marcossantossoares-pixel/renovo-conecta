@@ -10,7 +10,10 @@ import {
   ELO_CAMINHO,
   ELO_FONTE,
   ELO_SEMEAR,
+  EQUIPE_PASTORAL,
+  INTERCESSORA,
   LIDER_1,
+  LIDER_2,
   PARTICIPANTES,
   PASTOR,
   PASTOR_OUTRO_TENANT,
@@ -225,6 +228,49 @@ export const claimsOutroTenant: Claims = {
   elo_ids: [],
   person_id: PASTOR_OUTRO_TENANT.personId,
   roles: ['pastor_admin'],
+};
+
+export const claimsLider2: Claims = {
+  app_user_id: LIDER_2.userId,
+  tenant_id: TENANT_DEMO,
+  congregation_ids: [CONGREGACAO_CENTRAL],
+  elo_ids: [ELO_CAMINHO.id],
+  person_id: LIDER_2.personId,
+  roles: ['lider'],
+};
+
+/** As duas equipes de oração (Fase 14): congregação inteira, sem Elo. */
+export const claimsEquipePastoral: Claims = {
+  app_user_id: EQUIPE_PASTORAL.userId,
+  tenant_id: TENANT_DEMO,
+  congregation_ids: [CONGREGACAO_CENTRAL],
+  elo_ids: [],
+  person_id: EQUIPE_PASTORAL.personId,
+  roles: ['equipe_pastoral'],
+};
+
+export const claimsIntercessora: Claims = {
+  app_user_id: INTERCESSORA.userId,
+  tenant_id: TENANT_DEMO,
+  congregation_ids: [CONGREGACAO_CENTRAL],
+  elo_ids: [],
+  person_id: INTERCESSORA.personId,
+  roles: ['intercessor'],
+};
+
+/**
+ * Superadmin do tenant de demonstração. Não há conta dele no seed — as claims
+ * bastam para provar o que ele **não** lê (Fase 14).
+ */
+export const claimsSuperadmin: Claims = {
+  // Conta própria e inexistente: com a do pastor, ele seria "quem registrou"
+  // um dos pedidos do seed, e leria por esse motivo.
+  app_user_id: '00000000-0000-4000-8fff-000000000001',
+  tenant_id: TENANT_DEMO,
+  congregation_ids: [CONGREGACAO_CENTRAL],
+  elo_ids: [],
+  person_id: null,
+  roles: ['superadmin'],
 };
 
 /** Sessão sem contexto: nenhuma claim publicada. */

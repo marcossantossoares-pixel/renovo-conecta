@@ -1,4 +1,6 @@
 import {
+  PASTORAL_ROLES,
+  PASTORAL_ROLE_GRANTORS,
   PERMISSION_GRANTS,
   ROLE_LEVELS,
   SCOPE_RANK,
@@ -185,7 +187,29 @@ export function canGrantRole(subject: AuthzSubject, targetRole: string): boolean
   const nivelAlvo = ROLE_LEVELS[targetRole as RoleCode];
   if (nivelAlvo === undefined) return false;
 
+  // As equipes de oração (Fase 14) não seguem a escada: o nível delas é baixo,
+  // e a coordenação poderia concedê-las. Quem decide quem lê pedido de oração
+  // é o pastor.
+  if (PASTORAL_ROLES.includes(targetRole as RoleCode)) {
+    return subject.roles.some((papel) =>
+      PASTORAL_ROLE_GRANTORS.includes(papel as RoleCode),
+    );
+  }
+
   return nivelAlvo < highestRoleLevel(subject);
+}
+
+/**
+ * Os papéis que o sujeito pode conceder, do mais alto ao mais baixo.
+ *
+ * Uma implementação só para a tela e o servidor: a tela de usuários filtrava
+ * pela escada de níveis por conta própria, e passaria a oferecer à coordenação
+ * os papéis de oração que o servidor recusaria.
+ */
+export function grantableRoles(subject: AuthzSubject): readonly RoleCode[] {
+  return (Object.keys(ROLE_LEVELS) as RoleCode[])
+    .filter((papel) => canGrantRole(subject, papel))
+    .sort((a, b) => ROLE_LEVELS[b] - ROLE_LEVELS[a]);
 }
 
 /** Erro de autorização. A resposta ao usuário nunca revela o que existe. */

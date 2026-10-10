@@ -2,6 +2,55 @@
 
 ## Fase atual
 
+**Fase 14 — Pedidos de oração (`MASTER_SPEC` §4.11). Concluída.**
+
+Escolhida pelo usuário em 2026-10-09, junto com a PEND-01: quase todo módulo que
+restava acrescentaria um destino ao menu, e o menu do pastor já cortava rótulos.
+
+### As decisões, e de quem foram (ADR-012 e ADR-013)
+
+| Decisão                                              | Por quê                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Ler é registrar, no banco**                        | A sessão não tem `SELECT` na tabela — nem o pastor. Ler é uma função que grava em `audit_log` uma linha por pedido devolvido, na mesma instrução. A nota 8 de `PERMISSIONS.md` prometia isso desde a Fase 0; uma tela que esquecesse de registrar não tem como ler |
+| **Duas equipes nominais** (usuário)                  | `equipe_pastoral` e `intercessor`, concedidas só pelo pastor e pelo superadmin — por regra própria, porque o nível baixo deixaria a coordenação concedê-las pela escada                                                                                            |
+| **O superadmin não lê** (usuário)                    | A única área do sistema que ele não alcança: mantém a plataforma, concede os papéis, e não lê pedido                                                                                                                                                               |
+| **Quem registrou lê tudo o que registrou** (usuário) | O líder acompanha o que lhe foi confiado                                                                                                                                                                                                                           |
+| **Menu "4 + Mais"** (usuário)                        | A partir do sexto destino. O líder também passou a ter seis, e ganhou o "Mais"                                                                                                                                                                                     |
+
+### O que só o banco garante, e como foi provado
+
+Trinta casos de RLS e quatro mutações, todas pegas: dar `SELECT` à sessão,
+deixar o superadmin ler, impedir o registro no log e confundir supervisão com
+liderança. A terceira mostrou a propriedade mais forte da fase: **quando o log
+não pode ser gravado, a leitura falha junto** — não existe leitura sem registro.
+
+### Três achados da fase
+
+| Achado                     | O que era |
+| -------------------------- | --------- |
+| **`$` virando `# Progresso |
+
+** | Um script de edição meu usou `String.replace`, que trata `$` como escape no texto de substituição. Uma função da migration perdeu o delimitador, e o Drizzle — que aplica tudo numa transação — desfez o banco inteiro sem dizer por quê. Rodar o SQL direto no Postgres mostrou a linha |
+| **`prefetch={false}` não era o que protegia** | Medido: sem a opção no menu e no painel, abrir o painel continuou sem ler pedido. O Next 16 não renderiza página dinâmica no pré-carregamento. A opção ficou, como defesa em profundidade, e o comentário diz isso — e o caso e2e é o que avisa se o framework mudar |
+| **Alvo de toque de 24 px** | O nome de quem pediu, na lista, era um link baixo demais para o polegar. A varredura de telas pegou no celular, na primeira execução completa |
+
+### O que ficou de fora
+
+"Público no mural, após moderação" (o mural é da comunicação), o próprio membro
+enviar o pedido (portal do membro) e notificações. As **notas pastorais**
+(`pastoral_note`, a outra metade de "cuidado pastoral") continuam reservadas.
+
+### A homologação recebeu a migration 0020
+
+Pela CLI (`supabase migration up`), com backup antes, como na Fase 13. Os papéis
+das duas equipes entraram em todo tenant pela própria migration. **O seed não foi
+reexecutado ali**: `pnpm db:seed` cria as duas contas das equipes e os pedidos
+de demonstração.
+
+---
+
+## Fase 13
+
 **Fase 13 — Jornada da pessoa (`MASTER_SPEC` §4.4). Concluída — 13a e 13b.**
 
 Primeira fase da Prioridade 2, escolhida pelo usuário em 2026-10-09 entre as
@@ -1681,6 +1730,42 @@ revisado item a item, `TESTING.md` §4 com o mapa dos doze fluxos,
 As migrations foram aplicadas **do zero** (`supabase db reset`), com seed e suíte
 de isolamento reexecutados verdes.
 
+### Fase 14 — Pedidos de oração (2026-10-09)
+
+Relato completo em "Fase atual", no topo deste arquivo.
+
+**Banco (migration 0020):** `prayer_request` e `prayer_follow_up`, sem `SELECT`
+para a sessão · `app.prayer_access()` com os três níveis · `app.leads_elo()`,
+que olha a liderança e não `elo_ids` · `app.prayer_requests_read()` e
+`app.prayer_follow_ups_read()`, que registram cada leitura ·
+`app.prayer_request_follow_up()` · `app.prayer_requests_open_count()`, que conta
+sem ler · os papéis `equipe_pastoral` e `intercessor` em todo tenant ·
+`app.anonymize_person()` reescrita.
+
+**Arquivos criados:**
+
+| Área   | Arquivos                                                                                                       |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| Banco  | `supabase/migrations/0020_pedidos_de_oracao.sql`, `src/core/db/schema/prayer.ts`                               |
+| Módulo | `src/modules/prayer/{schemas,repository,service,actions}.ts`                                                   |
+| Telas  | `src/app/(app)/oracao/page.tsx`, `oracao/novo/{page,prayer-form}.tsx`, `oracao/[id]/{page,follow-up-form}.tsx` |
+| Testes | `tests/rls/prayer.test.ts`, `tests/e2e/oracao.spec.ts`, `tests/unit/modules/prayer/schemas.test.ts`            |
+
+**Alterados:** `src/core/authz/{catalog,can}.ts` (papéis, permissões `prayer.*`,
+`canGrantRole` com a regra das equipes e `grantableRoles`), a tela de usuários
+(a mesma regra do servidor), `src/components/layout/{app-shell,navigation}.ts`
+(menu "Mais" e `prefetch` por item), `src/components/ui/icons.tsx`, o painel
+(contagem e redirecionamento de quem não tem painel), o perfil da pessoa,
+`src/core/db/errors.ts`, `src/modules/privacy/export.ts`, o seed e os fixtures,
+`playwright.config.ts`, a varredura (sem a exceção da PEND-01) e a documentação.
+
+| Comando                                         | Resultado                                    |
+| ----------------------------------------------- | -------------------------------------------- |
+| `pnpm test`                                     | ✅ **553** (era 532)                         |
+| `pnpm test:rls`                                 | ✅ **319** (era 289), banco recriado do zero |
+| `pnpm test:e2e`                                 | ✅ **323** (era 318), banco recriado do zero |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros                                 |
+
 ### Fase 13 — Jornada da pessoa (2026-10-09)
 
 Primeira fase da Prioridade 2. Antes dela, a PEND-02 (ADR-011); no centro dela, a
@@ -1836,13 +1921,12 @@ sistema ficou pronto.
 O roadmap não numera nada depois da 13. Na ordem da §11 do `MASTER_SPEC`, as
 candidatas são:
 
-| Módulo                         | O que pesa na escolha                                                                                           |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| Eventos, inscrições e check-in | Acrescenta destino ao menu: a **PEND-01** precisa ser decidida antes                                            |
-| Ministérios e escalas          | Traz o papel `lider_ministerio`, previsto em `PERMISSIONS.md` e sem escopo implementado                         |
-| Comunicação                    | Segmentação por público; disparo por WhatsApp e push é da Prioridade 3                                          |
-| Pedidos de oração              | O dado mais sensível do sistema — RLS reforçada e log de **leitura**. Sem o portal, quem registra é a liderança |
-| Portal do membro               | Ativa o login do papel `membro` e revê a ADR-003; é a maior das cinco                                           |
+| Módulo                         | O que pesa na escolha                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| Eventos, inscrições e check-in | Acrescenta destino ao menu — o "Mais" da Fase 14 já absorve                             |
+| Ministérios e escalas          | Traz o papel `lider_ministerio`, previsto em `PERMISSIONS.md` e sem escopo implementado |
+| Comunicação                    | Segmentação por público; disparo por WhatsApp e push é da Prioridade 3                  |
+| Portal do membro               | Ativa o login do papel `membro` e revê a ADR-003; é a maior das cinco                   |
 
 ### Bloqueios para a entrada em produção
 
@@ -1872,9 +1956,8 @@ aparecem no dia:
 
 ### Decisões abertas pela rodada de QA 1 (2026-10-09)
 
-- **PEND-01** — menu inferior do celular com mais de cinco destinos corta os
-  rótulos (coordenação a partir de 360 px; pastor e superadmin em 390 px).
-  Proposta: quatro itens e "Mais". Muda a navegação aprovada.
+- ~~**PEND-01**~~ — **resolvida na Fase 14** (ADR-013): quatro destinos e "Mais"
+  a partir do sexto.
 - ~~**PEND-02**~~ — **resolvida na Fase 13** (ADR-011): a suíte roda numa pilha
   do Supabase só dela, recriada do seed a cada execução.
 
@@ -1902,10 +1985,9 @@ aparecem no dia:
 
 ### Depois do MVP
 
-A Prioridade 2 do roadmap: ~~jornada configurável~~ (Fase 13), portal do membro,
-eventos, ministérios, comunicados e **pedidos de oração** — este último com RLS
-reforçada e log de todo acesso desde o desenho, porque é o dado mais sensível que
-o sistema vai guardar.
+A Prioridade 2 do roadmap: ~~jornada configurável~~ (Fase 13), ~~pedidos de
+oração~~ (Fase 14), portal do membro, eventos, ministérios, comunicados e as
+notas pastorais.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. A homologação é controlada pela CLI: migration nova entra com

@@ -8,6 +8,15 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 14 — Pedidos de oração (2026-10-09)
+
+- **Pedidos de oração** (`MASTER_SPEC` §4.11, migration 0020): registro pela lista ou pelo perfil, visibilidade escolhida pela pessoa (equipe pastoral, intercessão, líder do Elo), anonimato para a intercessão, autorização de contato, acompanhamento com histórico.
+- **Toda leitura registrada pelo banco** (ADR-012): a tabela não tem `SELECT` para a sessão; ler é uma função que grava em `audit_log` uma linha por pedido devolvido. O superadmin não lê pedido algum.
+- **Duas equipes nominais**, `equipe_pastoral` e `intercessor`, concedidas só pelo pastor; a tela de usuários passou a usar a mesma regra do servidor (`grantableRoles`).
+- **Contagem de pedidos abertos e urgentes no painel**, sem ler pedido.
+- **Menu inferior com "Mais"** a partir do sexto destino (ADR-013, PEND-01).
+- Quem não tem painel (as equipes de oração) entra direto na primeira tela que alcança.
+
 #### Fase 13 — Jornada da pessoa (2026-10-09)
 
 - **Jornada configurável** (`MASTER_SPEC` §4.4, migration 0019): as doze etapas

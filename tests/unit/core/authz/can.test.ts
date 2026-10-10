@@ -13,6 +13,7 @@ import {
   assertCan,
   can,
   canGrantRole,
+  grantableRoles,
   effectiveScope,
 } from '@/core/authz/can';
 
@@ -248,6 +249,45 @@ describe('anti-escalação de privilégio', () => {
   it('sujeito sem papel não concede nada', () => {
     expect(canGrantRole(semPapel, 'membro')).toBe(false);
   });
+
+  /*
+   * As equipes de oração (Fase 14) têm nível baixo — e a escada de níveis
+   * deixaria a coordenação concedê-las. Quem decide quem lê pedido de oração é
+   * o pastor; a regra é própria, e não a escada.
+   */
+  it('só pastor e superadmin concedem as equipes de oração', () => {
+    for (const papel of ['equipe_pastoral', 'intercessor']) {
+      expect(canGrantRole(pastor, papel), papel).toBe(true);
+      expect(canGrantRole(sujeito(['superadmin']), papel), papel).toBe(true);
+      expect(canGrantRole(coordenadora, papel), papel).toBe(false);
+      expect(canGrantRole(supervisor, papel), papel).toBe(false);
+      expect(canGrantRole(sujeito(['equipe_pastoral']), papel), papel).toBe(false);
+    }
+  });
+
+  it('ter um papel de oração não soma alcance de concessão a quem coordena', () => {
+    const coordenaEIntercede = sujeito(['coordenador_elos', 'intercessor']);
+    expect(canGrantRole(coordenaEIntercede, 'coordenador_elos')).toBe(false);
+    expect(canGrantRole(coordenaEIntercede, 'intercessor')).toBe(false);
+  });
+
+  it('a tela oferece exatamente o que o servidor aceita', () => {
+    expect(grantableRoles(coordenadora)).toEqual([
+      'supervisor',
+      'lider',
+      'vice_lider',
+      'membro',
+    ]);
+    expect(grantableRoles(pastor)).toEqual([
+      'coordenador_elos',
+      'supervisor',
+      'equipe_pastoral',
+      'lider',
+      'vice_lider',
+      'intercessor',
+      'membro',
+    ]);
+  });
 });
 
 describe('assertCan', () => {
@@ -285,10 +325,28 @@ describe('integridade do catálogo', () => {
    * desde a Fase 9, com as cinco de `study`; 44 desde a Fase 11, com as três de
    * `privacy` — que constavam na §3 desde a Fase 0 e **nunca tinham existido no
    * catálogo**. Foi este caso que apontou a lacuna. 47 desde a Fase 13, com as
-   * três de `journey`.
+   * três de `journey`; 50 desde a Fase 14, com as três de `prayer`.
    */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(47);
+    expect(ALL_PERMISSIONS).toHaveLength(50);
+  });
+
+  /**
+   * A única área do sistema que o superadmin não alcança (decisão do usuário,
+   * Fase 14): quem mantém a plataforma não lê pedido de oração.
+   */
+  it('pedido de oração não é do superadmin', () => {
+    for (const permission of [
+      'prayer.create',
+      'prayer.read',
+      'prayer.follow_up',
+    ] as const) {
+      expect(PERMISSION_GRANTS[permission].superadmin, permission).toBeUndefined();
+    }
+    expect(PERMISSION_GRANTS['prayer.follow_up']).toEqual({
+      pastor_admin: 'congregation',
+      equipe_pastoral: 'congregation',
+    });
   });
 
   /**

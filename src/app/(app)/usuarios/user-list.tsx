@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
-import { ROLE_LEVELS, type RoleCode } from '@/core/authz/catalog';
 import type { FormState } from '@/modules/auth/actions';
 import { assignRoleAction, revokeRoleAction } from '@/modules/users/actions';
 
@@ -22,6 +21,8 @@ const NOMES_DE_PAPEL: Record<string, string> = {
   lider: 'Líder de Elo',
   vice_lider: 'Vice-líder',
   membro: 'Membro',
+  equipe_pastoral: 'Equipe pastoral',
+  intercessor: 'Intercessão',
 };
 
 export interface UserListItem {
@@ -35,18 +36,20 @@ export interface UserListItem {
 /**
  * Lista de contas, com concessão e encerramento de papéis.
  *
- * Os papéis oferecidos são filtrados pelo nível de quem está usando a tela.
- * Isso é **conveniência**: o servidor recusa de qualquer forma. Mas oferecer
- * opções que sempre falhariam só produziria frustração.
+ * Os papéis oferecidos chegam prontos do servidor (`grantableRoles`), que é a
+ * mesma regra que recusa a concessão. Até a Fase 14 esta tela filtrava pela
+ * escada de níveis por conta própria — e passaria a oferecer à coordenação as
+ * equipes de oração, que só o pastor concede.
  */
 export function UserList({
   users,
   canAssign,
-  actorRoles,
+  grantable,
 }: {
   users: readonly UserListItem[];
   canAssign: boolean;
-  actorRoles: readonly string[];
+  /** Papéis que quem usa a tela pode conceder e encerrar. */
+  grantable: readonly string[];
 }) {
   const [estado, acaoConceder, concedendo] = useActionState(
     assignRoleAction,
@@ -54,14 +57,7 @@ export function UserList({
   );
   const [estadoRevogar, acaoRevogar] = useActionState(revokeRoleAction, ESTADO_INICIAL);
 
-  const nivelDoAtor = actorRoles.reduce(
-    (maior, papel) => Math.max(maior, ROLE_LEVELS[papel as RoleCode] ?? 0),
-    0,
-  );
-
-  const papeisConcedeveis = (Object.keys(ROLE_LEVELS) as RoleCode[])
-    .filter((papel) => ROLE_LEVELS[papel] < nivelDoAtor)
-    .sort((a, b) => ROLE_LEVELS[b] - ROLE_LEVELS[a]);
+  const papeisConcedeveis = grantable;
 
   if (users.length === 0) {
     return (
@@ -106,21 +102,20 @@ export function UserList({
                   <span key={papel} className="inline-flex items-center gap-1">
                     <Badge tone="brand">{NOMES_DE_PAPEL[papel] ?? papel}</Badge>
 
-                    {canAssign &&
-                      (ROLE_LEVELS[papel as RoleCode] ?? 0) < nivelDoAtor && (
-                        <form action={acaoRevogar}>
-                          <input type="hidden" name="appUserId" value={usuario.id} />
-                          <input type="hidden" name="roleCode" value={papel} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Encerrar papel ${NOMES_DE_PAPEL[papel] ?? papel} de ${usuario.fullName ?? usuario.email}`}
-                          >
-                            Encerrar
-                          </Button>
-                        </form>
-                      )}
+                    {canAssign && grantable.includes(papel) && (
+                      <form action={acaoRevogar}>
+                        <input type="hidden" name="appUserId" value={usuario.id} />
+                        <input type="hidden" name="roleCode" value={papel} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Encerrar papel ${NOMES_DE_PAPEL[papel] ?? papel} de ${usuario.fullName ?? usuario.email}`}
+                        >
+                          Encerrar
+                        </Button>
+                      </form>
+                    )}
                   </span>
                 ))
               )}

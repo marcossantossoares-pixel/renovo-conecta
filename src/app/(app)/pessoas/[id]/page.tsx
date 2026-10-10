@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardDescription } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { requireAuthenticatedContext } from '@/core/auth/session';
-import { can } from '@/core/authz/can';
+import { can, hasPermissionAnywhere } from '@/core/authz/can';
 import { formatDateTime, isoDateToBr } from '@/lib/format';
 import { getPersonJourneyForViewer } from '@/modules/journey/service';
 import { fieldLabel } from '@/modules/people/fields';
@@ -125,6 +125,20 @@ export default async function PessoaPage({
           <>
             {podeEditar && (
               <ButtonLink href={`/pessoas/${person.id}/editar`}>Editar</ButtonLink>
+            )}
+            {/*
+              Registrar, e não listar: os pedidos desta pessoa não aparecem no
+              perfil, porque lê-los é um acesso registrado (ADR-012) — e o perfil
+              é aberto o tempo todo por quem não tem nada a ver com eles.
+            */}
+            {hasPermissionAnywhere(claims, 'prayer.create') && (
+              <ButtonLink
+                href={`/oracao/novo?pessoa=${person.id}`}
+                variant="secondary"
+                prefetch={false}
+              >
+                Registrar pedido de oração
+              </ButtonLink>
             )}
             {podeExcluir && (
               <DeletePerson personId={person.id} personName={nomeExibido} />

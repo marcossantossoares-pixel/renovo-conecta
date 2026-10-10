@@ -298,3 +298,28 @@ jornada, e o banco recusa qualquer outro caminho.
 **Configuração:** o pastor altera nome, ordem, quem registra e o prazo padrão das
 etapas em `/pessoas/jornada`; a coordenação vê as regras e não as muda. Etapa com
 registro se arquiva, não se exclui.
+
+---
+
+## 14. Pedido de oração (Fase 14)
+
+```mermaid
+flowchart TD
+    A[Pessoa conta um pedido a alguem da lideranca] --> B[Quem ouviu registra, com a visibilidade que a pessoa escolheu]
+    B --> C{Visibilidade}
+    C -->|So equipe pastoral| D[Pastor e equipe pastoral leem]
+    C -->|Intercessao| E[Intercessao le para orar; anonimo sem o nome]
+    C -->|Lider do Elo| F[Lider e vice do Elo leem; o supervisor nao]
+    D --> G[Equipe pastoral acompanha: anota, muda a situacao, designa responsavel]
+    F --> G
+    G --> H[Responsavel designado anota o acompanhamento]
+    D -.-> L[(Cada leitura gravada em audit_log pelo banco)]
+    E -.-> L
+    F -.-> L
+```
+
+**Pontos críticos:** abrir a lista ou o pedido **é** uma leitura registrada — a
+tela não tem como ler de outro jeito (ADR-012). O superadmin não lê pedido algum.
+Quem registrou continua lendo o que registrou. Sem o portal do membro (ADR-003),
+quem registra é a liderança, a coordenação, o pastor ou a equipe pastoral, a
+partir do perfil da pessoa ou da lista.

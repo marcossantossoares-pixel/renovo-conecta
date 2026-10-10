@@ -79,6 +79,7 @@ export default defineConfig({
         '**/fluxos-obrigatorios.spec.ts',
         '**/varredura-pastor.spec.ts',
         '**/jornada-configuracao.spec.ts',
+        '**/oracao.spec.ts',
       ],
     },
     {
@@ -116,6 +117,7 @@ export default defineConfig({
         // etapa, e as duas execuções disputariam a mesma linha.
         '**/jornada.spec.ts',
         '**/jornada-configuracao.spec.ts',
+        '**/oracao.spec.ts',
         // `dashboard`, `relatorios` e `privacidade`: têm projeto próprio, logo
         // abaixo.
         '**/dashboard.spec.ts',
@@ -170,6 +172,10 @@ export default defineConfig({
         '**/varredura-pastor.spec.ts',
         // Fase 13: configurar as etapas é do pastor — mesma razão.
         '**/jornada-configuracao.spec.ts',
+        // Fase 14: conta as leituras registradas por conta, e a varredura das
+        // outras suítes lê pedidos com as mesmas contas — sozinha, a contagem
+        // só vê o que ela mesma fez.
+        '**/oracao.spec.ts',
       ],
       dependencies: ['desktop', 'mobile'],
       workers: 1,

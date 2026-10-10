@@ -291,7 +291,9 @@ e não preenche.
 
 ### 6. Pendências
 
-#### PEND-01 — Menu inferior do celular com mais de cinco destinos — PENDENTE (decisão)
+#### PEND-01 — Menu inferior do celular com mais de cinco destinos — RESOLVIDA (2026-10-09, ADR-013)
+
+**Resolução:** quatro destinos e "Mais" a partir do sexto, como proposto abaixo; a exceção saiu da varredura de telas. O registro original segue.
 
 O menu inferior mostra **todos** os destinos do papel, um ao lado do outro.
 Medido:

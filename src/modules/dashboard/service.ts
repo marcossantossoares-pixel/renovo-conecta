@@ -10,6 +10,7 @@ import type { OpcaoDeFiltro } from '@/modules/elos/repository';
 import { carregarOpcoesDeFiltro } from '@/modules/elos/repository';
 import type { FollowUpRow } from '@/modules/journey/repository';
 import { listOverdueFollowUps } from '@/modules/journey/repository';
+import { countOpenPrayerRequests } from '@/modules/prayer/repository';
 import type { EloPendente, Indicadores, PontoDaSerie } from './metrics';
 import {
   carregarCrescimento,
@@ -48,6 +49,12 @@ export interface Painel {
     readonly total: number;
     readonly rows: readonly FollowUpRow[];
   } | null;
+  /**
+   * Pedidos de oração abertos que chegaram a esta sessão (Fase 14) — o
+   * indicador da §4.2 que a Fase 10a deixou de fora. Número, e não pedido:
+   * contar não lê, e por isso não registra acesso. `null` para quem não lê.
+   */
+  readonly oracao: { readonly abertos: number; readonly urgentes: number } | null;
   readonly opcoes: {
     readonly supervisores: readonly OpcaoDeFiltro[];
     readonly elos: readonly OpcaoDeFiltro[];
@@ -93,6 +100,9 @@ export async function carregarPainel(
     const acompanhamentos = hasPermissionAnywhere(claims, 'journey.read')
       ? await listOverdueFollowUps(tx, ACOMPANHAMENTOS_NO_PAINEL)
       : null;
+    const oracao = hasPermissionAnywhere(claims, 'prayer.read')
+      ? await countOpenPrayerRequests(tx)
+      : null;
     const opcoes = await carregarOpcoesDeFiltro(tx);
 
     return {
@@ -103,6 +113,7 @@ export async function carregarPainel(
       crescimento,
       pendentes,
       acompanhamentos,
+      oracao,
       opcoes,
     };
   });

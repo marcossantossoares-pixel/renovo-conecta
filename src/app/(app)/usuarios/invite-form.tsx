@@ -18,11 +18,17 @@ const ESTADO_INICIAL: InvitationFormState = {};
  * formulário existe para que o fluxo 1 funcione e possa ser testado ponta a
  * ponta — um fluxo sem forma de iniciá-lo não é um fluxo verificável.
  *
- * A lista de papéis oferecidos é curta de propósito: o servidor recusa
- * qualquer papel de nível igual ou superior ao de quem convida, e mostrar
- * opções que sempre falhariam só produziria frustração.
+ * Os papéis oferecidos chegam da página, já filtrados pelo que quem convida
+ * pode conceder: o servidor recusa o resto de qualquer forma, e mostrar opções
+ * que sempre falhariam só produziria frustração.
  */
-export function InviteForm({ congregationId }: { congregationId: string }) {
+export function InviteForm({
+  congregationId,
+  roles,
+}: {
+  congregationId: string;
+  roles: readonly { value: string; label: string }[];
+}) {
   const [estado, acao, enviando] = useActionState(
     createInvitationAction,
     ESTADO_INICIAL,
@@ -58,11 +64,7 @@ export function InviteForm({ congregationId }: { congregationId: string }) {
           name="roleCode"
           required
           placeholder="Selecione"
-          options={[
-            { value: 'supervisor', label: 'Supervisor de Elos' },
-            { value: 'lider', label: 'Líder de Elo' },
-            { value: 'vice_lider', label: 'Vice-líder' },
-          ]}
+          options={roles}
           error={estado.fieldErrors?.['roleCode']}
         />
       </div>

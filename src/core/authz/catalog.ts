@@ -20,7 +20,10 @@ export type RoleCode =
   | 'supervisor'
   | 'lider'
   | 'vice_lider'
-  | 'membro';
+  | 'membro'
+  // Fase 14: as duas equipes da §4.11, concedidas nominalmente pelo pastor.
+  | 'equipe_pastoral'
+  | 'intercessor';
 
 /**
  * Alcance de uma permissão, do mais amplo ao mais estreito.
@@ -88,7 +91,10 @@ export type PermissionCode =
   | 'privacy.export_subject_data'
   | 'journey.read'
   | 'journey.update'
-  | 'journey.configure';
+  | 'journey.configure'
+  | 'prayer.create'
+  | 'prayer.read'
+  | 'prayer.follow_up';
 
 type Grants = Partial<Record<RoleCode, Scope>>;
 
@@ -469,7 +475,57 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     vice_lider: 'elo',
   },
   'journey.configure': { superadmin: 'global', pastor_admin: 'congregation' },
+
+  /* --- Pedidos de oração — Fase 14 (ADR-012) -----------------------------
+   *
+   * ⚠️ **O SUPERADMIN NÃO APARECE AQUI, de propósito** (decisão do usuário,
+   * 2026-10-09). É a única área do sistema em que ele não alcança tudo: quem
+   * mantém a plataforma não é quem cuida das pessoas. Ele concede os papéis das
+   * duas equipes, e não lê pedido algum.
+   *
+   * `read` responde "esta tela existe para você?", e a resposta é larga: quem
+   * registra também lê o que registrou. **Quais pedidos** cada um lê é decisão
+   * de `app.prayer_access()` no banco (migration 0020), em três níveis — e a
+   * leitura só acontece por uma função que a registra em `audit_log`.
+   *
+   * `follow_up` é da equipe pastoral e do pastor. O responsável designado
+   * também registra acompanhamento; essa exceção é por linha, e mora no banco.
+   */
+  'prayer.create': {
+    pastor_admin: 'congregation',
+    equipe_pastoral: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'prayer.read': {
+    pastor_admin: 'congregation',
+    equipe_pastoral: 'congregation',
+    intercessor: 'congregation',
+    coordenador_elos: 'congregation',
+    supervisor: 'elo',
+    lider: 'elo',
+    vice_lider: 'elo',
+  },
+  'prayer.follow_up': {
+    pastor_admin: 'congregation',
+    equipe_pastoral: 'congregation',
+  },
 };
+
+/**
+ * Os papéis das duas equipes de oração (§4.11). Quem os concede não é a escada
+ * de níveis — que deixaria a coordenação concedê-los —, e sim esta lista:
+ * pastor e superadmin, e mais ninguém (`canGrantRole`).
+ */
+export const PASTORAL_ROLES: readonly RoleCode[] = ['equipe_pastoral', 'intercessor'];
+
+/** Quem concede os papéis de `PASTORAL_ROLES`. */
+export const PASTORAL_ROLE_GRANTORS: readonly RoleCode[] = [
+  'superadmin',
+  'pastor_admin',
+];
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_GRANTS) as PermissionCode[];
 
@@ -482,4 +538,9 @@ export const ROLE_LEVELS: Readonly<Record<RoleCode, number>> = {
   lider: 20,
   vice_lider: 15,
   membro: 10,
+  // Fase 14. O nível não dá poder a ninguém sobre outros papéis — quem pode
+  // concedê-los é `PASTORAL_ROLE_GRANTORS`. Ficam abaixo da coordenação para
+  // que ter um deles nunca some alcance de concessão a quem já coordena.
+  equipe_pastoral: 30,
+  intercessor: 12,
 };

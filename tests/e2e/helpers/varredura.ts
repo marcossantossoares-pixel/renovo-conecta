@@ -268,12 +268,9 @@ const PENDENCIAS_CONHECIDAS: readonly {
   readonly padrao: RegExp;
   readonly item: string;
 }[] = [
-  {
-    // PEND-01: menu inferior com mais de cinco destinos (pastor, superadmin; a
-    // coordenação a partir de 360 px). Corrigir muda a navegação aprovada.
-    padrao: /^\[celular\] .* → texto cortado: <span\.w-full\.truncate\.text-center>/,
-    item: 'PEND-01 — rótulos do menu inferior cortados com mais de cinco destinos',
-  },
+  // PEND-01 saiu daqui na Fase 14: o menu inferior passou a ter quatro destinos
+  // e "Mais" a partir do sexto (decisão do usuário, 2026-10-09). Rótulo cortado
+  // na barra voltou a reprovar.
 ];
 
 /**

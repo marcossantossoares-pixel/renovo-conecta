@@ -105,6 +105,8 @@ acompanhamento fica de fora, pela mesma regra que deixa de fora a lista de quem
 mais participa do Elo: é outra pessoa, e o pacote de portabilidade não carrega
 dado de terceiros.
 
+**Pedidos de oração (Fase 14, ADR-012).** O dado mais sensível do sistema — saúde, família, luto, dinheiro. Três garantias que vêm do banco, e não da tela: **toda leitura fica registrada** em `audit_log` (a sessão não tem como ler a tabela sem passar pela função que registra); **o superadmin não lê**; e cada um lê só o nível que lhe cabe. Na **anonimização**, o pedido fica (a categoria e a data são agregado) e saem o texto, o telefone e todo o acompanhamento. No **pacote do titular**, entram os pedidos dele, sem o acompanhamento — que é trabalho de quem cuida —, e só quando quem exporta lê pedido de oração: para o superadmin, a parte vem marcada como exportável pela equipe pastoral, e não como vazia.
+
 **Limitação conhecida:** texto livre de relatório — e, desde a Fase 13, das observações da jornada de outras pessoas — pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita — a revisão é humana, registrada na resolução da solicitação (Fluxo 10).
 
 ---

@@ -6,6 +6,7 @@ import * as dashboard from '@/modules/dashboard/schemas';
 import * as elos from '@/modules/elos/schemas';
 import * as journey from '@/modules/journey/schemas';
 import * as people from '@/modules/people/schemas';
+import * as prayer from '@/modules/prayer/schemas';
 import * as privacy from '@/modules/privacy/schemas';
 import * as reports from '@/modules/reports/schemas';
 import * as studies from '@/modules/studies/schemas';
@@ -80,7 +81,17 @@ function ehCampoDeEscolha(esquema: z.ZodType): boolean {
 /** As frases-padrão do Zod, que nunca deveriam chegar à tela. */
 const MENSAGEM_PADRAO = /invalid|expected|required|too (small|big)/i;
 
-const MODULOS = { auth, dashboard, elos, journey, people, privacy, reports, studies };
+const MODULOS = {
+  auth,
+  dashboard,
+  elos,
+  journey,
+  people,
+  prayer,
+  privacy,
+  reports,
+  studies,
+};
 
 const camposDeEscolha = Object.entries(MODULOS).flatMap(([modulo, exportados]) =>
   Object.entries(exportados as Record<string, unknown>).flatMap(([nome, valor]) => {
@@ -103,6 +114,9 @@ describe('campos de escolha deixados na opção vazia', () => {
     // Fase 13: o registro de etapa e a regra de quem registra.
     expect(onde).toContain('journey.registerStepFieldsSchema.status');
     expect(onde).toContain('journey.createStageSchema.registrar');
+    // Fase 14: o pedido de oração.
+    expect(onde).toContain('prayer.createPrayerFieldsSchema.visibility');
+    expect(onde).toContain('prayer.createPrayerFieldsSchema.category');
     expect(camposDeEscolha.length).toBeGreaterThan(15);
   });
 

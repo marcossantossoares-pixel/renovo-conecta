@@ -62,6 +62,19 @@ export function isRowLevelSecurityViolation(erro: unknown): boolean {
   return erroDoBanco(erro, INSUFFICIENT_PRIVILEGE) !== null;
 }
 
+/**
+ * A mensagem de uma recusa de privilégio levantada por função do banco.
+ *
+ * As funções `SECURITY DEFINER` deste sistema recusam com `insufficient_privilege`
+ * e uma frase em português ("só a equipe pastoral muda a situação…"). O Drizzle
+ * embrulha o erro, e a frase fica no `cause` — `erro.message` traz a consulta.
+ */
+export function privilegeViolationMessage(erro: unknown): string | null {
+  const detalhe = erroDoBanco(erro, INSUFFICIENT_PRIVILEGE);
+
+  return detalhe && typeof detalhe.message === 'string' ? detalhe.message : null;
+}
+
 interface DetalheDoBanco {
   readonly code?: unknown;
   readonly constraint_name?: unknown;

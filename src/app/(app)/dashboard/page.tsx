@@ -20,6 +20,8 @@ import { dashboardQuerySchema } from '@/modules/dashboard/schemas';
 import { carregarPainel } from '@/modules/dashboard/service';
 import { canSubmitReport } from '@/modules/reports/service';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { hasPermissionAnywhere } from '@/core/authz/can';
 import { DashboardFilters } from './dashboard-filters';
 import { IndicatorCard } from './indicator-card';
 
@@ -50,6 +52,19 @@ export default async function DashboardPage({
 }) {
   const { claims, email } = await requireAuthenticatedContext();
   const congregationId = claims.congregation_ids[0];
+
+  /*
+   * As equipes de oração (Fase 14) entram sem painel: quem só intercede não tem
+   * Elo, relatório nem cadastro para contar. O login cai aqui, e daqui segue
+   * para a primeira tela que a pessoa alcança — em vez de "sem permissão" logo
+   * na entrada.
+   */
+  if (!hasPermissionAnywhere(claims, 'dashboard.read')) {
+    redirect(
+      allowedNavHrefs(claims, congregationId).find((href) => href !== '/dashboard') ??
+        '/entrar',
+    );
+  }
 
   const query = dashboardQuerySchema.parse(await searchParams);
   const painel = await carregarPainel(claims, query);
@@ -189,6 +204,24 @@ export default async function DashboardPage({
           significado="Pessoas que fazem aniversário neste mês."
         />
       </section>
+
+      {painel.oracao && (
+        <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <IndicatorCard
+            titulo="Pedidos de oração"
+            valor={painel.oracao.abertos}
+            significado={
+              painel.oracao.urgentes > 0
+                ? `Abertos, dos que chegaram até você. ${String(painel.oracao.urgentes)} urgente(s).`
+                : 'Abertos, dos que chegaram até você.'
+            }
+            tone={painel.oracao.urgentes > 0 ? 'alerta' : 'neutro'}
+            href="/oracao"
+            acaoLabel="Ver pedidos"
+            prefetch={false}
+          />
+        </section>
+      )}
 
       <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <IndicatorCard

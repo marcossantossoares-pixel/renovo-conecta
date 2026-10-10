@@ -40,12 +40,20 @@ export interface SubjectData extends Record<string, unknown> {
   readonly historico_de_alteracoes: readonly Record<string, unknown>[];
   readonly jornada: readonly Record<string, unknown>[];
   readonly historico_da_jornada: readonly Record<string, unknown>[];
+  /**
+   * Os pedidos de oração do titular (Fase 14), **quando quem exporta os lê**.
+   * `null` quando não lê — o superadmin cuida de privacidade e não lê pedido de
+   * oração (decisão do usuário); para ele o pacote diz que a parte existe e é
+   * exportada pela equipe pastoral, em vez de fingir que está vazia.
+   */
+  readonly pedidos_de_oracao: readonly Record<string, unknown>[] | null;
 }
 
 /**
  * Monta o pacote dentro de **uma** transação.
  *
- * Nove consultas, uma conexão — sete até a Fase 12, mais as duas da jornada. É a lição da Fase 10a: cada `withUserContext`
+ * Dez consultas, uma conexão — sete até a Fase 12, mais as duas da jornada e a
+ * dos pedidos de oração. É a lição da Fase 10a: cada `withUserContext`
  * toma uma conexão de um pool de dez, e sete por exportação limitariam o
  * sistema a uma pessoa exportando por vez.
  *
@@ -159,6 +167,25 @@ export async function coletarDadosDoTitular(
      ORDER BY h.changed_at
   `);
 
+  /*
+   * Os pedidos de oração saem pela função que registra a leitura (ADR-012):
+   * exportar o pacote de alguém é ler os pedidos dele, e fica no log como
+   * qualquer leitura. Sem acompanhamento — são anotações de quem cuida, e o
+   * pacote do titular não carrega o trabalho de terceiros. Quem exporta sem ler
+   * pedido de oração (o superadmin) recebe `null`, e não uma lista vazia.
+   */
+  const lePedidos = await tx.execute<{ le: boolean }>(sql`
+    SELECT app.has_any_role('pastor_admin', 'equipe_pastoral') AS le
+  `);
+  const pedidos = lePedidos[0]?.le
+    ? await tx.execute<Record<string, unknown>>(sql`
+        SELECT category AS categoria, description AS pedido, urgency AS urgencia,
+               visibility AS quem_le, status AS situacao, created_at AS registrado_em,
+               closed_at AS encerrado_em
+          FROM app.prayer_requests_read(NULL, ${personId}::uuid)
+      `)
+    : null;
+
   return {
     gerado_em: new Date().toISOString(),
     titular: titular[0] ?? null,
@@ -170,6 +197,7 @@ export async function coletarDadosDoTitular(
     historico_de_alteracoes: historico,
     jornada,
     historico_da_jornada: historicoDaJornada,
+    pedidos_de_oracao: pedidos,
   };
 }
 

@@ -24,6 +24,11 @@ export interface IndicatorCardProps {
   /** Para onde ir para **agir** sobre este número, quando existe esse lugar. */
   readonly href?: string | undefined;
   readonly acaoLabel?: string | undefined;
+  /**
+   * `false` quando abrir o destino é uma leitura registrada — a lista de
+   * pedidos de oração (ADR-012). O painel é a página mais aberta do sistema.
+   */
+  readonly prefetch?: false | undefined;
 }
 
 export function IndicatorCard({
@@ -33,6 +38,7 @@ export function IndicatorCard({
   tone = 'neutro',
   href,
   acaoLabel,
+  prefetch,
 }: IndicatorCardProps) {
   const destacar = tone === 'alerta' && (valor ?? 0) > 0;
 
@@ -72,6 +78,7 @@ export function IndicatorCard({
         {href && (
           <Link
             href={href}
+            prefetch={prefetch ?? null}
             // 44 px no celular (DESIGN_SYSTEM.md §6); compacto só com mouse.
             className="mt-1 inline-flex min-h-11 items-center self-start text-sm font-medium text-primary-strong underline underline-offset-2 md:min-h-0"
           >

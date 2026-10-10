@@ -133,7 +133,7 @@ real envelhece errado.
 
 ## 6. Layout e navegação
 
-- **Mobile:** navegação inferior com os destinos principais do papel do usuário; cabeçalho compacto.
+- **Mobile:** navegação inferior com os destinos do papel do usuário. **Até cinco, todos na barra; a partir do sexto, os quatro primeiros e "Mais"**, que abre os demais acima da barra (ADR-013, PEND-01 da rodada de QA 1). O botão segue o padrão de divulgação (`aria-expanded`) e fecha com Esc, clique fora e navegação. Cabeçalho compacto.
 - **Desktop:** menu lateral; cabeçalho com perfil.
 - A navegação exibe **apenas o que o papel permite** — a coordenadora vê "Estudos", a líder não vê "Usuários". Na Fase 2 a lista é fixa (`src/components/layout/navigation.ts`); a filtragem por permissão entra na Fase 5. Ela é conveniência de interface: esconder um item **nunca** substitui verificar permissão no servidor.
 - Alvos de toque ≥ 44 px **no celular**, inclusive nos botões de tamanho `sm`, que só encolhem a partir de `md:`. Verificado por teste e2e que percorre todos os controles visíveis a 360 px.

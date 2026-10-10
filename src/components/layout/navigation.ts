@@ -4,6 +4,7 @@ import {
   EloIcon,
   HomeIcon,
   PeopleIcon,
+  PrayerIcon,
   ReportIcon,
   StudyIcon,
 } from '@/components/ui/icons';
@@ -21,6 +22,22 @@ export interface NavItem {
    * qualquer sessão autenticada.
    */
   readonly permission?: PermissionCode;
+  /**
+   * `false` desliga o pré-carregamento do link.
+   *
+   * Para a tela em que **abrir é ler**, e ler fica registrado: a lista de
+   * pedidos de oração grava um acesso por pedido (ADR-012). O menu aparece em
+   * toda página, e um pré-carregamento que chegasse a renderizar a lista
+   * registraria leituras que ninguém fez — a regressão da Fase 10b, no dado
+   * mais sensível do sistema.
+   *
+   * ⚠️ **Defesa em profundidade, e medida como tal.** Na Fase 14 o caso
+   * "abrir o painel não lê pedido" passou com e sem esta opção: o
+   * pré-carregamento do Next 16 não renderiza página dinâmica. A garantia não
+   * deve depender desse detalhe do framework, que muda entre versões — o teste
+   * é o que avisa se um dia mudar.
+   */
+  readonly prefetch?: false;
 }
 
 /**
@@ -63,6 +80,14 @@ export const mainNavigation: readonly NavItem[] = [
     shortLabel: 'Estudos',
     icon: StudyIcon,
     permission: 'study.read',
+  },
+  {
+    href: '/oracao',
+    label: 'Pedidos de oração',
+    shortLabel: 'Oração',
+    icon: PrayerIcon,
+    permission: 'prayer.read',
+    prefetch: false,
   },
   {
     href: '/usuarios',

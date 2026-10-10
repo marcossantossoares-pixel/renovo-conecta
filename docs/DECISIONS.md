@@ -173,6 +173,40 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-10-09 — ADR-012: pedidos de oração — leitura registrada pelo banco, equipes nominais, superadmin fora
+
+- **Contexto:** a Fase 14 entrega os pedidos de oração (`MASTER_SPEC` §4.11), "informações altamente restritas" com "logs de acesso". A nota 8 de `PERMISSIONS.md` prometia, desde a Fase 0, que "todo acesso será registrado em `audit_log`, inclusive leitura". A §4.11 também cita uma "equipe pastoral" e uma "equipe de intercessão" que não existiam como papéis.
+- **Decisão, em quatro partes** (as três últimas aprovadas pelo usuário em 2026-10-09):
+  1. **Ler é registrar, no banco.** A sessão não tem `SELECT` em `prayer_request` nem em `prayer_follow_up` — nem o pastor, nem a conta de serviço. Ler é chamar `app.prayer_requests_read()` (ou `app.prayer_follow_ups_read()`), que grava em `audit_log` uma linha por pedido devolvido **na mesma instrução** da leitura (uma CTE que insere e uma que devolve). Se o log não puder ser gravado, a leitura falha — provado por mutação. Escrever o pedido é `INSERT` sem `RETURNING`, porque devolver a linha seria ler.
+  2. **Duas equipes nominais:** `equipe_pastoral` (lê todos os pedidos e registra o acompanhamento) e `intercessor` (lê os marcados para intercessão; os anônimos, sem o nome de quem pediu). Só o pastor e o superadmin as concedem — por regra própria em `canGrantRole`, e não pela escada de níveis, que deixaria a coordenação concedê-las.
+  3. **O superadmin não lê pedido algum.** Concede os papéis e mantém o sistema; é a única área em que ele não alcança tudo.
+  4. **Quem registrou continua lendo tudo o que registrou**, inclusive o acompanhamento.
+- **Os três níveis de leitura**, decididos em `app.prayer_access()` e em nenhum outro lugar: **total** (pastor, equipe pastoral, quem registrou), **líder** (líder e vice do Elo do pedido, quando a visibilidade é "líder do Elo" — e o supervisor não entra: `app.leads_elo` olha a liderança, e não `elo_ids`, que soma supervisão) e **intercessão** (sem telefone, sem acompanhamento, sem nome no anônimo).
+- **Alternativas consideradas:**
+  - **Registrar a leitura na aplicação**, com `recordAudit` nas páginas — o padrão do resto do sistema. Depende de cada tela lembrar; a primeira que esquecesse leria em silêncio o dado mais sensível. **Descartada.**
+  - **RLS de leitura comum, com log por gatilho** — o Postgres não tem gatilho de `SELECT`. **Impossível.**
+  - **Só o pastor como equipe pastoral, intercessão esperando ministérios** — menor, e a §4.11 ficaria pela metade. **Descartada pelo usuário.**
+  - **Superadmin lê tudo, com registro** — coerente com o resto do sistema. **Descartada pelo usuário**: quem mantém a plataforma não é quem cuida das pessoas.
+  - **Quem registrou vê só a situação, não o texto** — minimiza quem relê. **Descartada pelo usuário**, em favor de o líder acompanhar o que lhe foi confiado.
+- **Consequências:**
+  - O `audit_log` cresce com cada abertura da lista — uma linha por pedido listado. É o preço da promessa, e o log guarda o nível de acesso, nunca o texto.
+  - O pré-carregamento de links não pode renderizar a lista. O menu e o painel usam `prefetch={false}` nos links para ela; medido na Fase 14, o Next 16 já não renderiza página dinâmica no pré-carregamento, e a opção é defesa em profundidade. O caso e2e "abrir o painel não lê pedido" é o que avisa se isso mudar.
+  - "Público no mural, após moderação" (§4.11) não entrou: o mural é do módulo de comunicação. Entra junto com ele, como um valor novo de `prayer_visibility`.
+  - O perfil da pessoa oferece **registrar** pedido, e não lista os pedidos dela: o perfil é aberto o tempo todo, e cada abertura seria uma leitura registrada.
+- **Status:** aprovada.
+
+---
+
+## 2026-10-09 — ADR-013: menu inferior do celular com quatro destinos e "Mais"
+
+- **Contexto:** a PEND-01 da rodada de QA 1. A barra inferior mostrava todos os destinos lado a lado e cortava rótulos: a coordenação (seis destinos) a partir de 360 px, o pastor (oito) já em 390 px. A Fase 14 acrescentou um destino a quase todos os papéis.
+- **Decisão (aprovada pelo usuário em 2026-10-09):** até cinco destinos, a barra fica como sempre foi; a partir do sexto, os quatro primeiros e um botão "Mais", que abre os demais acima da barra. Padrão de divulgação (`aria-expanded`, `aria-controls`), fecha com Esc (devolvendo o foco ao botão), com clique fora e ao navegar. O desktop não muda: a barra lateral lista tudo.
+- **Alternativas consideradas:** agrupar destinos por área ("Administração" com usuários, auditoria e privacidade) — menos itens no topo, mas mexe mais na navegação aprovada. **Descartada.**
+- **Consequências:** com a Fase 14 o líder passou a ter seis destinos e também ganhou o "Mais" — Estudos e Oração ficam nele. A exceção da PEND-01 saiu da varredura de telas: rótulo cortado na barra voltou a reprovar.
+- **Status:** aprovada.
+
+---
+
 ## Decisões pendentes de aprovação
 
 - Provedor de pagamento para fase futura (Asaas / Mercado Pago / outro) — só se torna relevante na Prioridade 3.
