@@ -323,3 +323,25 @@ tela não tem como ler de outro jeito (ADR-012). O superadmin não lê pedido al
 Quem registrou continua lendo o que registrou. Sem o portal do membro (ADR-003),
 quem registra é a liderança, a coordenação, o pastor ou a equipe pastoral, a
 partir do perfil da pessoa ou da lista.
+
+---
+
+## 15. Nota pastoral (Fase 15)
+
+```mermaid
+flowchart TD
+    A[Pastor ou equipe pastoral abre o perfil da pessoa] --> B[Escolhe Notas pastorais]
+    B --> C[Le as notas que alcanca: o pastor todas, a equipe as suas]
+    C --> D[Escreve uma nota nova]
+    C --> E{A nota e minha?}
+    E -->|Sim| F[Corrige o texto]
+    F --> G[(O banco guarda a versao anterior)]
+    E -->|Nao, sou o pastor| H[Le a nota e as versoes anteriores, sem corrigir]
+    C -.-> L[(Cada leitura gravada em audit_log pelo banco)]
+    H -.-> L
+```
+
+**Pontos críticos:** as notas são uma página própria, aberta por escolha — abrir o
+perfil não lê nota nenhuma (ADR-014). Um membro da equipe não lê a nota de outro;
+o superadmin não lê nota alguma. Corrigir nunca apaga o que foi escrito: a versão
+anterior fica guardada, e só a anonimização a remove.

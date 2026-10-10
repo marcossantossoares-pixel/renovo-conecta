@@ -140,6 +140,19 @@ export default async function PessoaPage({
                 Registrar pedido de oração
               </ButtonLink>
             )}
+            {/*
+              Um link, e não um quadro: ler as notas pastorais é um acesso
+              registrado por nota (ADR-014), e o perfil é aberto o tempo todo.
+            */}
+            {hasPermissionAnywhere(claims, 'pastoral.read') && (
+              <ButtonLink
+                href={`/pessoas/${person.id}/notas`}
+                variant="secondary"
+                prefetch={false}
+              >
+                Notas pastorais
+              </ButtonLink>
+            )}
             {podeExcluir && (
               <DeletePerson personId={person.id} personName={nomeExibido} />
             )}

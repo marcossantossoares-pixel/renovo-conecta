@@ -325,10 +325,11 @@ describe('integridade do catálogo', () => {
    * desde a Fase 9, com as cinco de `study`; 44 desde a Fase 11, com as três de
    * `privacy` — que constavam na §3 desde a Fase 0 e **nunca tinham existido no
    * catálogo**. Foi este caso que apontou a lacuna. 47 desde a Fase 13, com as
-   * três de `journey`; 50 desde a Fase 14, com as três de `prayer`.
+   * três de `journey`; 50 desde a Fase 14, com as três de `prayer`; 52 desde a
+   * Fase 15, com as duas de `pastoral` — reservadas na §3 desde a Fase 0.
    */
   it('cobre todas as permissões de docs/PERMISSIONS.md §3', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(50);
+    expect(ALL_PERMISSIONS).toHaveLength(52);
   });
 
   /**
@@ -347,6 +348,40 @@ describe('integridade do catálogo', () => {
       pastor_admin: 'congregation',
       equipe_pastoral: 'congregation',
     });
+  });
+
+  /**
+   * Notas pastorais (Fase 15, ADR-014): pastor e equipe pastoral, e mais
+   * ninguém — o superadmin também fica de fora, como nos pedidos de oração.
+   * Quais notas cada um lê é do banco.
+   */
+  it('nota pastoral é do pastor e da equipe pastoral, e não do superadmin', () => {
+    const esperado = {
+      pastor_admin: 'congregation',
+      equipe_pastoral: 'congregation',
+    };
+    expect(PERMISSION_GRANTS['pastoral.read']).toEqual(esperado);
+    expect(PERMISSION_GRANTS['pastoral.write']).toEqual(esperado);
+  });
+
+  /**
+   * A equipe pastoral lê o cadastro (Fase 15), e só lê: nenhuma escrita sobre
+   * pessoas, nem o histórico de alterações, nem a exportação — que é o que
+   * decide se o contato de menor aparece.
+   */
+  it('a equipe pastoral lê o cadastro, e não escreve nem exporta', () => {
+    expect(PERMISSION_GRANTS['person.read'].equipe_pastoral).toBe('congregation');
+
+    for (const permission of [
+      'person.create',
+      'person.update',
+      'person.delete',
+      'person.export',
+      'person.read_history',
+      'journey.update',
+    ] as const) {
+      expect(PERMISSION_GRANTS[permission].equipe_pastoral, permission).toBeUndefined();
+    }
   });
 
   /**

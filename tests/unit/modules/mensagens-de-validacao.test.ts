@@ -5,6 +5,7 @@ import * as auth from '@/modules/auth/schemas';
 import * as dashboard from '@/modules/dashboard/schemas';
 import * as elos from '@/modules/elos/schemas';
 import * as journey from '@/modules/journey/schemas';
+import * as pastoral from '@/modules/pastoral/schemas';
 import * as people from '@/modules/people/schemas';
 import * as prayer from '@/modules/prayer/schemas';
 import * as privacy from '@/modules/privacy/schemas';
@@ -86,6 +87,7 @@ const MODULOS = {
   dashboard,
   elos,
   journey,
+  pastoral,
   people,
   prayer,
   privacy,

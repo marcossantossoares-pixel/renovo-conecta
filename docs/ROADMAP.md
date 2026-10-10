@@ -385,9 +385,27 @@ Segunda fase da Prioridade 2, escolhida pelo usuário em 2026-10-09: o dado mais
 
 **Ficou de fora, com o motivo:** "público no mural, após moderação" (o mural é da comunicação) · o próprio membro enviar o pedido (portal do membro) · notificações.
 
+### Fase 15 — Notas pastorais · M · ✅ concluída
+
+Terceira fase da Prioridade 2, escolhida pelo usuário em 2026-10-10: a outra metade do "cuidado pastoral" da §4.11, reservada desde a Fase 0 (`pastoral_note`), com o mesmo desenho da Fase 14.
+
+**Entrega:** notas sobre uma pessoa, escritas pelo pastor e pela equipe pastoral · leitura recortada no banco (o pastor lê todas; cada membro da equipe, as suas) · correção pelo autor, com as versões anteriores guardadas pelo banco · a equipe pastoral passa a ler o cadastro da congregação · página própria, a partir do perfil.
+
+**Aceite:**
+
+- [x] **Toda leitura registrada pelo banco** (ADR-014): sem `SELECT` para a sessão nas notas nem nas versões; uma linha em `audit_log` por nota devolvida, na mesma instrução — e, sem log, sem leitura (mutação)
+- [x] O pastor lê todas; o membro da equipe, só as que escreveu, e nenhuma depois de deixar a equipe; **o superadmin, nenhuma**
+- [x] Só quem escreveu corrige, e cada correção guarda a versão anterior por gatilho — o pastor lê a nota da equipe e as versões, e não corrige
+- [x] A equipe pastoral lê pessoa, endereço, etiquetas e jornada da congregação, **e não escreve em nenhum deles** — provado por mutação contra o atalho de alargar `app.can_read_person()`
+- [x] Abrir o perfil não lê nota — medido no e2e
+- [x] Anonimização tira o texto e todas as versões; o pacote do titular leva o texto atual
+- [x] Sete mutações no banco, todas pegas pela suíte
+
+**Ficou de fora, com o motivo:** tarefas de acompanhamento (`follow_up_task`, outra entidade reservada) · ligar a nota a um pedido de oração · tela de ativação voluntária do segundo fator — a recomendação para a equipe e a coordenação continua só escrita.
+
 ### Prioridade 2
 
-~~Jornada da pessoa configurável~~ (Fase 13) · ~~pedidos de oração~~ (Fase 14; falta o cuidado pastoral — notas pastorais) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · busca pública de Elo por bairro e solicitação por visitante.
+~~Jornada da pessoa configurável~~ (Fase 13) · ~~pedidos de oração~~ (Fase 14) · ~~notas pastorais~~ (Fase 15) · portal do membro com login · autocadastro de membro · eventos e cursos · inscrições e check-in por QR Code · ministérios, voluntários e escalas · mural, comunicados e notificações · busca pública de Elo por bairro e solicitação por visitante.
 
 ### Prioridade 3
 

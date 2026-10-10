@@ -8,6 +8,14 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Adicionado
 
+#### Fase 15 — Notas pastorais (2026-10-10)
+
+- **Notas pastorais** (`MASTER_SPEC` §4.11, migration 0021): o pastor e a equipe pastoral registram o cuidado de uma pessoa, em página própria a partir do perfil.
+- **Toda leitura registrada pelo banco** (ADR-014): o pastor lê todas as notas; cada membro da equipe, as que escreveu; o superadmin, nenhuma.
+- **Correção com versões guardadas**: só quem escreveu corrige, e o banco guarda o texto anterior.
+- **A equipe pastoral passa a ler o cadastro da congregação** — pessoa, endereço, etiquetas e jornada —, só para leitura; entra pelo cadastro, e registra pedido de oração de qualquer pessoa. O segundo fator, para ela, fica recomendado.
+- **Pacote do titular** com as notas pastorais; **anonimização** apaga o texto e as versões.
+
 #### Fase 14 — Pedidos de oração (2026-10-09)
 
 - **Pedidos de oração** (`MASTER_SPEC` §4.11, migration 0020): registro pela lista ou pelo perfil, visibilidade escolhida pela pessoa (equipe pastoral, intercessão, líder do Elo), anonimato para a intercessão, autorização de contato, acompanhamento com histórico.
@@ -78,6 +86,7 @@ O formato segue, de forma simplificada, o padrão [Keep a Changelog](https://kee
 
 ### Corrigido
 
+- **Convite para a equipe pastoral e para a intercessão era recusado no servidor** com "Escolha o papel." (achado da Fase 15). A Fase 14 pôs os dois papéis no catálogo de permissões e na tela de convite, e não na lista de papéis que valida o convite. Um teste agora prova que as duas listas não divergem.
 - **O banco respondia em UTC e a aplicação, no fuso da igreja** (migration 0018).
   `todayIso()` usa `America/Bahia` desde a Fase 6b; `CURRENT_DATE` responde em
   UTC, e entre 21h e meia-noite em Camaçari já é o dia seguinte lá. Três horas

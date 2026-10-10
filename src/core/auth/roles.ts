@@ -16,6 +16,10 @@ export const ROLE_CODES = [
   'lider',
   'vice_lider',
   'membro',
+  // Fase 14. Ficaram fora desta lista até a Fase 15, e o convite para as duas
+  // equipes era recusado no servidor — a tela os oferecia ao pastor.
+  'equipe_pastoral',
+  'intercessor',
 ] as const;
 
 export type RoleCode = (typeof ROLE_CODES)[number];
@@ -40,10 +44,20 @@ export function requiresMfa(roles: readonly string[]): boolean {
 }
 
 /**
- * Papéis para os quais o 2FA é recomendado, mas não obrigatório. A interface
- * usa isto para sugerir a ativação, sem bloquear o acesso.
+ * Papéis para os quais o 2FA é recomendado, mas não obrigatório.
+ *
+ * A equipe pastoral entrou aqui na Fase 15 (ADR-014), e não em `MFA_REQUIRED`,
+ * por decisão do usuário — embora passe a ler o cadastro inteiro e todos os
+ * pedidos de oração, que é o critério da lista acima. A exceção está
+ * registrada na ADR.
+ *
+ * ⚠️ Nenhuma tela usa esta lista ainda: não há ativação voluntária do segundo
+ * fator, e "recomendado" hoje é só a regra escrita.
  */
-const MFA_RECOMMENDED: ReadonlySet<string> = new Set<RoleCode>(['coordenador_elos']);
+const MFA_RECOMMENDED: ReadonlySet<string> = new Set<RoleCode>([
+  'coordenador_elos',
+  'equipe_pastoral',
+]);
 
 export function recommendsMfa(roles: readonly string[]): boolean {
   return roles.some((role) => MFA_RECOMMENDED.has(role));

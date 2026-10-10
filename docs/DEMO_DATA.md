@@ -36,6 +36,7 @@ A §15 do `MASTER_SPEC.md` lista o conjunto completo de dados de demonstração.
 | Jornada da pessoa (etapas e acompanhamentos)                                    | 13           | Depende do módulo                                  |
 | **Eventos e ministérios**                                                       | Prioridade 2 | Fora do MVP — seeds só quando os módulos existirem |
 | Pedidos de oração e as duas equipes (pastoral e intercessão)                    | 14           | Depende do módulo                                  |
+| Notas pastorais                                                                 | 15           | Depende do módulo                                  |
 
 ---
 
@@ -97,6 +98,7 @@ Os dados não são decorativos: existem para que cada indicador e cada regra ten
 | Dois **acompanhamentos atrasados** na jornada — um de visitante, um de participante do Elo Semear                                                                                                       | Mostrar a diferença de escopo no painel: a coordenação vê os dois, o líder 1 e o supervisor A veem um |
 | Um **batismo** e uma **membresia** registrados pela jornada                                                                                                                                             | Provar que a data do cadastro vem da etapa (ADR-010)                                                  |
 | **Cinco pedidos de oração**, um para cada caminho de leitura: dois para o líder do Elo (um urgente), um anônimo para a intercessão, um só da equipe pastoral (em acompanhamento) e um sem identificação | Cada papel tem o que ler, e o que não deve ler                                                        |
+| **Duas notas pastorais**: uma do pastor, que a equipe não lê, e uma da equipe pastoral já corrigida, com a versão anterior guardada                                                                     | O pastor lê as duas; a equipe, só a dela; a tela de versões tem o que mostrar                         |
 | Um supervisor com Elos e outro com Elos diferentes                                                                                                                                                      | **Base dos testes de isolamento**                                                                     |
 
 O último item é o mais importante: sem dois supervisores com escopos distintos, a suíte de RLS não tem o que provar.
@@ -109,7 +111,9 @@ caminho antigo (ADR-010). Os prazos das etapas por fazer são relativos a hoje e
 um "atrasado há três dias" cravado na data do primeiro seed viraria "atrasado há
 três meses".
 
-**Os pedidos de oração da demonstração não são sensíveis**, embora as categorias saúde, luto e financeiro existam: entrevista de emprego, mudança de casa, viagem da família, volta à igreja e a reforma do salão. O que se exercita é a regra de quem lê, e não o conteúdo (`MASTER_SPEC` §15). As duas contas novas, **Rebeca Antunes** (equipe pastoral) e **Lúcia Fontoura** (intercessão), não lideram Elo: entram direto na lista de pedidos.
+**Os pedidos de oração da demonstração não são sensíveis**, embora as categorias saúde, luto e financeiro existam: entrevista de emprego, mudança de casa, viagem da família, volta à igreja e a reforma do salão. O que se exercita é a regra de quem lê, e não o conteúdo (`MASTER_SPEC` §15). As duas contas novas, **Rebeca Antunes** (equipe pastoral) e **Lúcia Fontoura** (intercessão), não lideram Elo. Lúcia entra direto na lista de pedidos; Rebeca, desde a Fase 15, entra pelo cadastro de pessoas, que passou a ler.
+
+**As notas pastorais da demonstração também não são sensíveis:** a rotina de leitura bíblica em casa e uma visita de boas-vindas. A da equipe é corrigida pelo próprio seed — um `UPDATE` de verdade, para que seja o gatilho do banco a guardar a versão anterior.
 
 ---
 

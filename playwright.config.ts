@@ -80,6 +80,7 @@ export default defineConfig({
         '**/varredura-pastor.spec.ts',
         '**/jornada-configuracao.spec.ts',
         '**/oracao.spec.ts',
+        '**/notas-pastorais.spec.ts',
       ],
     },
     {
@@ -118,6 +119,7 @@ export default defineConfig({
         '**/jornada.spec.ts',
         '**/jornada-configuracao.spec.ts',
         '**/oracao.spec.ts',
+        '**/notas-pastorais.spec.ts',
         // `dashboard`, `relatorios` e `privacidade`: têm projeto próprio, logo
         // abaixo.
         '**/dashboard.spec.ts',
@@ -176,6 +178,9 @@ export default defineConfig({
         // outras suítes lê pedidos com as mesmas contas — sozinha, a contagem
         // só vê o que ela mesma fez.
         '**/oracao.spec.ts',
+        // Fase 15: o pastor exige o segundo fator, e a contagem de leituras de
+        // notas por conta só vale sem outra suíte lendo com a mesma conta.
+        '**/notas-pastorais.spec.ts',
       ],
       dependencies: ['desktop', 'mobile'],
       workers: 1,

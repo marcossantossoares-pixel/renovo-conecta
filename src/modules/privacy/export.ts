@@ -47,14 +47,19 @@ export interface SubjectData extends Record<string, unknown> {
    * exportada pela equipe pastoral, em vez de fingir que está vazia.
    */
   readonly pedidos_de_oracao: readonly Record<string, unknown>[] | null;
+  /**
+   * As notas pastorais sobre o titular (Fase 15), pelo mesmo critério: `null`
+   * para quem exporta sem ler nota pastoral — o superadmin.
+   */
+  readonly notas_pastorais: readonly Record<string, unknown>[] | null;
 }
 
 /**
  * Monta o pacote dentro de **uma** transação.
  *
- * Dez consultas, uma conexão — sete até a Fase 12, mais as duas da jornada e a
- * dos pedidos de oração. É a lição da Fase 10a: cada `withUserContext`
- * toma uma conexão de um pool de dez, e sete por exportação limitariam o
+ * Onze consultas, uma conexão — sete até a Fase 12, mais as duas da jornada, a
+ * dos pedidos de oração e a das notas pastorais. É a lição da Fase 10a: cada
+ * `withUserContext` toma uma conexão de um pool de dez, e sete por exportação limitariam o
  * sistema a uma pessoa exportando por vez.
  *
  * Todas rodam sob RLS. Quem não alcança a pessoa recebe um pacote vazio, e não
@@ -186,6 +191,23 @@ export async function coletarDadosDoTitular(
       `)
     : null;
 
+  /*
+   * As notas pastorais (Fase 15), também pela função que registra a leitura
+   * (ADR-014). Diferente do acompanhamento do pedido, que fica de fora, a nota
+   * é o registro **sobre o titular** — e o usuário decidiu que ela entra no
+   * pacote. Vai o texto atual, sem as versões anteriores e sem o nome de quem
+   * escreveu. A decisão está pendente da validação jurídica (LGPD.md §4): o
+   * sigilo do aconselhamento pode pedir outro tratamento. Os dois papéis que leem
+   * nota são os mesmos que leem pedido por inteiro, e a pergunta já foi feita.
+   */
+  const notas = lePedidos[0]?.le
+    ? await tx.execute<Record<string, unknown>>(sql`
+        SELECT body AS nota, created_at AS escrita_em,
+               CASE WHEN version > 1 THEN updated_at END AS corrigida_em
+          FROM app.pastoral_notes_read(${personId}::uuid, NULL)
+      `)
+    : null;
+
   return {
     gerado_em: new Date().toISOString(),
     titular: titular[0] ?? null,
@@ -198,6 +220,7 @@ export async function coletarDadosDoTitular(
     jornada,
     historico_da_jornada: historicoDaJornada,
     pedidos_de_oracao: pedidos,
+    notas_pastorais: notas,
   };
 }
 

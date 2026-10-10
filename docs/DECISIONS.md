@@ -207,6 +207,32 @@ Formato sugerido para cada decisão:
 
 ---
 
+## 2026-10-10 — ADR-014: notas pastorais — leitura registrada, autor e pastor, versões guardadas, equipe pastoral no cadastro
+
+- **Contexto:** a Fase 15 entrega a outra metade do "cuidado pastoral" da `MASTER_SPEC` §4.11 — "aconselhamento e observações pastorais devem ser tratados como informações altamente restritas", com "permissões específicas e logs de acesso". A entidade `pastoral_note` estava reservada desde a Fase 0 (`DATABASE.md` §8), e a matriz de `PERMISSIONS.md` dava `pastoral.read`/`write` ao superadmin e ao pastor, com a nota 8 prometendo log de todo acesso, inclusive leitura.
+- **Decisão, em seis partes** (as cinco últimas do usuário, em 2026-10-10):
+  1. **Ler é registrar, no banco** — o desenho da ADR-012, sem mudança. A sessão não tem privilégio algum em `pastoral_note_version` e só `INSERT` em `pastoral_note`. Ler é `app.pastoral_notes_read()` (uma linha em `audit_log` por nota devolvida, na mesma instrução) e `app.pastoral_note_versions_read()`.
+  2. **Quem escreveu lê as suas; o pastor lê todas.** Pastor e equipe pastoral escrevem. Um membro da equipe não lê a nota de outro. O papel é conferido a cada leitura: quem deixa a equipe deixa de ler o que escreveu.
+  3. **O superadmin não lê** — a matriz dizia "R"; passou a "—", pela mesma razão da ADR-012.
+  4. **Quem escreveu corrige, e o banco guarda cada versão anterior.** O gatilho `pastoral_note_guarda_versao` copia o texto substituído para `pastoral_note_version` antes de cada correção; a aplicação não escreve ali. O pastor lê a nota da equipe e o histórico dela, e não a corrige.
+  5. **A equipe pastoral passa a ler o cadastro da congregação** — pessoa, endereço, etiquetas e jornada —, e só ler. Sem isso, ela não chegaria ao perfil de quem acompanha. Por políticas de `SELECT` próprias (`app.pastoral_team_sees_people`), e **não** por um acréscimo a `app.can_read_person()`: aquela função também decide escrita (`person_address_write`), e alargá-la deixaria a equipe reescrever endereços — provado por mutação. O histórico de alterações e a exportação continuam fora, e o contato de menor continua oculto para ela.
+  6. **O segundo fator fica recomendado, e não obrigatório, para a equipe pastoral.** É uma exceção consciente ao critério de `SECURITY.md` §2 ("contas que enxergam a base inteira"), que a equipe agora cumpre.
+- **Alternativas consideradas:**
+  - **A equipe inteira lê todas as notas** — continuidade quando um caso muda de mãos, ao custo de mais gente lendo cada conversa. **Descartada pelo usuário.**
+  - **Só o pastor escreve e lê.** **Descartada pelo usuário.**
+  - **Nota imutável, corrigida por nota nova** — mais simples de auditar. **Descartada pelo usuário**, em favor de corrigir com as versões guardadas.
+  - **A equipe escreve só sobre quem fez pedido de oração**, sem ler o cadastro — o acesso dela não cresceria. **Descartada pelo usuário.**
+  - **Segundo fator obrigatório para a equipe** — o que o critério de `SECURITY.md` §2 pede. **Descartada pelo usuário.**
+- **Consequências:**
+  - A equipe pastoral passa a entrar pelo cadastro (`/pessoas`), primeira tela que alcança, e não mais pela lista de pedidos.
+  - Com o cadastro, a equipe também registra pedido de oração de qualquer pessoa da congregação: a política de INSERT de `prayer_request` foi refeita para aceitar o novo caminho de leitura.
+  - As notas são uma página própria (`/pessoas/[id]/notas`), aberta por escolha, e não um quadro do perfil — pela mesma razão do perfil não listar os pedidos de oração.
+  - O **pacote do titular inclui as notas** (texto atual, sem versões e sem o autor), diferente do acompanhamento dos pedidos, que fica de fora. As duas escolhas estão pendentes da validação jurídica (`LGPD.md` §4).
+  - **Não existe tela de ativação voluntária do segundo fator**, nem para a coordenação: "recomendado" hoje é só a regra escrita em `recommendsMfa`, que nenhuma tela usa.
+- **Status:** aprovada.
+
+---
+
 ## Decisões pendentes de aprovação
 
 - Provedor de pagamento para fase futura (Asaas / Mercado Pago / outro) — só se torna relevante na Prioridade 3.

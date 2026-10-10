@@ -2,6 +2,62 @@
 
 ## Fase atual
 
+**Fase 15 — Notas pastorais (`MASTER_SPEC` §4.11, "cuidado pastoral"). Concluída.**
+
+Escolhida pelo usuário em 2026-10-10: a outra metade do cuidado pastoral, que a
+Fase 14 deixou reservada (`pastoral_note`), com o mesmo desenho de leitura
+registrada pelo banco.
+
+### As decisões, e de quem foram (ADR-014)
+
+| Decisão                                                                   | Por quê                                                                                                                                        |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ler é registrar, no banco**                                             | O desenho da ADR-012, sem mudança: sem `SELECT` para a sessão; ler é uma função que grava uma linha em `audit_log` por nota devolvida          |
+| **O autor lê as suas; o pastor lê todas** (usuário)                       | O acesso mínimo, parecido com o sigilo de aconselhamento. Um membro da equipe não lê a nota de outro, e deixa de ler as suas se sair da equipe |
+| **O superadmin não lê** (usuário)                                         | Como nos pedidos de oração. A matriz de `PERMISSIONS.md` dizia "R" e foi corrigida                                                             |
+| **O autor corrige, o banco guarda as versões** (usuário)                  | Por gatilho, e não pela aplicação: uma correção que esquecesse de guardar a versão apagaria o que foi escrito                                  |
+| **A equipe pastoral lê o cadastro** (usuário)                             | Sem isso ela não chegaria ao perfil de quem acompanha. Só leitura — pessoa, endereço, etiquetas e jornada —, por políticas próprias            |
+| **Segundo fator recomendado, e não obrigatório, para a equipe** (usuário) | Exceção consciente ao critério de `SECURITY.md` §2, registrada na ADR. **Não existe tela de ativação voluntária** — nem para a coordenação     |
+
+### O que só o banco garante, e como foi provado
+
+Trinta e quatro casos de RLS e **sete mutações, todas pegas**: dar `SELECT` à
+sessão, deixar o superadmin ler, ler sem gravar o log, tirar o gatilho das
+versões, deixar o pastor corrigir a nota da equipe, alargar a leitura do cadastro
+da equipe até a escrita de endereços, e fazer o log falhar. A última repete a
+propriedade da Fase 14: **sem log, sem leitura** — a função falha inteira.
+
+### Três achados da fase
+
+| Achado                                        | O que era                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Convite para as equipes recusado**          | Defeito da Fase 14. Os dois papéis novos entraram no catálogo de permissões e na tela de convite, mas não em `src/core/auth/roles.ts`, que valida o convite no servidor: convidar alguém para a equipe pastoral respondia "Escolha o papel." Corrigido, com um teste que prova que as duas listas não divergem |
+| **`can_read_person()` também decide escrita** | O atalho para dar o cadastro à equipe seria acrescentá-la àquela função. Ela está no `USING` de `person_address_write`, e a equipe passaria a reescrever endereços. A leitura entrou por políticas próprias, e a mutação que tenta o atalho é pega                                                             |
+| **"Recomendado" sem tela**                    | `recommendsMfa()` existe desde a fundação da autenticação, e nenhuma tela a usa: para a coordenação e, agora, para a equipe pastoral, a recomendação do segundo fator é só a regra escrita                                                                                                                     |
+
+### O que ficou de fora
+
+Tarefas de acompanhamento (`follow_up_task`, outra entidade reservada), ligar a
+nota a um pedido de oração, e a tela de ativação voluntária do segundo fator.
+
+### Pendente de validação jurídica
+
+O pacote do titular **leva as notas** (texto atual, sem versões e sem o autor),
+por decisão do usuário — e o acompanhamento dos pedidos de oração fica de fora. O
+sigilo do aconselhamento pode pedir outro tratamento (`LGPD.md` §4).
+
+### A homologação ainda não recebeu a migration 0021
+
+A suíte roda na pilha de teste (ADR-011), e a homologação manual não foi tocada.
+Antes de abrir o perfil no `pnpm dev` com o código desta fase, a migration 0021
+precisa entrar ali (`pnpm exec supabase migration up`, com backup antes, como
+nas Fases 13 e 14); sem ela, as notas e a exportação do titular falham. Depois,
+`pnpm db:seed` cria as duas notas de demonstração.
+
+---
+
+## Fase 14
+
 **Fase 14 — Pedidos de oração (`MASTER_SPEC` §4.11). Concluída.**
 
 Escolhida pelo usuário em 2026-10-09, junto com a PEND-01: quase todo módulo que
@@ -1730,6 +1786,42 @@ revisado item a item, `TESTING.md` §4 com o mapa dos doze fluxos,
 As migrations foram aplicadas **do zero** (`supabase db reset`), com seed e suíte
 de isolamento reexecutados verdes.
 
+### Fase 15 — Notas pastorais (2026-10-10)
+
+Relato completo em "Fase atual", no topo deste arquivo.
+
+**Banco (migration 0021):** `pastoral_note` e `pastoral_note_version`, sem
+`SELECT` para a sessão · `app.pastoral_note_access()` com os dois níveis ·
+`app.pastoral_notes_read()` e `app.pastoral_note_versions_read()`, que
+registram cada leitura · `app.pastoral_note_correct()` · o gatilho
+`pastoral_note_guarda_versao` · `app.pastoral_team_sees_people()` e as quatro
+políticas de leitura da equipe pastoral · a política de INSERT de
+`prayer_request` refeita · `app.anonymize_person()` reescrita.
+
+**Arquivos criados:**
+
+| Área   | Arquivos                                                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Banco  | `supabase/migrations/0021_notas_pastorais.sql`, `src/core/db/schema/pastoral.ts`                                                                       |
+| Módulo | `src/modules/pastoral/{schemas,repository,service,actions}.ts`                                                                                         |
+| Telas  | `src/app/(app)/pessoas/[id]/notas/{page,note-form}.tsx`, `pessoas/[id]/notas/[notaId]/{page,correct-form}.tsx`                                         |
+| Testes | `tests/rls/pastoral.test.ts`, `tests/e2e/notas-pastorais.spec.ts`, `tests/unit/modules/pastoral/schemas.test.ts`, `tests/unit/core/auth/roles.test.ts` |
+
+**Alterados:** `src/core/authz/catalog.ts` (`pastoral.*`, e `person.read` e
+`journey.read` para a equipe pastoral), `src/core/auth/roles.ts` (os dois papéis
+da Fase 14 na lista do convite, e a equipe no segundo fator recomendado), o perfil
+da pessoa (link para as notas), `src/modules/privacy/export.ts` (notas no pacote
+do titular), `src/core/db/schema/index.ts`, o seed e os fixtures,
+`playwright.config.ts`, `tests/e2e/oracao.spec.ts` (a equipe entra pelo
+cadastro), os testes unitários de permissões e de mensagens, e a documentação.
+
+| Comando                                         | Resultado                                    |
+| ----------------------------------------------- | -------------------------------------------- |
+| `pnpm test`                                     | ✅ **567** (era 553)                         |
+| `pnpm test:rls`                                 | ✅ **353** (era 319), banco recriado do zero |
+| `pnpm test:e2e`                                 | ✅ **327** (era 323), banco recriado do zero |
+| `lint` · `format:check` · `typecheck` · `build` | ✅ sem erros                                 |
+
 ### Fase 14 — Pedidos de oração (2026-10-09)
 
 Relato completo em "Fase atual", no topo deste arquivo.
@@ -1981,13 +2073,16 @@ aparecem no dia:
   atualizar quando as duas publicarem versões novas;
 - Dependabot, previsto em `SECURITY.md` §11, não está configurado — e foi a falta
   dele que deixou as 24 vulnerabilidades se acumularem até o primeiro CI;
+- não há tela de ativação voluntária do segundo fator: a recomendação para a
+  coordenação e para a equipe pastoral (ADR-014) é só a regra escrita em
+  `recommendsMfa()`;
 - a instabilidade conhecida da suíte e2e desde a Fase 8 tem agora **causa provável**: o DEF-12 da rodada de QA 1 (corrida entre gravar e recuperar o rascunho do relatório, sob carga). Corrigido; vale observar as próximas execuções antes de dá-la por encerrada.
 
 ### Depois do MVP
 
 A Prioridade 2 do roadmap: ~~jornada configurável~~ (Fase 13), ~~pedidos de
-oração~~ (Fase 14), portal do membro, eventos, ministérios, comunicados e as
-notas pastorais.
+oração~~ (Fase 14), ~~notas pastorais~~ (Fase 15), portal do membro, eventos,
+ministérios e comunicados.
 
 Para retomar o trabalho local, basta `pnpm exec supabase start` — as imagens já estão
 baixadas. A homologação é controlada pela CLI: migration nova entra com

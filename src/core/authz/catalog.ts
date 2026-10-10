@@ -94,7 +94,9 @@ export type PermissionCode =
   | 'journey.configure'
   | 'prayer.create'
   | 'prayer.read'
-  | 'prayer.follow_up';
+  | 'prayer.follow_up'
+  | 'pastoral.read'
+  | 'pastoral.write';
 
 type Grants = Partial<Record<RoleCode, Scope>>;
 
@@ -108,10 +110,14 @@ type Grants = Partial<Record<RoleCode, Scope>>;
  */
 export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
   // --- Pessoas ---------------------------------------------------------
+  // A equipe pastoral lê o cadastro inteiro, e só lê (Fase 15, ADR-014): sem
+  // isso ela não chegaria ao perfil de quem acompanha. O contato de menor
+  // continua oculto para ela — a regra é de `person.export` (PERMISSIONS.md §6).
   'person.read': {
     superadmin: 'global',
     pastor_admin: 'congregation',
     coordenador_elos: 'congregation',
+    equipe_pastoral: 'congregation',
     supervisor: 'elo',
     lider: 'elo',
     vice_lider: 'elo',
@@ -461,6 +467,7 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     superadmin: 'global',
     pastor_admin: 'congregation',
     coordenador_elos: 'congregation',
+    equipe_pastoral: 'congregation',
     supervisor: 'elo',
     lider: 'elo',
     vice_lider: 'elo',
@@ -509,6 +516,25 @@ export const PERMISSION_GRANTS: Readonly<Record<PermissionCode, Grants>> = {
     vice_lider: 'elo',
   },
   'prayer.follow_up': {
+    pastor_admin: 'congregation',
+    equipe_pastoral: 'congregation',
+  },
+
+  /* --- Notas pastorais — Fase 15 (ADR-014) -------------------------------
+   *
+   * ⚠️ **O superadmin também não aparece aqui**, pela mesma razão dos pedidos
+   * de oração (decisão do usuário, 2026-10-10).
+   *
+   * `read` responde "esta tela existe para você?". **Quais notas** cada um lê
+   * é decisão de `app.pastoral_note_access()` no banco (migration 0021): o
+   * pastor lê todas; o membro da equipe, só as que ele mesmo escreveu. Corrigir
+   * é de quem escreveu — exceção por linha, e por isso mora no banco.
+   */
+  'pastoral.read': {
+    pastor_admin: 'congregation',
+    equipe_pastoral: 'congregation',
+  },
+  'pastoral.write': {
     pastor_admin: 'congregation',
     equipe_pastoral: 'congregation',
   },

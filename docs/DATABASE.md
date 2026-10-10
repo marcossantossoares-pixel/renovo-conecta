@@ -23,7 +23,7 @@ Migrations: `supabase/migrations/0000_core_schema.sql` (gerada e revisada) e
 estudos e anexos (Fase 9, migrations 0014 e 0015), consentimentos e solicitações
 do titular (Fase 11, migration 0016), e a jornada da pessoa (Fase 13, migration
 0019: `journey_stage`, `person_journey_step`, `journey_step_change_log`, em
-`src/core/db/schema/journey.ts`), e os pedidos de oração (Fase 14, migration 0020: `prayer_request` e `prayer_follow_up`, em `src/core/db/schema/prayer.ts`).
+`src/core/db/schema/journey.ts`), e os pedidos de oração (Fase 14, migration 0020: `prayer_request` e `prayer_follow_up`, em `src/core/db/schema/prayer.ts`), e as notas pastorais (Fase 15, migration 0021: `pastoral_note` e `pastoral_note_version`, em `src/core/db/schema/pastoral.ts`).
 
 ---
 
@@ -513,6 +513,8 @@ Os índices usados pelas políticas de RLS são críticos: sem eles, cada consul
 - `journey_stage` — no máximo uma etapa por coluna de `person` em cada congregação; etapa vinculada ao cadastro é da secretaria (`CHECK`, nota 4 de `PERMISSIONS.md` §4); o vínculo não muda depois de criado. Toda congregação nasce com as doze etapas padrão da §4.4, por gatilho.
 - `prayer_request` — **sem SELECT para a sessão** (ADR-012): ler é `app.prayer_requests_read()`, que grava em `audit_log` uma linha por pedido devolvido na mesma instrução, e falha se não puder gravar. Pedido para o líder do Elo exige o Elo, e não pode ser anônimo; telefone só com autorização de contato; encerrado tem data, reaberto não. Pessoa, Elo e responsável na mesma congregação do pedido.
 - `prayer_follow_up` — escrito só por `app.prayer_request_follow_up()`, lido só por `app.prayer_follow_ups_read()`. Sem `UPDATE` nem `DELETE` para a sessão; sem gatilho de append-only, porque a anonimização apaga o acompanhamento de quem pediu para ser esquecido.
+- `pastoral_note` — **sem SELECT para a sessão** (ADR-014): ler é `app.pastoral_notes_read()`, que grava em `audit_log` uma linha por nota devolvida e falha se não puder gravar. Nasce na versão 1, com `created_by` igual à conta da sessão; texto entre 3 e 8.000 caracteres; pessoa na mesma congregação. Corrigir é só `app.pastoral_note_correct()`, e só quem escreveu.
+- `pastoral_note_version` — uma linha por texto substituído, escrita só pelo gatilho `pastoral_note_guarda_versao` antes de cada correção, com quem escreveu e quando aquele texto nasceu; `(pastoral_note_id, version)` único. Nenhum privilégio para a sessão; sem gatilho de append-only, porque a anonimização apaga as versões.
 
 ---
 
@@ -530,14 +532,13 @@ Os índices usados pelas políticas de RLS são críticos: sem eles, cada consul
 
 Presentes no planejamento para evitar migração destrutiva no futuro. **Não recebem tabela nem código na Prioridade 1.**
 
-| Entidade                                                              | Fase         | Observação                                                                         |
-| --------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------- |
-| `pastoral_note`                                                       | Prioridade 2 | **Dado altamente restrito** — RLS mais rígida e log de todo acesso desde o desenho |
-| `follow_up_task`                                                      | Prioridade 2 | Tarefas de acompanhamento                                                          |
-| `ministry`, `ministry_member`, `volunteer_role`, `volunteer_schedule` | Prioridade 2 | Ministérios e escalas                                                              |
-| `event`, `event_ticket_type`, `event_registration`, `event_check_in`  | Prioridade 2 | Eventos e check-in                                                                 |
-| `announcement`, `notification`                                        | Prioridade 2 | Comunicação                                                                        |
-| `donation`, `transaction`                                             | Prioridade 3 | **Acesso financeiro segregado**; nunca visível a líder, vice ou supervisor         |
+| Entidade                                                              | Fase         | Observação                                                                 |
+| --------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------- |
+| `follow_up_task`                                                      | Prioridade 2 | Tarefas de acompanhamento                                                  |
+| `ministry`, `ministry_member`, `volunteer_role`, `volunteer_schedule` | Prioridade 2 | Ministérios e escalas                                                      |
+| `event`, `event_ticket_type`, `event_registration`, `event_check_in`  | Prioridade 2 | Eventos e check-in                                                         |
+| `announcement`, `notification`                                        | Prioridade 2 | Comunicação                                                                |
+| `donation`, `transaction`                                             | Prioridade 3 | **Acesso financeiro segregado**; nunca visível a líder, vice ou supervisor |
 
 `journey_stage` e `person_journey` saíram desta lista na **Fase 13** — a segunda
 com o nome `person_journey_step`, porque cada linha é uma etapa, e não a jornada

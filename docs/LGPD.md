@@ -107,6 +107,10 @@ dado de terceiros.
 
 **Pedidos de oração (Fase 14, ADR-012).** O dado mais sensível do sistema — saúde, família, luto, dinheiro. Três garantias que vêm do banco, e não da tela: **toda leitura fica registrada** em `audit_log` (a sessão não tem como ler a tabela sem passar pela função que registra); **o superadmin não lê**; e cada um lê só o nível que lhe cabe. Na **anonimização**, o pedido fica (a categoria e a data são agregado) e saem o texto, o telefone e todo o acompanhamento. No **pacote do titular**, entram os pedidos dele, sem o acompanhamento — que é trabalho de quem cuida —, e só quando quem exporta lê pedido de oração: para o superadmin, a parte vem marcada como exportável pela equipe pastoral, e não como vazia.
 
+**Notas pastorais (Fase 15, ADR-014).** O registro do aconselhamento — o que o pastor ou a equipe pastoral anotam sobre o cuidado de alguém. As mesmas garantias dos pedidos, vindas do banco: **toda leitura fica registrada**, **o superadmin não lê**, e o membro da equipe lê só o que ele mesmo escreveu (o pastor lê todas). Corrigir guarda a versão anterior. Na **anonimização**, a nota fica e saem o texto e **todas as versões**. No **pacote do titular**, entram as notas sobre ele — o texto atual, sem as versões e sem o nome de quem escreveu. ⚠️ **Pendente de validação jurídica:** o acompanhamento dos pedidos fica fora do pacote e a nota entra, por decisão do usuário; o sigilo do aconselhamento pode pedir tratamento diferente.
+
+**Desde a Fase 15, a equipe pastoral lê o cadastro da congregação** (só leitura, com o contato de menor oculto), para chegar ao perfil de quem acompanha. O segundo fator, para ela, é recomendado e não obrigatório (ADR-014).
+
 **Limitação conhecida:** texto livre de relatório — e, desde a Fase 13, das observações da jornada de outras pessoas — pode nomear quem foi anonimizado ("visitou a irmã Fulana"). Varrer texto em busca de nome é heurística, e heurística que apaga dado alheio por engano é pior que a exposição que evita — a revisão é humana, registrada na resolução da solicitação (Fluxo 10).
 
 ---

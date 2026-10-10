@@ -30,6 +30,7 @@ import {
   ESTUDOS,
   JORNADA_DEMO,
   PEDIDOS_DE_ORACAO,
+  NOTAS_PASTORAIS,
   LIDERANCA,
   MOTIVO_CORRECAO,
   RECEBIMENTO_LIDERANCA,
@@ -653,6 +654,34 @@ async function main(): Promise<void> {
       }
     }
 
+    // --- Notas pastorais (Fase 15) -----------------------------------------
+    /*
+     * Pela conexão administrativa, como os pedidos. A correção é um UPDATE de
+     * verdade: é o gatilho do banco que guarda a versão anterior, e o seed não
+     * escreve em `pastoral_note_version` por conta própria. A condição
+     * `version = 1` mantém o seed reexecutável sem empilhar versões.
+     */
+    for (const nota of NOTAS_PASTORAIS) {
+      await tx.execute(sql`
+        INSERT INTO pastoral_note (
+          id, tenant_id, congregation_id, person_id, body, created_by
+        )
+        VALUES (
+          ${nota.id}::uuid, ${TENANT_DEMO}::uuid, ${CONGREGACAO_CENTRAL}::uuid,
+          ${nota.personId}::uuid, ${nota.body}, ${nota.writtenBy}::uuid
+        )
+        ON CONFLICT (id) DO NOTHING
+      `);
+
+      if (nota.correctedBody) {
+        await tx.execute(sql`
+          UPDATE pastoral_note
+             SET body = ${nota.correctedBody}, updated_by = ${nota.writtenBy}::uuid
+           WHERE id = ${nota.id}::uuid AND version = 1
+        `);
+      }
+    }
+
     // --- Segundo tenant, para os testes de isolamento --------------------
     await tx.execute(sql`
       INSERT INTO person (
@@ -709,6 +738,9 @@ async function main(): Promise<void> {
   );
   console.log(
     `${PEDIDOS_DE_ORACAO.length} pedidos de oração fictícios, um por visibilidade.`,
+  );
+  console.log(
+    `${NOTAS_PASTORAIS.length} notas pastorais fictícias, uma delas já corrigida.`,
   );
   console.log('Segundo tenant criado para os testes de isolamento.');
 }

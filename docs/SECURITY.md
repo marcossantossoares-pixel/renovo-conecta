@@ -26,17 +26,17 @@ O que este sistema realmente precisa impedir, em ordem de gravidade:
 
 Fornecida pelo **Supabase Auth**. A aplicação nunca vê, transporta nem armazena senha em texto puro.
 
-| Item                    | Regra                                                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Método                  | E-mail e senha. Login por Google fica para depois do MVP                                                                             |
-| Senha                   | Mínimo 10 caracteres; verificação contra lista de senhas comprometidas; sem regra de complexidade artificial nem expiração periódica |
-| Confirmação de e-mail   | Obrigatória antes do primeiro acesso                                                                                                 |
-| Recuperação             | Token de uso único, expiração de 60 minutos, invalidado após o uso                                                                   |
-| Convite                 | Token de uso único, expiração de 7 dias; **apenas o hash** é armazenado (`invitation.token_hash`)                                    |
-| 2FA                     | **Obrigatório** para `superadmin` e `pastor_admin`; opcional e recomendado para `coordenador_elos`                                   |
-| Sessão                  | Cookies `httpOnly`, `Secure`, `SameSite=Lax`; renovação por refresh token                                                            |
-| Encerrar outras sessões | Disponível ao usuário; obrigatório após troca de senha                                                                               |
-| Bloqueio                | Bloqueio temporário progressivo após tentativas malsucedidas, por conta **e** por origem                                             |
+| Item                    | Regra                                                                                                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Método                  | E-mail e senha. Login por Google fica para depois do MVP                                                                                                                                                                            |
+| Senha                   | Mínimo 10 caracteres; verificação contra lista de senhas comprometidas; sem regra de complexidade artificial nem expiração periódica                                                                                                |
+| Confirmação de e-mail   | Obrigatória antes do primeiro acesso                                                                                                                                                                                                |
+| Recuperação             | Token de uso único, expiração de 60 minutos, invalidado após o uso                                                                                                                                                                  |
+| Convite                 | Token de uso único, expiração de 7 dias; **apenas o hash** é armazenado (`invitation.token_hash`)                                                                                                                                   |
+| 2FA                     | **Obrigatório** para `superadmin` e `pastor_admin`; opcional e recomendado para `coordenador_elos` e, desde a Fase 15, `equipe_pastoral` (ADR-014). ⚠️ Ainda não há tela de ativação voluntária: "recomendado" é só a regra escrita |
+| Sessão                  | Cookies `httpOnly`, `Secure`, `SameSite=Lax`; renovação por refresh token                                                                                                                                                           |
+| Encerrar outras sessões | Disponível ao usuário; obrigatório após troca de senha                                                                                                                                                                              |
+| Bloqueio                | Bloqueio temporário progressivo após tentativas malsucedidas, por conta **e** por origem                                                                                                                                            |
 
 **Resposta uniforme:** login, recuperação de senha e resolução de convite devolvem a mesma resposta e o mesmo tempo aproximado independentemente de o e-mail existir. Isso impede descobrir quem faz parte da igreja.
 

@@ -51,6 +51,9 @@ Executa uma vez por papel, com sessão real e claims reais. Nenhuma tabela entra
 | 12  | Qualquer papel grava data eclesiástica direto em `person`      | Erro no banco, inclusive para `postgres`                      |
 | 13  | Sessão consulta `prayer_request` diretamente                   | Erro de permissão — nem o pastor; ler é a função que registra |
 | 14  | Superadmin, ou supervisor do Elo, lê pedido de oração          | Zero linhas                                                   |
+| 15  | Sessão consulta `pastoral_note` ou as versões diretamente      | Erro de permissão — nem o pastor                              |
+| 16  | Membro da equipe pastoral lê nota de outro; superadmin lê nota | Zero linhas                                                   |
+| 17  | Equipe pastoral altera ou apaga cadastro, endereço ou etiqueta | Zero linhas afetadas; inserir pessoa é negado pela RLS        |
 
 **Regra de cobertura:** para cada tabela nova, um teste que prova que um usuário fora do escopo recebe zero linhas. Sem esse teste, a tabela não é considerada pronta.
 
@@ -140,6 +143,15 @@ iluminada.
 - Registrar respeita pessoa e Elo do alcance; `created_by` é sempre a conta da sessão.
 - Só a equipe pastoral muda a situação e o responsável; o responsável designado anota.
 - Anonimizar tira o texto, o telefone e o acompanhamento, e preserva o pedido.
+
+### Notas pastorais (Fase 15)
+
+- Ninguém lê as tabelas; toda leitura pela função deixa uma linha em `audit_log`, e falha se não puder deixar (mutação).
+- O pastor lê todas; o membro da equipe, só as que escreveu, e nenhuma depois de deixar a equipe; o superadmin, nenhuma.
+- Só quem escreveu corrige; cada correção guarda a versão anterior, com autor e data, e o mesmo texto não cria versão.
+- Abrir o perfil — que tem o link para as notas — não registra leitura nenhuma.
+- A equipe pastoral lê pessoa, endereço, etiquetas e jornada da congregação, e não escreve em nenhum deles (mutação).
+- Anonimizar tira o texto e todas as versões, e preserva a nota.
 
 ### Privacidade e LGPD
 

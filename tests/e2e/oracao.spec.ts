@@ -55,13 +55,17 @@ test.afterAll(async () => {
   }
 });
 
-/** Entrar com uma conta que não tem painel: o login segue para a lista. */
-async function entrarSemPainel(page: Page, email: string) {
+/**
+ * Entrar com uma conta que não tem painel: o login segue para a primeira tela
+ * que ela alcança — a lista de pedidos, para a intercessão; o cadastro, para a
+ * equipe pastoral, que passou a lê-lo na Fase 15.
+ */
+async function entrarSemPainel(page: Page, email: string, destino = /\/oracao$/) {
   await page.goto('/entrar');
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(SENHA);
   await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/oracao$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(destino, { timeout: 15_000 });
 }
 
 async function leiturasRegistradas(actorUserId: string): Promise<number> {
@@ -144,7 +148,8 @@ test('a intercessão entra direto na lista, e o anônimo vem sem nome', async ({
 });
 
 test('a equipe pastoral acompanha e encerra', async ({ page }) => {
-  await entrarSemPainel(page, EQUIPE_PASTORAL.email);
+  await entrarSemPainel(page, EQUIPE_PASTORAL.email, /\/pessoas$/);
+  await page.goto('/oracao');
 
   await page
     .getByRole('list', { name: 'Pedidos de oração' })

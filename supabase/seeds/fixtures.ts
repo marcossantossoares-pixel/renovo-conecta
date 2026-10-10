@@ -152,7 +152,9 @@ export const PASTOR_OUTRO_TENANT: LeaderSeed = {
 /**
  * As duas equipes de oração (Fase 14). Contas próprias, e não papéis somados à
  * liderança: quem só intercede não tem cadastro de pessoas, painel de Elo nem
- * relatório — e é esse o caso que a tela precisa mostrar.
+ * relatório — e é esse o caso que a tela precisa mostrar. A equipe pastoral
+ * passou a ler o cadastro na Fase 15 (ADR-014), para chegar ao perfil de quem
+ * acompanha; painel e relatório continuam fora.
  */
 export const EQUIPE_PASTORAL: LeaderSeed = {
   personId: demoId(2, 9),
@@ -839,5 +841,43 @@ export const PEDIDOS_DE_ORACAO: readonly PrayerSeed[] = [
     isAnonymous: false,
     registeredBy: PASTOR.userId,
     status: 'aberto',
+  },
+];
+
+/* ---------------------------------------------------------------------- */
+/* Notas pastorais — Fase 15                                               */
+/* ---------------------------------------------------------------------- */
+
+export interface PastoralNoteSeed {
+  readonly id: string;
+  readonly personId: string;
+  readonly writtenBy: string;
+  readonly body: string;
+  /** Quando existe, a nota é corrigida no seed, e o texto acima vira versão 1. */
+  readonly correctedBody?: string;
+}
+
+/**
+ * Duas notas fictícias e **não sensíveis**, como os pedidos de oração: o que
+ * se exercita é quem lê o quê, e não o conteúdo.
+ *
+ * Uma do pastor, que a equipe pastoral não lê; uma da equipe, já corrigida,
+ * que o pastor lê — e a versão anterior dela, para a tela de versões ter o que
+ * mostrar.
+ */
+export const NOTAS_PASTORAIS: readonly PastoralNoteSeed[] = [
+  {
+    id: demoId(11, 1),
+    personId: demoId(5, 3),
+    writtenBy: PASTOR.userId,
+    body: 'Conversamos sobre a rotina de leitura bíblica em casa. Combinamos rever em um mês.',
+  },
+  {
+    id: demoId(11, 2),
+    personId: demoId(6, 1),
+    writtenBy: EQUIPE_PASTORAL.userId,
+    body: 'Visita de boas-vindas feita na quinta.',
+    correctedBody:
+      'Visita de boas-vindas feita na quinta. A família pediu o material do curso de integração.',
   },
 ];

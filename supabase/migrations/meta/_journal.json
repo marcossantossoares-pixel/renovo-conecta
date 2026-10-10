@@ -148,6 +148,13 @@
       "when": 1791590588323,
       "tag": "0020_pedidos_de_oracao",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791677400000,
+      "tag": "0021_notas_pastorais",
+      "breakpoints": true
     }
   ]
 }
